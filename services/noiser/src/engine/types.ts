@@ -27,6 +27,8 @@ export type FlowKeys = Readonly<Record<string, Cell>>;
 export interface EntityAccess {
   /** Entity ids in generation order. */
   ids(entity: string, at: string): readonly string[];
+  /** Generated count / declared count (1 for entities below MIN_SCALED_COUNT). */
+  scaleOf(entity: string, at: string): number;
   /** `field` of the entity row with id `id`. */
   lookup(entity: string, id: Cell, field: string, at: string): Cell;
   /** Random row id of `gen.entity` (filtered by `where`, weighted by `weightBy`), or null if none match. */

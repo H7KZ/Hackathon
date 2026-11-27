@@ -26,10 +26,10 @@ if (result.ok) {
 
 Lower-level exports: `compileScenario`, `runScenario`, `topoSort`, `evaluateCurve`, `createStream`, `toDay` / `fromDay`, `ENGINE_VERSION`.
 
-| Option  | Default           | Meaning                                                                                                                                                          |
-| ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `seed`  | `meta.seed`       | Integer. Same scenario + seed ⇒ identical tables.                                                                                                                |
-| `scale` | `meta.scale ?? 1` | Multiplies counts of entities with `count >= 50` and arrival rates. Small entity sets (suppliers, stores) are never scaled, so ids like `SUP-002` keep existing. |
+| Option  | Default           | Meaning                                                                                                                                                                                                                                                                                                                                                                |
+| ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seed`  | `meta.seed`       | Integer. Same scenario + seed ⇒ identical tables.                                                                                                                                                                                                                                                                                                                      |
+| `scale` | `meta.scale ?? 1` | Shrinks entities with `count >= 50` and the total volume of every arrival to ~`scale`. A per-stream rate is divided by how much its `per` entities already shrank, so `per: [customer]` is not scaled twice. Small entity sets (suppliers, stores) are never scaled, so ids like `SUP-002` keep existing. Flow levels and `topUp` targets are absolute and not scaled. |
 
 ## Engine semantics
 

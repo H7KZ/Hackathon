@@ -44,6 +44,9 @@ export function arrivalRunner(p: ArrivalProcess, index: number, rt: Runtime, bus
     );
   }
 
+  // total volume ~ scale: if `per` entities were already shrunk by scale, don't shrink the rate again
+  const rateScale = rt.scale / p.per.reduce((f, e, j) => f * rt.entities.scaleOf(e, `${at}.per[${j}]`), 1);
+
   const schedule = p.schedule;
   const phaseRng = rng.fork("phase");
   const phases = streams.map(() =>
@@ -60,7 +63,7 @@ export function arrivalRunner(p: ArrivalProcess, index: number, rt: Runtime, bus
         }
         const ctx = { day, self: {}, key };
         const n =
-          p.rate === undefined ? 1 : poisson(rng, evalParam(p.rate, ctx, rt, `${at}.rate`) * rt.scale);
+          p.rate === undefined ? 1 : poisson(rng, evalParam(p.rate, ctx, rt, `${at}.rate`) * rateScale);
         for (let k = 0; k < n; k++) due.push(key);
       });
       for (const key of shuffle(rng, due)) {

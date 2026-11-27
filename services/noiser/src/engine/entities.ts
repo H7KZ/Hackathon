@@ -42,6 +42,11 @@ export class EntityStore implements EntityAccess {
     return this.get(entity, at).ids;
   }
 
+  scaleOf(entity: string, at: string): number {
+    const { def, ids } = this.get(entity, at);
+    return ids.length / def.count;
+  }
+
   lookup(entity: string, id: Cell, field: string, at: string): Cell {
     const row = this.get(entity, at).byId.get(String(id));
     if (!row) throw new EngineError(`${at}.key`, `No ${entity} with id ${JSON.stringify(id)}.`);

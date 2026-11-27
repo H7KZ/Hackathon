@@ -187,13 +187,23 @@ describe("runScenario", () => {
     });
   });
 
-  it("scale: 0.2 shrinks entity counts and rates", () => {
+  it("scale: 0.2 shrinks entity counts and total arrival volume to ~20 %", () => {
     const full = runScenario(supplierDelay(), { seed: 42 }).tables;
     const small = runScenario(supplierDelay(), { seed: 42, scale: 0.2 }).tables;
     expect(table(small, "customer")).toHaveLength(120);
     expect(table(small, "supplier")).toHaveLength(3);
+    // per: [customer] is already scaled, so the per-stream rate must not be scaled again (not 0.2 x 0.2)
     const ratio = table(small, "purchase_attempt").length / table(full, "purchase_attempt").length;
-    expect(ratio).toBeGreaterThan(0.02);
-    expect(ratio).toBeLessThan(0.06); // 0.2 customers x 0.2 rate
+    expect(ratio).toBeGreaterThan(0.17);
+    expect(ratio).toBeLessThan(0.23);
+  });
+
+  it("scale: rate of streams over unscaled entities is multiplied by scale", () => {
+    const s = mini({ meta: { end: "2025-12-31" } }); // visit: per store (count 2, never scaled), rate 1
+    const ratio =
+      table(runScenario(s, { scale: 0.5 }).tables, "visit").length /
+      table(runScenario(s).tables, "visit").length;
+    expect(ratio).toBeGreaterThan(0.43);
+    expect(ratio).toBeLessThan(0.57);
   });
 });
