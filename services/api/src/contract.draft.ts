@@ -57,8 +57,26 @@ export const SessionState = z.object({
 });
 export type SessionState = z.infer<typeof SessionState>;
 
+/** UI story-editor settings applied to 05_scenario before the engine runs (services/api/src/settings.ts). */
+export const GenerationSettings = z.object({
+  seed: z.number().int().optional(),
+  /** meta.scale; 1 = as designed (flow levels do not scale, docs/decisions.md). */
+  scale: z.number().min(0.1).max(5).optional(),
+  /** Percent of value cells left empty / rows duplicated in observed process tables; hourJitter adds `ts`. */
+  noise: z
+    .object({
+      missing: z.number().min(0).max(50),
+      duplicates: z.number().min(0).max(50),
+      hourJitter: z.boolean(),
+    })
+    .optional(),
+  /** Ids of the expectations to keep; omitted = all. */
+  expectations: z.array(z.string()).optional(),
+});
+export type GenerationSettings = z.infer<typeof GenerationSettings>;
+
 export const SessionCommand = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("approve") }),
+  z.object({ type: z.literal("approve"), settings: GenerationSettings.optional() }),
   z.object({ type: z.literal("edit_artifact"), name: ArtifactName, value: z.unknown() }),
   z.object({ type: z.literal("what_if"), question: z.string().min(1), from: z.string() }),
   z.object({ type: z.literal("edit_scenario"), from: z.string(), scenario: z.unknown() }),
