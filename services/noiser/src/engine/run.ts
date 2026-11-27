@@ -2,19 +2,30 @@
  * Engine entry point (SPEC §3.C). Pure: scenario + seed in, in-memory tables out.
  * Persisting to DuckDB is @s2d/dataer's job.
  *
- *   generate entities (static)
+ *   generate entities (static), init flows
  *   for day in [start..end]:
- *     for process in topo order: generate / consume records
+ *     apply flow effects scheduled for today (e.g. late deliveries)
+ *     for process in topo order: arrival emits, branch/derive consume records due today
+ *     snapshot flows
+ *
+ * Every entity, flow and process draws from its own stream hash(seed, id), so editing one process
+ * never reshuffles another (SPEC §2 rule 3).
  */
 import type { RunResult } from "@s2d/schema/run";
-import type { Scenario } from "@s2d/schema/scenario";
+import type { ProcessDef, Scenario } from "@s2d/schema/scenario";
+import { topoSort } from "../compiler/dag";
 import { toDay } from "./days";
 import { EntityStore } from "./entities";
 import { EngineError } from "./errors";
+import { FlowStore } from "./flows";
+import { arrivalRunner } from "./processes/arrival";
+import { branchRunner } from "./processes/branch";
+import { Bus, type Runner } from "./processes/common";
+import { deriveRunner } from "./processes/derive";
 import { hashString } from "./rng";
-import type { FlowAccess, Runtime } from "./types";
+import type { Runtime } from "./types";
 
-export const ENGINE_VERSION = "0.1.0";
+export const ENGINE_VERSION = "1.0.0";
 
 export interface RunOptions {
   seed?: number;
@@ -43,18 +54,24 @@ export function scenarioHash(scenario: Scenario, seed: number, scale: number): s
   return [1, 2].map((k) => hashString(json, k).toString(16).padStart(8, "0")).join("");
 }
 
-const noFlows: FlowAccess = {
-  level: (flow, _keys, at) => {
-    throw new EngineError(at, `flow "${flow}": flows are not supported yet`);
-  },
-  change: (flow, _keys, _delta, _day, _today, at) => {
-    throw new EngineError(at, `flow "${flow}": flows are not supported yet`);
-  },
-};
+function runner(p: ProcessDef, index: number, rt: Runtime, bus: Bus): Runner {
+  switch (p.type) {
+    case "arrival":
+      return arrivalRunner(p, index, rt, bus);
+    case "branch":
+      return branchRunner(p, index, rt, bus);
+    case "derive":
+      return deriveRunner(p, index, rt, bus);
+  }
+}
 
 export function runScenario(scenario: Scenario, opts: RunOptions = {}): RunResult {
   const { seed, scale } = resolveOptions(scenario, opts);
+  const topo = topoSort(scenario.processes);
+  if (!topo.ok) throw new EngineError("processes", `Processes form a cycle: ${topo.cycle.join(", ")}.`);
+
   const entities = new EntityStore();
+  const flows = new FlowStore();
   const rt: Runtime = {
     seed,
     scale,
@@ -62,15 +79,35 @@ export function runScenario(scenario: Scenario, opts: RunOptions = {}): RunResul
     end: toDay(scenario.meta.end),
     curves: new Map(scenario.curves.map((c) => [c.id, c])),
     entities,
-    flows: noFlows,
+    flows,
   };
 
   scenario.entities.forEach((def, i) => {
     entities.generate(def, i, rt);
   });
+  flows.init(scenario.flows, rt);
+
+  // runners are built in topo order so every source subscribes before records flow
+  const bus = new Bus();
+  const indexOf = new Map(scenario.processes.map((p, i) => [p.id, i]));
+  const runners = topo.order.map((id) => {
+    const index = indexOf.get(id) ?? -1;
+    return { index, run: runner(scenario.processes[index] as ProcessDef, index, rt, bus) };
+  });
+
+  for (let day = rt.start; day <= rt.end; day++) {
+    flows.applyDue(day);
+    for (const r of runners) r.run.step(day);
+    flows.snapshot(day);
+  }
 
   return {
-    tables: entities.toTables(),
+    // declaration order: entities, processes, snapshots
+    tables: [
+      ...entities.toTables(),
+      ...[...runners].sort((a, b) => a.index - b.index).flatMap((r) => r.run.tables()),
+      ...flows.toTables(),
+    ],
     meta: {
       scenarioId: scenario.meta.id,
       seed,
