@@ -66,7 +66,7 @@ Každý krok = jedna funkce `(vstup) → zod objekt` přes structured output. V�
 | A2 `model` | 01 | `02_model.json` | entity + atributy, tabulky událostí, FK vazby (= `entities` + kostra `processes`, `flows`) |
 | A3 `influences` | 01, 02 | `03_influences.json` | kauzální graf: hrany `from → to`, směr, váha (0–1), zpoždění ve dnech, odůvodnění |
 | A4 `story` | story, 02, 03 | `04_story.json` | story pointy rozdělené do fází (datumy), kořenové křivky, `expectations` (SQL hypotézy) |
-| A5 `detail` | 02, 03, 04 | `05_scenario.json` | doplnění všech parametrů; **agentic loop**: compile → engine na zmenšeném vzorku (`scale: 0.2`) → expectations → při neúspěchu feedback agentovi, max 3 iterace |
+| A5 `detail` | 02, 03, 04 | `05_scenario.json` | doplnění všech parametrů; **agentic loop**: compile → engine v plné velikosti (`scale: 1`, ~150 ms; při `scale < 1` se příběhy přes flows oslabí) → expectations → při neúspěchu feedback agentovi, max 3 iterace |
 
 Převod vah z A3 do scénáře: váha hrany → multiplikátor nebo podmíněná pravděpodobnost v příslušném procesu (A5 to explicitně zapíše jako `Param`).
 
@@ -144,7 +144,7 @@ interface Scenario {
     story: string;            // zadaný příběh (text)
     seed: number;
     start: string; end: string;   // ISO datum
-    scale?: number;           // násobič rate a počtů entit s count ≥ 50 (A5 loop: 0.2); malé entity (dodavatelé) se neškálují
+    scale?: number;           // násobič rate a počtů entit s count ≥ 50 (A5 loop běží na 1); malé entity (dodavatelé) se neškálují
     locale: "cs-CZ";
   };
   entities: EntityDef[];

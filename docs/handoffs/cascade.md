@@ -34,7 +34,7 @@ whatIf(question: string, base: Scenario, opts: { onEvent; signal }): Promise<Sce
 1. **`runCascade` options:** add `onEvent` (replaces `onStep`), `signal` and `until: "05_scenario"`. Call `signal.throwIfAborted()` between steps. For cancelling a running LLM call, `@s2d/llm` needs an optional `abortSignal` in `ObjectRequest`; that's a change to `packages/llm`, so **ask its owner**.
 2. **A5 `detail` + loop** (SPEC §3.A), max 3 iterations:
    1. `compileScenario`,
-   2. `runScenario(..., { scale: 0.2 })`,
+   2. `runScenario(..., { scale: 1 })`,
    3. `writeRun` to a temp DB → `exportSandbox`/`openSandbox` → `runExpectations`,
    4. feed the failures back to the agent.
 

@@ -53,6 +53,6 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   const influences = await step("03_influences", Influences, () => a3Influences(opts.llm, company, model));
   if (!shouldRun("04_story")) return { dir, company, model, influences };
   const story = await step("04_story", StoryPlan, () => a4Story(opts.llm, input, model, influences));
-  // TODO(A5): compile -> engine on scale 0.2 -> expectations -> feedback loop (max 3) -> 05_scenario.json
+  // TODO(A5): compile -> engine on scale 1 -> expectations -> feedback loop (max 3) -> 05_scenario.json
   return { dir, company, model, influences, story };
 }

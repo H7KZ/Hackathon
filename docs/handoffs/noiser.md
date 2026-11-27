@@ -15,7 +15,7 @@ run(scenario: Scenario, seed: number): RunResult     // synchronous, pure
 - The adapter [`services/api/src/adapters/noiser.ts`](../../services/api/src/adapters/noiser.ts) just calls `runScenario(scenario, { seed })`. If you need `scale`, or an async signature (a worker, for example), change the port per the README rule.
 - The input has already passed `compileScenario` in the API: the orchestrator calls it before every `run`.
 - The output goes straight to `dataer.store(run, dbPath)` (`writeRun`).
-- The cascade (A5) calls it too, directly, with `scale: 0.2`.
+- The cascade (A5) calls it too, directly, with `scale: 1` (see docs/decisions.md).
 
 ## Tasks
 

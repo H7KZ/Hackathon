@@ -274,7 +274,7 @@ export const Scenario = z.object({
     start: IsoDate,
     end: IsoDate,
     /**
-     * Multiplies arrival rates and entity counts >= 50 (A5 loop uses 0.2). Small entity sets
+     * Multiplies arrival rates and entity counts >= 50 (A5 loop uses 1, see docs/decisions.md). Small entity sets
      * (suppliers, stores) are never scaled so story-point ids like SUP-002 keep existing.
      */
     scale: z.number().positive().optional(),

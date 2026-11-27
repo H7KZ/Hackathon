@@ -30,7 +30,7 @@ export const ENGINE_VERSION = "1.1.0";
 
 export interface RunOptions {
   seed?: number;
-  /** Multiplies entity counts >= 50 and arrival rates (A5 loop uses 0.2). Default: meta.scale ?? 1. */
+  /** Multiplies entity counts >= 50 and arrival rates (A5 loop uses 1). Default: meta.scale ?? 1. */
   scale?: number;
 }
 

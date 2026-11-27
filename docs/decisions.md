@@ -32,3 +32,10 @@ Template:
 - **Why:** the lockfile contains 11 packages released within the last day (eslint, hono, postcss, …). With the default, every pnpm command, including the pre-commit hook, fails until after the hackathon deadline. 60 minutes keeps a short supply-chain guard.
 - **Who:** Amelie (with an agent), while merging `feat/noiser-engine`.
 - **Affects:** `pnpm-workspace.yaml`, every `pnpm` command.
+
+## 2026-11-27 — A5 loop runs the engine at `scale: 1`
+
+- **Decision:** the A5 agentic loop (compile → engine → expectations) runs `runScenario` at `scale: 1`, not 0.2.
+- **Why:** `scale` shrinks large entities and arrival volume, but flow levels and `topUp` targets are absolute. In `supplier_delay` at 0.2 the demand per [store, product] drops to 20 %, stockouts almost vanish and e3/e5 fail although they pass at 1. A full run takes ~150 ms, so shrinking saves nothing.
+- **Who:** Amelie (with an agent), noiser review.
+- **Affects:** `services/cascade` (A5), `SPEC.md`, `docs/handoffs/{cascade,noiser}.md`.
