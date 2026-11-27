@@ -62,7 +62,16 @@ describe("runScenario", () => {
                 segments: [{ kind: "step", start: "2025-02-15", to, storyPointId: "sp" }],
               },
             ],
-            storyPoints: [{ id: "sp", phase: 1, title: "t", description: "d", start: "2025-02-15" }],
+            storyPoints: [
+              {
+                id: "sp",
+                phase: 1,
+                title: "t",
+                description: "d",
+                entity: { name: "store", ids: ["STO-001", "STO-002"] },
+                start: "2025-02-15",
+              },
+            ],
             processes: [
               {
                 type: "arrival",
