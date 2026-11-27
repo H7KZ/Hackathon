@@ -9,7 +9,9 @@ import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
 import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
+import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
+import { checkModelShape } from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
@@ -80,11 +82,16 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
-  const llm = (name: ArtifactName) =>
-    withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal });
+  const llm = (name: ArtifactName, check?: (value: unknown) => CompileError[]) =>
+    withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal, check });
   const company = await step("01_company", CompanySpec, () => a1Company(llm("01_company"), input));
   if (!shouldRun("02_model")) return { dir, company };
-  const model = await step("02_model", DataModel, () => a2Model(llm("02_model"), company));
+  const model = await step("02_model", DataModel, () =>
+    a2Model(
+      llm("02_model", (v) => checkModelShape(DataModel.parse(v))),
+      company,
+    ),
+  );
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>
     a3Influences(llm("03_influences"), company, model),

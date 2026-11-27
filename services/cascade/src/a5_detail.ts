@@ -8,6 +8,7 @@ import type { Llm } from "@s2d/llm";
 import type { DataModel, Influences, StoryPlan } from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import { A5_DETAIL, userPrompt } from "./prompts/index";
+import { checkCurveCoverage, checkModelShape } from "./checks";
 import { formatFeedback, repairLoop, type RepairLoopOptions } from "./loop";
 import type { CascadeInput } from "./steps";
 
@@ -83,5 +84,6 @@ export function a5Detail(
         }),
       }),
     assemble: (d) => ({ ok: true, scenario: assembleScenario(a, d) }),
+    check: (s) => [...checkModelShape(s), ...checkCurveCoverage(s, a.story)],
   });
 }

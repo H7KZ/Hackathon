@@ -25,6 +25,8 @@ export interface RepairLoopOptions<T> {
   onEvent?: OnEvent | undefined;
   signal?: AbortSignal | undefined;
   maxIterations?: number;
+  /** Story checks on a compiled scenario (see checks.ts); errors are fed back like compile errors. */
+  check?: ((scenario: Scenario) => CompileError[]) | undefined;
   /** A rejected attempt (raw agent output or assembled scenario), e.g. to keep it for debugging. */
   onRejected?: ((n: number, value: unknown) => void) | undefined;
 }
@@ -53,7 +55,9 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
     }
     previous = output;
     const assembled = opts.assemble(output);
-    const compiled = assembled.ok ? compileScenario(assembled.scenario) : assembled;
+    const compiledRaw = assembled.ok ? compileScenario(assembled.scenario) : assembled;
+    const checkErrors = compiledRaw.ok ? (opts.check?.(compiledRaw.scenario) ?? []) : [];
+    const compiled = checkErrors.length > 0 ? { ok: false as const, errors: checkErrors } : compiledRaw;
     opts.onEvent?.({
       type: "loop.iteration",
       step: opts.step,
@@ -75,7 +79,13 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
 export function withSchemaRetry(
   llm: Llm,
   step: ArtifactName,
-  opts: { onEvent?: OnEvent | undefined; signal?: AbortSignal | undefined; maxIterations?: number } = {},
+  opts: {
+    onEvent?: OnEvent | undefined;
+    signal?: AbortSignal | undefined;
+    maxIterations?: number;
+    /** Extra checks on the schema-valid value; errors are fed back like schema issues. */
+    check?: ((value: unknown) => CompileError[]) | undefined;
+  } = {},
 ): Llm {
   const max = opts.maxIterations ?? MAX_ITERATIONS;
   return {
@@ -86,6 +96,9 @@ export function withSchemaRetry(
         const prompt = failed === undefined ? req.prompt : `${req.prompt}\n\n${fixRequest(n - 1, failed)}`;
         try {
           const value = await llm.object({ ...req, prompt });
+          const problems = opts.check?.(value) ?? [];
+          if (problems.length > 0)
+            throw new LlmOutputInvalid(req.schemaName, formatFeedback(problems), value);
           if (n > 1) opts.onEvent?.({ type: "loop.iteration", step, n, ok: true, feedback: [] });
           return value;
         } catch (err) {
