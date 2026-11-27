@@ -11,3 +11,4 @@ export {
   type FkViolation,
 } from "./store/integrity";
 export { dailySeries, type DailySeries } from "./evidence/series";
+export { collectMetrics, compareRuns } from "./compare/metrics";

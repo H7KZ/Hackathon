@@ -4,7 +4,7 @@
  */
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { inferForeignKeys, openStore, storeRun } from "@s2d/dataer";
+import { compareRuns, inferForeignKeys, openStore, storeRun } from "@s2d/dataer";
 import { compileScenario, runScenario } from "@s2d/noiser";
 import { loadScenarioFixture, makeTempDir } from "@s2d/test-utils";
 import type { Scenario } from "@s2d/schema/scenario";
@@ -67,5 +67,29 @@ describe("FK integrity on supplier_delay", () => {
     } finally {
       store.close();
     }
+  });
+});
+
+describe("compare on supplier_delay", () => {
+  it("same seed, weaker late_prob ramp: downstream story tables differ, entity tables do not", async () => {
+    const raw = loadScenarioFixture("supplier_delay") as Scenario;
+    const variant = structuredClone(raw);
+    const seg = variant.curves.find((c) => c.id === "late_prob")?.segments[0];
+    if (!seg || seg.kind !== "ramp") throw new Error("fixture changed: late_prob ramp missing");
+    seg.to = 0.1;
+    const dbA = join(tmp.dir, "cmp-a.duckdb");
+    const dbB = join(tmp.dir, "cmp-b.duckdb");
+    await storeRun(dbA, runScenario(compiled(raw), { seed: 42 }));
+    await storeRun(dbB, runScenario(compiled(variant), { seed: 42 }));
+    const diff = new Map((await compareRuns(dbA, dbB)).map((d) => [d.metric, d]));
+    // unrelated processes (entities, the delivery schedule, the daily stock grid) are untouched
+    for (const m of ["store.rows", "supplier.rows", "product.rows", "product.price.sum", "customer.rows"]) {
+      expect(diff.get(m)?.delta, m).toBe(0);
+    }
+    for (const m of ["delivery.rows", "stock_daily.rows"]) expect(diff.get(m)?.delta, m).toBe(0);
+    // the story: far fewer delay days -> more sales, fewer complaints
+    expect(diff.get("delivery.delay_days.sum")?.relChange).toBeLessThan(-0.5);
+    expect(diff.get("sale.rows")?.delta).toBeGreaterThan(0);
+    expect(diff.get("complaint.rows")?.delta).toBeLessThan(0);
   });
 });
