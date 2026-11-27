@@ -60,3 +60,10 @@ Template:
 - **Why:** `scale` shrinks large entities and arrival volume, but flow levels and `topUp` targets are absolute. In `supplier_delay` at 0.2 the demand per [store, product] drops to 20 %, stockouts almost vanish and e3/e5 fail although they pass at 1. A full run takes ~150 ms, so shrinking saves nothing.
 - **Who:** Amelie (with an agent), noiser review.
 - **Affects:** `services/cascade` (A5), `SPEC.md`, `docs/handoffs/{cascade,noiser}.md`.
+
+## 2026-11-27 — A2UI as the chat rendering layer (frontend presenter)
+
+- **Decision:** the chat UI renders agent output as A2UI v1.0 messages with our own small React renderer and a JOJO catalog (charts, tables, KPIs, steps). A presenter in the frontend (`services/frontend/lib/chat/surfaces.ts`) turns SessionEvents + GET data into A2UI; the API stays plain zod JSON + SSE (D7 unchanged). Data-bearing props must be `{"@path"}` bindings, so numbers always come from DuckDB-backed endpoints (hard rule 1). Demo mode (`?demo=1`) plays the whole workflow on mock data.
+- **Why:** declarative, safe agent-driven UI; the presenter can move to the API later without touching the renderer. `@a2ui/react` needs zod 3 and has none of our components.
+- **Who:** frontend (with an agent).
+- **Affects:** `services/frontend`, `docs/design/`. Later, optional: `@s2d/schema/a2ui` + an `a2ui` SessionEvent (needs schema owner approval).

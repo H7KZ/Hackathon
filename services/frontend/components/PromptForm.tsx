@@ -10,13 +10,22 @@ import {
   toSessionInput,
   type PromptError,
 } from "../lib/prompt";
-import { Icon, ICONS } from "./icons";
+import { FileIcon, formatBytes, Icon, ICONS } from "./icons";
 
 export type Send = (input: { company: string; story: string }) => Promise<CreateResult>;
 
 const ERROR_ID = "prompt-error";
 
-export function PromptForm({ send = createSession }: { send?: Send }) {
+export type SessionInfo = { sessionId: string; company: string; story: string };
+
+/** `onSent` takes over after a successful send (the landing morphs into the chat); without it a status line shows. */
+export function PromptForm({
+  send = createSession,
+  onSent,
+}: {
+  send?: Send;
+  onSent?: (info: SessionInfo) => void;
+}) {
   const [company, setCompany] = useState("");
   const [story, setStory] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -65,9 +74,12 @@ export function PromptForm({ send = createSession }: { send?: Send }) {
     setSending(true);
     changed();
     try {
-      const result = await send(await toSessionInput(company, story, files));
-      if (result.ok) setSent(true);
-      else
+      const input = await toSessionInput(company, story, files);
+      const result = await send(input);
+      if (result.ok) {
+        setSent(true);
+        onSent?.({ sessionId: result.sessionId, ...input });
+      } else
         showError({
           field: result.field ?? "story",
           message: result.message,
@@ -164,7 +176,11 @@ export function PromptForm({ send = createSession }: { send?: Send }) {
             <ul className="files">
               {files.map((file, i) => (
                 <li key={`${file.name}-${String(i)}`}>
-                  {file.name}
+                  <FileIcon name={file.name} />
+                  <span className="file-meta">
+                    <span className="file-name">{file.name}</span>
+                    <small>{formatBytes(file.size)}</small>
+                  </span>
                   <button
                     type="button"
                     aria-label={`Odebrat ${file.name}`}
@@ -210,7 +226,7 @@ export function PromptForm({ send = createSession }: { send?: Send }) {
         </form>
       </div>
 
-      {sent && (
+      {sent && !onSent && (
         <p role="status" className="sent">
           ✓ Zadání odesláno.
         </p>
