@@ -1,8 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": {
-    "npm_config_manage_package_manager_versions": "false"
-  },
   "permissions": {
     "deny": [
       "Read(**/.env)",
@@ -19,26 +16,19 @@
       "Bash(git commit --no-verify*)"
     ]
   },
-  "sandbox": {
-    "enabled": true,
-    "failIfUnavailable": true,
-    "allowUnsandboxedCommands": false,
-    "network": {
-      "allowLocalBinding": true
-    },
-    "filesystem": {
-      "allowWrite": ["~/Library/pnpm", "~/Library/Caches/pnpm"],
-      "denyRead": [
-        "**/.env",
-        "**/.env.local",
-        "**/.env.*.local",
-        "**/.env.development",
-        "**/.env.production",
-        "**/.env.test"
-      ]
-    }
-  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/block-env.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

@@ -28,6 +28,5 @@ Format: **symptom** → **rule** (guard, if any).
 - **`pnpm test:watch` runs everything.** → For one file: `pnpm vitest run <path>`.
 - **Stop hook blocks finishing.** `pnpm verify:fast` is red. → Read the printed output; the hook lets you stop on the second failure, so do not ignore it.
 - **Lockfile conflict after rebase.** → Take `main`'s `pnpm-lock.yaml`, run `pnpm install`, commit.
-- **pnpm fails in the agent sandbox** with `ERR_PNPM_STORE_DIR_OPEN_OPERATION_LOCK … Operation not permitted`. Switching to the pinned `packageManager` version needs an OS lock the sandbox blocks. → `.claude/settings.json` sets `npm_config_manage_package_manager_versions=false` for agents (the `pnpm-workspace.yaml` / `.npmrc` setting is not read early enough). Agents then use the installed pnpm; keep it close to the pinned version. `pnpm install` still cannot take the store lock inside the sandbox: humans run installs; scripts (`verify:fast`, tests) work and only print a warning about the pre-run install.
-- **Agent cannot read env files.** Intentional: sandbox `denyRead` + Read deny rules in `.claude/settings.json`. → Run commands that need real keys yourself; agents use `LLM_OFFLINE=1`.
+- **Agent command blocked with "agents must not touch env files".** Intentional: `scripts/block-env.mjs` blocks Bash commands that mention an env file (`.env.example` and `process.env` are fine). → Run commands that need real keys yourself; agents use `LLM_OFFLINE=1`.
 - **Playwright missing browser.** → `pnpm --filter @s2d/frontend exec playwright install chromium`.
