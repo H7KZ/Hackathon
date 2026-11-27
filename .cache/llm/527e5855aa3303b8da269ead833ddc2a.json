@@ -1,0 +1,69 @@
+{
+  "key": "527e5855aa3303b8da269ead833ddc2a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Maloobchod se spotřební elektronikou",
+    "size": "5 prodejen, cca 45 zaměstnanců, roční obrat okolo 180 milionů Kč",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "TechDistrib CZ a.s.",
+        "description": "Hlavní velkoobchodní dodavatel notebooků (cca 60 % objemu), od března zpožďuje dodávky a snižuje jejich naplnění."
+      },
+      {
+        "kind": "supplier",
+        "name": "Mobilní svět s.r.o.",
+        "description": "Dodavatel mobilních telefonů, tabletů a příslušenství, dodává spolehlivě v dohodnutých termínech."
+      },
+      {
+        "kind": "supplier",
+        "name": "Periferie Plus s.r.o.",
+        "description": "Dodavatel počítačového příslušenství (myši, klávesnice, tašky, nabíječky), částečně nahrazuje notebooky v prodeji doplňků."
+      },
+      {
+        "kind": "customer",
+        "name": "Individuální zákazníci",
+        "description": "Domácnosti a studenti nakupující notebooky, telefony a příslušenství v kamenných prodejnách, citliví na dostupnost zboží."
+      },
+      {
+        "kind": "customer",
+        "name": "Malé firmy a živnostníci",
+        "description": "Zákazníci nakupující notebooky pro kancelářské použití, často ve větších objemech a s požadavkem na rychlé dodání."
+      },
+      {
+        "kind": "competitor",
+        "name": "Alza.cz",
+        "description": "Velký e-shop s rychlým doručením, k němuž odcházejí zákazníci při nedostupnosti zboží."
+      },
+      {
+        "kind": "competitor",
+        "name": "Datart",
+        "description": "Konkurenční kamenný řetězec spotřební elektroniky s přímou konkurencí ve městech, kde působí prodejny."
+      },
+      {
+        "kind": "employee",
+        "name": "Prodavači prodejen",
+        "description": "Prodejní personál pěti poboček, řeší dotazy na dostupnost, zaznamenává ztracené prodeje a stížnosti."
+      },
+      {
+        "kind": "employee",
+        "name": "Vedoucí prodejen a nákupčí",
+        "description": "Zodpovídají za objednávky u dodavatelů, řízení zásob a komunikaci se zákazníky při nedostupnosti."
+      },
+      {
+        "kind": "partner",
+        "name": "Logistická společnost RychlýSvoz",
+        "description": "Zajišťuje přepravu zboží ze skladu dodavatele na jednotlivé prodejny."
+      }
+    ],
+    "keyProcesses": [
+      "Objednávání zboží u dodavatelů (nákupní objednávka s plánovaným datem dodání)",
+      "Příjem dodávek na prodejny a doplňování skladových zásob včetně zpoždění a nedodaného množství",
+      "Prodej zákazníkům na prodejnách (transakce vázaná na prodejnu, produkt a zákazníka)",
+      "Nedostupnost zboží a ztracené prodeje (zákazník odchází bez nákupu, záznam o poptávce bez realizace)",
+      "Evidence stížností zákazníků na nedostupnost a jejich řešení",
+      "Sledování spolehlivosti dodavatelů (zpoždění dodávek, plnění objednávek)"
+    ]
+  }
+}

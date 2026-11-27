@@ -1,0 +1,11 @@
+{
+  "key": "8d00e8421e2ea87a0e2d8718c6464f04",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT received_date, count(*) AS n, sum(is_late::INT) AS late, avg(delay_days) AS avg_delay, sum(is_short::INT) AS short FROM delivery WHERE supplier_id='SUP-001' AND received_date BETWEEN '2025-02-20' AND '2025-03-20' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

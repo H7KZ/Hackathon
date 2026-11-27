@@ -1,0 +1,153 @@
+{
+  "key": "2d142aa61cc767f741e9dbff82543157",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "laptop_delay_prob",
+        "to": "delivery_late_rate",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší pravděpodobnost zpoždění u notebooků od TechDistrib CZ přímo zvyšuje podíl opožděných dodávek."
+      },
+      {
+        "from": "delivery_late_rate",
+        "to": "laptop_stock_level",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 7,
+        "rationale": "Opožděné dodávky posouvají doplnění zásob, takže skladové zásoby notebooků klesají."
+      },
+      {
+        "from": "laptop_short_prob",
+        "to": "delivered_qty_laptops",
+        "direction": "negative",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Vyšší pravděpodobnost neúplné dodávky snižuje dodané množství oproti objednanému."
+      },
+      {
+        "from": "delivered_qty_laptops",
+        "to": "laptop_stock_level",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Každá přijatá dodávka zvyšuje skladovou zásobu dané prodejny a produktu."
+      },
+      {
+        "from": "purchase_order_rate",
+        "to": "delivery_volume",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 5,
+        "rationale": "Více objednávek vede po době dodání k většímu objemu příchozích dodávek."
+      },
+      {
+        "from": "delivery_volume",
+        "to": "laptop_stock_level",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Větší objem dodávek doplňuje sklad."
+      },
+      {
+        "from": "laptop_stock_level",
+        "to": "stockout_rate",
+        "direction": "negative",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Nižší zásoba zvyšuje šanci, že požadované množství není dostupné."
+      },
+      {
+        "from": "demand",
+        "to": "stockout_rate",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 0,
+        "rationale": "Vyšší poptávka rychleji vyčerpává zásoby, zejména při zpožděném doplňování."
+      },
+      {
+        "from": "demand",
+        "to": "sale_count",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Více požadavků zákazníků znamená více realizovaných prodejů, pokud je zboží skladem."
+      },
+      {
+        "from": "sale_count",
+        "to": "laptop_stock_level",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Každý prodej odečítá množství ze skladu."
+      },
+      {
+        "from": "stockout_rate",
+        "to": "lost_sale_count",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Nedostupné zboží vede k tomu, že požadavek skončí jako ztracený prodej."
+      },
+      {
+        "from": "stockout_rate",
+        "to": "sale_count",
+        "direction": "negative",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Při nedostupnosti zboží se nerealizují prodeje."
+      },
+      {
+        "from": "lost_sale_count",
+        "to": "competitor_diversion_count",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 0,
+        "rationale": "Zákazníci při ztraceném prodeji odcházejí k Alza.cz nebo Datartu."
+      },
+      {
+        "from": "lost_sale_count",
+        "to": "complaint_count",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 1,
+        "rationale": "Část ztracených prodejů končí stížností na nedostupnost zboží."
+      },
+      {
+        "from": "complaint_prob",
+        "to": "complaint_count",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 1,
+        "rationale": "Vyšší pravděpodobnost stížnosti zvyšuje počet evidovaných stížností s krátkým zpožděním."
+      },
+      {
+        "from": "lost_sale_count",
+        "to": "revenue",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Ztracené prodeje snižují tržby prodejen."
+      },
+      {
+        "from": "sale_count",
+        "to": "revenue",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Realizované prodeje přímo tvoří tržby."
+      },
+      {
+        "from": "stockout_rate",
+        "to": "accessory_sale_count",
+        "direction": "negative",
+        "weight": 0.2,
+        "delayDays": 0,
+        "rationale": "Nedostupnost notebooků mírně snižuje prodej navazujících doplňků, jako jsou tašky a nabíječky."
+      }
+    ]
+  }
+}

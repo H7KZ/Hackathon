@@ -1,0 +1,148 @@
+{
+  "key": "ad92c425a2bd0448b726812cc2dd36a9",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_baseline",
+        "phase": 0,
+        "title": "Běžný provoz dodávek",
+        "description": "Leden a únor: dodavatel notebooků dodává včas a v plném množství, prodejny mají dostatek zboží.",
+        "start": "2025-01-01",
+        "end": "2025-02-28"
+      },
+      {
+        "id": "sp_supplier_delays",
+        "phase": 1,
+        "title": "Dodavatel začíná zpožďovat dodávky notebooků",
+        "description": "Od března se u dodavatele notebooků výrazně zvyšuje pravděpodobnost zpožděné dodávky. Opožděné dodávky odkládají doplnění skladů prodejen.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "start": "2025-03-01",
+        "end": "2025-04-30"
+      },
+      {
+        "id": "sp_short_deliveries",
+        "phase": 2,
+        "title": "Neúplné dodávky notebooků",
+        "description": "Od poloviny března dodavatel navíc častěji dodává méně kusů, než bylo objednáno, takže zásoby notebooků dále klesají a zákazníci odcházejí bez nákupu.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "start": "2025-03-15",
+        "end": "2025-04-15"
+      }
+    ],
+    "curves": [
+      {
+        "id": "laptop_delay_prob",
+        "baseline": 0.08,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-01",
+            "to": 0.6,
+            "storyPointId": "sp_supplier_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "laptop_short_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-15",
+            "end": "2025-04-15",
+            "to": 0.3,
+            "storyPointId": "sp_short_deliveries"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.25,
+        "segments": [],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_late_rate_up",
+        "storyPointId": "sp_supplier_delays",
+        "description": "Podíl opožděných dodávek notebooků od dodavatele SUP-001 po březnu výrazně vzroste.",
+        "sql": "SELECT CASE WHEN d.received_date < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN d.is_late THEN 1.0 ELSE 0.0 END)::DOUBLE AS value FROM main.delivery d JOIN main.product p ON p.id = d.product_id WHERE p.category = 'notebooky' AND d.supplier_id = 'SUP-001' AND (d.received_date < DATE '2025-03-01' OR d.received_date >= DATE '2025-03-15') GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 1
+        }
+      },
+      {
+        "id": "exp_lost_sales_up",
+        "storyPointId": "sp_short_deliveries",
+        "description": "Počet ztracených prodejů notebooků od dodavatele SUP-001 za den vzroste, protože dochází zásoby.",
+        "sql": "WITH days AS (SELECT DISTINCT date AS d FROM main.demand_request WHERE date < DATE '2025-03-01' OR date >= DATE '2025-04-01'), x AS (SELECT l.date AS d, COUNT(*) AS c FROM main.lost_sale l JOIN main.product p ON p.id = l.product_id WHERE p.category = 'notebooky' AND p.supplier_id = 'SUP-001' GROUP BY l.date) SELECT CASE WHEN days.d < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, AVG(COALESCE(x.c, 0))::DOUBLE AS value FROM days LEFT JOIN x ON x.d = days.d GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_complaints_up",
+        "storyPointId": "sp_short_deliveries",
+        "description": "Počet stížností na nedostupnost notebooků od dodavatele SUP-001 za den vzroste při stejné pravděpodobnosti stížnosti.",
+        "sql": "WITH days AS (SELECT DISTINCT date AS d FROM main.demand_request WHERE date < DATE '2025-03-01' OR date >= DATE '2025-04-01'), x AS (SELECT c.date AS d, COUNT(*) AS n FROM main.complaint c JOIN main.product p ON p.id = c.product_id WHERE p.category = 'notebooky' AND p.supplier_id = 'SUP-001' GROUP BY c.date) SELECT CASE WHEN days.d < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, AVG(COALESCE(x.n, 0))::DOUBLE AS value FROM days LEFT JOIN x ON x.d = days.d GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_demand_control",
+        "storyPointId": "sp_baseline",
+        "description": "Kontrola: počet poptávkových požadavků zákazníků za den zůstává stabilní, poptávka se nemění.",
+        "sql": "SELECT CASE WHEN date < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, (COUNT(*) * 1.0 / COUNT(DISTINCT date))::DOUBLE AS value FROM main.demand_request WHERE date < DATE '2025-03-01' OR date >= DATE '2025-04-01' GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.1
+        }
+      }
+    ]
+  }
+}
