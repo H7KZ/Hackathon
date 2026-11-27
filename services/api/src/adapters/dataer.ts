@@ -2,7 +2,16 @@
  * Dataer adapter, owned by the dataer team (docs/handoffs/dataer.md).
  * Change freely; keep `Ports["dataer"]` in ../ports.ts and tests/support/fakePorts.ts in sync.
  */
-import { compareRuns, dailySeries, detective, runExpectations, storeRun, withSandbox } from "@s2d/dataer";
+import {
+  compareRuns,
+  dailySeries,
+  detective,
+  listTables,
+  previewTable,
+  runExpectations,
+  storeRun,
+  withSandbox,
+} from "@s2d/dataer";
 import { createLlm, type Llm } from "@s2d/llm";
 import type { Ports } from "../ports";
 
@@ -22,5 +31,8 @@ export function dataerPort(opts: { llm?: Llm } = {}): Ports["dataer"] {
       })),
     compare: (dbPathA, dbPathB) => compareRuns(dbPathA, dbPathB),
     detective: (dbPath, { onEvent, signal }) => detective(dbPath, { llm: getLlm(), onEvent, signal }),
+    // schema `main` only, read-only; the table name is matched against the catalog, never spliced in
+    tables: (dbPath) => listTables(dbPath),
+    preview: (dbPath, table, limit) => previewTable(dbPath, table, limit),
   };
 }

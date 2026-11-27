@@ -16,3 +16,4 @@ export { withSandbox } from "./store/sandbox";
 export { readTruthPoints } from "./store/truth";
 export { runDetective, DetectiveStep, DETECTIVE_MAX_STEPS, type DetectiveEvent } from "./detective/loop";
 export { detective } from "./detective/index";
+export { listTables, previewTable, PREVIEW_MAX_ROWS } from "./preview/tables";

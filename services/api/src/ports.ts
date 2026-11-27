@@ -4,7 +4,7 @@
  * Each service owns its own loops (atomic principle): the API only starts, observes and cancels.
  */
 import type { ArtifactName } from "@s2d/schema/artifacts";
-import type { Expectation, MetricDiff } from "@s2d/schema/evidence";
+import type { Expectation, MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { RunResult } from "@s2d/schema/run";
 import type { Scenario } from "@s2d/schema/scenario";
 import type { CascadeEvent, DatasetEvidence, DetectiveResult, SessionInput } from "./contract.draft";
@@ -30,5 +30,9 @@ export interface Ports {
     evidence(dbPath: string, expectations: Expectation[]): Promise<DatasetEvidence>;
     compare(dbPathA: string, dbPathB: string): Promise<MetricDiff[]>;
     detective(dbPath: string, opts: JobOptions): Promise<DetectiveResult>;
+    /** Observed tables with row counts (Data view, dataset totals). Read-only. */
+    tables(dbPath: string): Promise<TableInfo[]>;
+    /** First `limit` rows of one observed table; rejects unknown and ground-truth tables. */
+    preview(dbPath: string, table: string, limit: number): Promise<TablePreview>;
   };
 }

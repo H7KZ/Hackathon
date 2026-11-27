@@ -4,7 +4,7 @@
  */
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { compareRuns, inferForeignKeys, openStore, storeRun } from "@s2d/dataer";
+import { compareRuns, inferForeignKeys, listTables, openStore, previewTable, storeRun } from "@s2d/dataer";
 import { compileScenario, runScenario } from "@s2d/noiser";
 import { loadScenarioFixture, makeTempDir } from "@s2d/test-utils";
 import type { Scenario } from "@s2d/schema/scenario";
@@ -67,6 +67,24 @@ describe("FK integrity on supplier_delay", () => {
     } finally {
       store.close();
     }
+  });
+});
+
+describe("table preview on supplier_delay", () => {
+  it("lists observed tables only and previews JSON-safe rows", async () => {
+    const db = join(tmp.dir, "preview.duckdb");
+    await storeRun(db, runScenario(compiled(loadScenarioFixture("supplier_delay")), { seed: 42 }));
+    const tables = await listTables(db);
+    const names = tables.map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["sale", "delivery", "store", "stock_daily"]));
+    expect(names).not.toContain("story_points");
+    expect(names).not.toContain("run_meta");
+    expect(tables.every((t) => t.rows > 0)).toBe(true);
+    const sale = await previewTable(db, "sale", 5);
+    expect(sale.rowsShown).toHaveLength(5);
+    const first = sale.rowsShown[0] ?? {};
+    expect(first.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(JSON.parse(JSON.stringify(sale))).toEqual(sale);
   });
 });
 

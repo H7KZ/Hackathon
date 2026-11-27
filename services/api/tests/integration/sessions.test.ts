@@ -89,6 +89,30 @@ describe("sessions REST", () => {
     expect(ev.status).toBe(200);
   });
 
+  it("GET tables lists observed tables; GET tables/:t previews rows; unknown table → 404", async () => {
+    const { client, orch } = setup();
+    const id = await create(client, orch);
+    await client.sessions[":id"].commands.$post({ param: { id }, json: { type: "approve" } });
+    await orch.idle(id);
+    const list = await client.sessions[":id"].datasets[":d"].tables.$get({ param: { id, d: "d1" } });
+    expect(list.status).toBe(200);
+    const { tables } = await list.json();
+    expect(tables.map((t) => t.name)).toContain("objednavky");
+    const prev = await client.sessions[":id"].datasets[":d"].tables[":t"].$get({
+      param: { id, d: "d1", t: "objednavky" },
+      query: { limit: "3" },
+    });
+    expect(prev.status).toBe(200);
+    const body = (await prev.json()) as { rows: number; rowsShown: unknown[] };
+    expect(body.rowsShown).toHaveLength(3);
+    expect(body.rows).toBeGreaterThan(3);
+    const missing = await client.sessions[":id"].datasets[":d"].tables[":t"].$get({
+      param: { id, d: "d1", t: "truth_table" },
+      query: {},
+    });
+    expect(missing.status).toBe(404);
+  });
+
   it("a command while busy → 409, cancel always accepted", async () => {
     let open!: () => void;
     const { client, orch } = setup({ gate: new Promise((r) => (open = r)) });

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
 import { ArtifactName, ArtifactSchemas } from "@s2d/schema/artifacts";
-import { MetricDiff } from "@s2d/schema/evidence";
+import { MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { Scenario } from "@s2d/schema/scenario";
 import {
   DatasetEvidence,
@@ -53,6 +53,10 @@ export interface Orchestrator {
   evidence(sessionId: string, datasetId: string): Promise<DatasetEvidence>;
   compare(sessionId: string, a: string, b: string): Promise<MetricDiff[]>;
   detective(sessionId: string, datasetId: string): Promise<DetectiveResult | null>;
+  /** Observed tables of a dataset (name, row count, columns). */
+  tables(sessionId: string, datasetId: string): Promise<TableInfo[]>;
+  /** First rows of one observed table; NotFoundError for unknown or ground-truth tables. */
+  preview(sessionId: string, datasetId: string, table: string, limit: number): Promise<TablePreview>;
   /** Current cascade artifact (e.g. 04_story for the timeline editor); throws NotFoundError if not produced yet. */
   artifact(sessionId: string, name: ArtifactName): unknown;
 }
@@ -341,6 +345,19 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       const stored = join(da.dir, `compare_${db.info.id}.json`);
       if (existsSync(stored)) return MetricDiff.array().parse(store.readJson(stored));
       return ports.dataer.compare(join(db.dir, "db.duckdb"), join(da.dir, "db.duckdb"));
+    },
+
+    async tables(id, datasetId) {
+      return TableInfo.array().parse(
+        await ports.dataer.tables(join(datasetOf(id, datasetId).dir, "db.duckdb")),
+      );
+    },
+
+    async preview(id, datasetId, table, limit) {
+      const db = join(datasetOf(id, datasetId).dir, "db.duckdb");
+      if (!(await ports.dataer.tables(db)).some((t) => t.name === table))
+        throw new NotFoundError(`Tabulka "${table}" v datasetu ${datasetId} neexistuje.`);
+      return TablePreview.parse(await ports.dataer.preview(db, table, limit));
     },
 
     detective(id, datasetId) {

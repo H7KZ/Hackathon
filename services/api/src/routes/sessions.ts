@@ -5,12 +5,14 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
-import type { z } from "zod";
+import { z } from "zod";
 import { ArtifactName } from "@s2d/schema/artifacts";
 import { SessionCommand, SessionInput, type SessionEvent } from "../contract.draft";
 import { BusyError, NotFoundError, type CommandResult, type Orchestrator } from "../orchestrator";
 
 const HEARTBEAT_MS = 15_000;
+/** ?limit= for table previews; anything unparsable falls back to 20 (the port clamps to 1..200). */
+const PreviewQuery = z.object({ limit: z.coerce.number().int().catch(20).default(20) });
 
 /** JSON body validator; bad input → 400 with the same {path,message}[] shape the compiler uses. */
 const json = <T extends z.ZodType>(schema: T) =>
@@ -58,6 +60,14 @@ export function sessionRoutes(orch: Orchestrator) {
     )
     .get("/:id/datasets/:d/compare/:other", async (c) =>
       c.json({ diff: await orch.compare(c.req.param("id"), c.req.param("d"), c.req.param("other")) }),
+    )
+    .get("/:id/datasets/:d/tables", async (c) =>
+      c.json({ tables: await orch.tables(c.req.param("id"), c.req.param("d")) }),
+    )
+    .get("/:id/datasets/:d/tables/:t", zValidator("query", PreviewQuery), async (c) =>
+      c.json(
+        await orch.preview(c.req.param("id"), c.req.param("d"), c.req.param("t"), c.req.valid("query").limit),
+      ),
     )
     .get("/:id/datasets/:d/detective", async (c) =>
       c.json({ result: await orch.detective(c.req.param("id"), c.req.param("d")) }),
