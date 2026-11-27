@@ -1,0 +1,97 @@
+{
+  "key": "5ae23adba78e23f5a9fae8b814e00a2c",
+  "model": "anthropic:claude-haiku-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "supplier_delivery.p",
+        "to": "supplier_delivery.is_late",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Křivka late_prob zvyšuje pravděpodobnost pozdní dodávky hlavního dodavatele A od března."
+      },
+      {
+        "from": "supplier_delivery.is_late",
+        "to": "supplier_delivery.delay_days",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Pozdní dodávka má zpoždění 5 až 14 dní místo 0 až 2 dnů."
+      },
+      {
+        "from": "supplier_delivery.delay_days",
+        "to": "supplier_delivery.delivered_date",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Datum doručení je přímo odvozeno od zpoždění vůči datu objednávky."
+      },
+      {
+        "from": "supplier_delivery.delivered_date",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Pozdější doručení oddaluje přírůstek zásob na prodejnách a prodlužuje období výpadků."
+      },
+      {
+        "from": "stock",
+        "to": "stock_check",
+        "direction": "negative",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Nižší zásoby snižují pravděpodobnost, že poptávka narazí na dostatek zboží na skladě."
+      },
+      {
+        "from": "stock_check",
+        "to": "lost_sale",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Neuspokojená poptávka při nedostatku zásob se zapisuje jako neuskutečněný nákup."
+      },
+      {
+        "from": "stock_check",
+        "to": "sale",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Uskutečněné prodeje existují jen tam, kde je zboží skladem, takže výpadky tržby snižují."
+      },
+      {
+        "from": "lost_sale",
+        "to": "complaint",
+        "direction": "positive",
+        "weight": 0.25,
+        "delayDays": 1,
+        "rationale": "Část neuskutečněných nákupů vede k zákaznické stížnosti s krátkým zpožděním."
+      },
+      {
+        "from": "lost_sale",
+        "to": "competitor_switch",
+        "direction": "positive",
+        "weight": 0.1,
+        "delayDays": 4,
+        "rationale": "Část zákazníků po výpadku přechází ke konkurenci s několikadenním zpožděním."
+      },
+      {
+        "from": "complaint",
+        "to": "competitor_switch",
+        "direction": "positive",
+        "weight": 0.2,
+        "delayDays": 2,
+        "rationale": "Nevyřízené stížnosti zvyšují pravděpodobnost odchodu zákazníka ke konkurenci."
+      },
+      {
+        "from": "competitor_switch",
+        "to": "sale",
+        "direction": "negative",
+        "weight": 0.5,
+        "delayDays": 7,
+        "rationale": "Zákazníci, kteří přešli ke konkurenci, přestávají nakupovat v prodejnách a tržby klesají."
+      }
+    ]
+  }
+}
