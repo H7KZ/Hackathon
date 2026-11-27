@@ -26,7 +26,7 @@ describe("hypotheses from map + overlay (D3)", () => {
     expect(hs.some((h) => h.table === "lost_sale" || h.table === "purchase_attempt")).toBe(false);
     const [first] = hs;
     expect(first?.focus).toEqual({ entity: "supplier", ids: ["SUP-002"], mode: "only" });
-    expect(first?.before).toEqual({ start: "2025-01-01", end: "2025-03-01" });
+    expect(first?.before).toEqual({ start: "2025-01-29", end: "2025-03-01" }); // 4 weeks of warm-up skipped
     expect(first?.after).toEqual({ start: "2025-03-01", end: "2025-09-01" });
     expect(hs.find((h) => h.id === "sp1_complaint")?.path).toEqual([
       "e_late",
@@ -35,6 +35,47 @@ describe("hypotheses from map + overlay (D3)", () => {
       "e_lost",
       "e_lost_complaint",
     ]);
+  });
+
+  it("contiguous story points: one set at the peak, compared with the baseline before the first move", () => {
+    // live run 2026-11-27: comparing adjacent story points gave empty "before" windows (start = end)
+    const sp = (id: string, start: string, end?: string) => ({
+      id,
+      phase: 1,
+      title: id,
+      description: id,
+      start,
+      ...(end && { end }),
+    });
+    const ramp = {
+      ...overlay,
+      storyPoints: [
+        sp("a", "2025-03-01", "2025-04-01"),
+        sp("b", "2025-04-01", "2025-06-01"),
+        sp("c", "2025-06-01"),
+      ],
+      levers: [
+        {
+          ...overlay.levers[0]!,
+          values: [
+            { storyPointId: "a", value: 0.25 },
+            { storyPointId: "b", value: 0.55 },
+            { storyPointId: "c", value: 0.6 },
+          ],
+        },
+      ],
+    };
+    const hs = deriveHypotheses(causalMap, ramp, processesPlan);
+    expect(new Set(hs.map((h) => h.storyPointId))).toEqual(new Set(["c"]));
+    for (const h of hs) {
+      expect(h.before).toEqual({ start: "2025-01-29", end: "2025-03-01" });
+      expect(h.after).toEqual({ start: "2025-06-01", end: "2025-09-01" });
+    }
+  });
+
+  it("a short baseline keeps its first days", async () => {
+    const { baselineWindow } = await import("../../src/causal/hypotheses");
+    expect(baselineWindow("2025-01-01", "2025-02-01")).toEqual({ start: "2025-01-01", end: "2025-02-01" });
   });
 
   it("a dominant path decides between opposite signs; equal strengths are ambiguous", () => {
@@ -155,7 +196,8 @@ describe("causal design end to end (fake LLM)", () => {
     });
     ok.cleanup();
     expect(seen).toEqual(["c5"]);
-    const bad = setup(answers);
+    const { GATE_REPAIRS } = await import("../../src/cascade");
+    const bad = setup([...answers, ...Array.from({ length: GATE_REPAIRS }, () => processesPlan)]);
     cleanup = bad.cleanup;
     await expect(
       runCascade(input, {
@@ -166,5 +208,40 @@ describe("causal design end to end (fake LLM)", () => {
         verify: () => Promise.resolve([{ path: "expectations[0]", message: "too weak" }]),
       }),
     ).rejects.toThrow(/too weak/);
+  });
+
+  it("a failed story gate goes back to 4b with the gate errors, then 05 is accepted", async () => {
+    const t = setup([company, model, causalMap, processesPlan, overlay, { queries }, processesPlan]);
+    cleanup = t.cleanup;
+    let n = 0;
+    const res = await runCascade(input, {
+      llm: t.llm,
+      runsDir: t.runsDir,
+      runId: "c7",
+      design: "causal",
+      verify: () =>
+        Promise.resolve(n++ === 0 ? [{ path: "expectations[0]", message: "effect too weak" }] : []),
+    });
+    expect(t.fake.calls.map((c) => c.schemaName).slice(-2)).toEqual(["04b_expectations", "03b_processes"]);
+    expect(t.fake.calls.at(-1)?.prompt).toContain("effect too weak");
+    expect(res.scenario).toBeDefined();
+    expect(n).toBe(2);
+  });
+
+  it("gives up after GATE_REPAIRS rounds of 4b", async () => {
+    const { GATE_REPAIRS } = await import("../../src/cascade");
+    const repairs = Array.from({ length: GATE_REPAIRS }, () => processesPlan);
+    const t = setup([company, model, causalMap, processesPlan, overlay, { queries }, ...repairs]);
+    cleanup = t.cleanup;
+    await expect(
+      runCascade(input, {
+        llm: t.llm,
+        runsDir: t.runsDir,
+        runId: "c8",
+        design: "causal",
+        verify: () => Promise.resolve([{ path: "expectations[0]", message: "still weak" }]),
+      }),
+    ).rejects.toThrow(/still weak/);
+    expect(t.fake.calls.filter((c) => c.schemaName === "03b_processes")).toHaveLength(1 + GATE_REPAIRS);
   });
 });

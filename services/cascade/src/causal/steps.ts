@@ -65,7 +65,7 @@ export function processesScenario(plan: ProcessesPlan, map: CausalMap): Scenario
 export function a4bProcesses(
   llm: Llm,
   a: { input: CascadeInput; model: DataModel; map: CausalMap },
-  opts: Pick<RepairLoopOptions<ProcessesPlan>, "onEvent" | "signal" | "onRejected">,
+  opts: Pick<RepairLoopOptions<ProcessesPlan>, "onEvent" | "signal" | "onRejected" | "initial">,
 ) {
   let current: ProcessesPlan | undefined;
   return repairLoop<ProcessesPlan>({

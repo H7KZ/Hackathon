@@ -55,6 +55,9 @@ export interface CascadeOptions {
 
 export type CascadeDesign = "v1" | "causal";
 
+/** Causal design: how many times a failed story gate on 05 goes back to 4b. */
+export const GATE_REPAIRS = 2;
+
 /** Artifacts each design writes, in order. `until` must name one of them. */
 export const DESIGN_STEPS: Record<CascadeDesign, readonly ArtifactName[]> = {
   v1: ["01_company", "02_model", "03_influences", "04_story", "05_scenario"],
@@ -200,21 +203,61 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     );
     if (!shouldRun("05_scenario"))
       return { dir, company, model, causalMap, processes, overlay, expectations, story };
+    let plan = processes;
     const scenario = await step("05_scenario", Scenario, async () => {
-      const res = finishCausal({ input, runId: opts.runId, plan: processes, overlay, story });
-      // same story gate as v1 A5; there is no agent here, so a failure stops the step
-      const errors = res.ok ? ((await opts.verify?.(res.scenario)) ?? []) : res.errors;
-      if (res.ok && errors.length === 0) return res.scenario;
-      opts.onEvent?.({
-        type: "log",
-        message: "Složený scénář neprošel kontrolami. Uprav 04_story (nebo 03b_processes) a spusť znovu.",
-      });
-      throw new CascadeStepError(
-        "05_scenario",
-        new Error(`Causal scenario fails the checks:\n${formatFeedback(errors)}`),
-      );
+      // Story gate failures (weak effect, drift) go back to 4b, which owns rates, counts and initial
+      // values; map, overlay, curves and SQL stay fixed. Same idea as v1, where A5 gets them.
+      for (let round = 0; ; round++) {
+        const res = finishCausal({ input, runId: opts.runId, plan, overlay, story });
+        const errors = res.ok ? ((await opts.verify?.(res.scenario)) ?? []) : res.errors;
+        if (res.ok && errors.length === 0) return res.scenario;
+        const repairable = res.ok && round < GATE_REPAIRS;
+        if (repairable) {
+          opts.onEvent?.({
+            type: "log",
+            message: `Story gate neprošel, krok 4b opravuje parametry (${round + 1}/${GATE_REPAIRS}).`,
+          });
+          const fixed = await a4bProcesses(
+            opts.llm,
+            { input, model, map: causalMap },
+            {
+              onEvent: opts.onEvent,
+              signal: opts.signal,
+              onRejected: rejected("03b_processes"),
+              initial: {
+                // the round keeps each repair prompt distinct (an identical prompt replays the cache)
+                feedback: [
+                  {
+                    path: "story_gate",
+                    message: `Story gate round ${round + 1}/${GATE_REPAIRS}: the generated data does not show the story. Fix the parameters below.`,
+                  },
+                  ...errors,
+                ],
+                previous: plan,
+              },
+            },
+          );
+          // the SQL reads the tables and columns of the old plan; a fix must keep them
+          const sqlErrors = fixed.ok
+            ? checkQueries(expectations.hypotheses, expectations.queries, fixed.output)
+            : [];
+          if (fixed.ok && sqlErrors.length === 0) {
+            plan = fixed.output;
+            writeFileSync(join(dir, "03b_processes.json"), `${JSON.stringify(plan, null, 2)}\n`);
+            continue;
+          }
+        }
+        opts.onEvent?.({
+          type: "log",
+          message: "Složený scénář neprošel kontrolami. Uprav 04_story (nebo 03b_processes) a spusť znovu.",
+        });
+        throw new CascadeStepError(
+          "05_scenario",
+          new Error(`Causal scenario fails the checks:\n${formatFeedback(errors)}`),
+        );
+      }
     });
-    return { dir, company, model, causalMap, processes, overlay, expectations, story, scenario };
+    return { dir, company, model, causalMap, processes: plan, overlay, expectations, story, scenario };
   }
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>

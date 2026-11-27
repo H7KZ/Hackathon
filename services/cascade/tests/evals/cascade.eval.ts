@@ -19,6 +19,7 @@ import { join } from "node:path";
 import { createLlm, findRepoRoot, LlmCacheMiss } from "@s2d/llm";
 import { compileScenario } from "@s2d/noiser";
 import { runCascade, type CascadeDesign } from "../../src/cascade";
+import { storyGate } from "../../src/gate";
 import { expectationGate } from "./gates";
 
 const LIVE = process.env.EVAL_LIVE === "1";
@@ -46,7 +47,14 @@ describe("cascade evals", () => {
       try {
         const res = await runCascade(
           { story: c.story, company: c.company },
-          { llm, runsDir, runId: `${c.id}-${LIVE ? "live" : "replay"}`, design: c.design },
+          {
+            llm,
+            runsDir,
+            runId: `${c.id}-${LIVE ? "live" : "replay"}`,
+            design: c.design,
+            // as in the API and CLI: A5 (v1) / 4b (causal) get the story gate's failures back
+            verify: storyGate,
+          },
         );
         expect(res.story?.expectations.length ?? 0).toBeGreaterThan(0);
         const compiled = compileScenario(res.scenario);

@@ -60,36 +60,53 @@ interface Move {
   focus?: { entity: string; ids: string[] } | undefined;
 }
 
-/** Levers whose value changes at the start of `sp` (vs. the previous contiguous period or the baseline). */
-function movesAt(
-  sp: StoryPoint,
-  map: CausalMap,
-  overlay: StoryOverlay,
-  entities: readonly EntityDef[],
-): Move[] {
-  const moves: Move[] = [];
-  for (const row of overlay.levers) {
-    const periods = leverPeriods(row, overlay.storyPoints);
-    const i = periods.findIndex((p) => p.storyPoint.id === sp.id);
-    const here = periods[i];
-    if (!here) continue;
-    const prev = periods[i - 1];
-    const baseline = map.nodes.find((n) => n.id === row.lever)?.baseline ?? 0;
-    const before = prev && prev.storyPoint.end === sp.start ? prev.value : baseline;
-    if (here.value === before) continue;
-    const prefix = row.scope?.ids[0]?.split("-")[0];
-    const entity = entities.find((e) => e.idPrefix === prefix)?.name ?? sp.entity?.name;
-    moves.push({
-      lever: row.lever,
-      sign: here.value > before ? 1 : -1,
-      focus: row.scope && entity ? { entity, ids: row.scope.ids } : undefined,
-    });
-  }
-  return moves;
+/**
+ * One lever's episode: the story point where it deviates most from its baseline (the peak), and the
+ * first day it leaves the baseline. Comparing the peak with the untouched baseline gives the largest,
+ * most robust effect; a live run that compared adjacent story points measured only noise.
+ */
+interface Episode extends Move {
+  peak: StoryPoint;
+  firstMove: string;
 }
 
-const nextDay = (iso: string) =>
-  new Date(Date.parse(`${iso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+function episodes(map: CausalMap, overlay: StoryOverlay, entities: readonly EntityDef[]): Episode[] {
+  const out: Episode[] = [];
+  for (const row of overlay.levers) {
+    const baseline = map.nodes.find((n) => n.id === row.lever)?.baseline ?? 0;
+    const moved = leverPeriods(row, overlay.storyPoints).filter((p) => p.value !== baseline);
+    const [first] = moved;
+    if (!first) continue;
+    const peak = moved.reduce((a, p) =>
+      Math.abs(p.value - baseline) > Math.abs(a.value - baseline) ? p : a,
+    );
+    const prefix = row.scope?.ids[0]?.split("-")[0];
+    const entity = entities.find((e) => e.idPrefix === prefix)?.name ?? peak.storyPoint.entity?.name;
+    out.push({
+      lever: row.lever,
+      sign: peak.value > baseline ? 1 : -1,
+      focus: row.scope && entity ? { entity, ids: row.scope.ids } : undefined,
+      peak: peak.storyPoint,
+      firstMove: first.storyPoint.start,
+    });
+  }
+  return out;
+}
+
+/** Days skipped at the start of the baseline window: flows start at `initial` and need to settle. */
+export const WARMUP_DAYS = 28;
+
+const addDays = (iso: string, days: number) =>
+  new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+const daysBetween = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86_400_000;
+
+/** Baseline window before the first move, without the warm-up when the baseline is long enough. */
+export function baselineWindow(start: string, firstMove: string) {
+  return {
+    start: daysBetween(start, firstMove) >= 2 * WARMUP_DAYS ? addDays(start, WARMUP_DAYS) : start,
+    end: firstMove,
+  };
+}
 
 const WORD = { increase: "vzroste", decrease: "klesne", stable: "zůstane stabilní" } as const;
 
@@ -99,17 +116,15 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
     (n) => (n.kind === "event" || n.kind === "state") && n.table !== undefined && observed.has(n.table),
   );
   const rare = new Set(map.edges.filter((e) => e.type === "probabilistic").map((e) => e.to));
-  const points = [...overlay.storyPoints].sort((a, b) => a.start.localeCompare(b.start));
+  const byPeak = new Map<string, Episode[]>();
+  for (const e of episodes(map, overlay, plan.entities))
+    byPeak.set(e.peak.id, [...(byPeak.get(e.peak.id) ?? []), e]);
   const out: Hypothesis[] = [];
-  points.forEach((sp, k) => {
-    const moves = movesAt(sp, map, overlay, plan.entities);
-    if (moves.length === 0) return;
-    const prev = points[k - 1];
-    const before = {
-      start: prev ? (prev.end !== undefined && prev.end <= sp.start ? prev.end : prev.start) : overlay.start,
-      end: sp.start,
-    };
-    const after = { start: sp.start, end: sp.end ?? nextDay(overlay.end) };
+  for (const moves of byPeak.values()) {
+    const sp = moves[0]?.peak;
+    if (!sp) continue;
+    const before = baselineWindow(overlay.start, moves.map((m) => m.firstMove).sort()[0] ?? sp.start);
+    const after = { start: sp.start, end: sp.end ?? addDays(overlay.end, 1) };
     const paths = moves.map((m) => ({ move: m, paths: pathsFrom(map, m.lever) }));
     for (const node of metrics) {
       const table = node.table ?? "";
@@ -126,7 +141,7 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
           table,
           before,
           after,
-          description: `${node.description} (${table})${where} ${WORD[h.direction]} od ${sp.start} („${sp.title}“)`,
+          description: `${node.description} (${table})${where} ${WORD[h.direction]} v období „${sp.title}“ (od ${sp.start}) proti období před příběhem`,
         });
       };
       const effects = paths.flatMap(({ move, paths: p }) => {
@@ -165,6 +180,6 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
           path: [],
         });
     }
-  });
+  }
   return out;
 }

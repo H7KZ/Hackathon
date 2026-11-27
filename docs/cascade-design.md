@@ -69,10 +69,10 @@ Postaveno (`causal/curves.ts`): úseky = story pointy. Řádek matice je `{lever
 Postaveno (`causal/hypotheses.ts`, `causal/sql.ts`):
 
 - Ukazatel = uzel `event` nebo `state` s `table`, která je `observed`. ground_truth tabulky (pokusy o nákup, neuskutečněné nákupy) hypotézu nedostanou.
-- Pro každý story point, kde se páka pohne (proti předchozímu navazujícímu úseku nebo baseline), se projdou všechny cesty z páky. Směr = znaménko pohybu × součin znamének hran. Když k uzlu vedou cesty s opačným znaménkem, vyhraje silnější (síla = součin `p` pravděpodobnostních hran), pokud je aspoň 2× silnější; jinak se hypotéza vynechá.
+- Pro každou pohnutou páku kód vezme story point, kde se nejvíc odchyluje od baseline (vrchol), a projde všechny cesty z páky. Směr = znaménko odchylky × součin znamének hran. Když k uzlu vedou cesty s opačným znaménkem, vyhraje silnější (síla = součin `p` pravděpodobnostních hran), pokud je aspoň 2× silnější; jinak se hypotéza vynechá. Páky se stejným vrcholem tvoří jednu sadu.
 - Páka se `scope` (např. `SUP-002`) dá hypotéze `focus: only` a k ní kontrolu „mimo scope zůstane stabilní" (`focus: exclude`). Uzly mimo všechny cesty jsou kontroly `stable`.
 - Vzácné události (uzel s příchozí pravděpodobnostní hranou, např. stížnosti, pozdní dodávky) kontrolu `stable` nedostanou: malé počty v pásmu ±15 % padaly na 3 z 5 seedů.
-- Okna: `before` = od začátku datasetu (nebo předchozího story pointu) do startu story pointu, `after` = od startu do jeho `end` (nebo konce datasetu), konec okna je exkluzivní.
+- Okna: `before` = baseline od začátku datasetu do prvního pohybu páky, bez prvních 4 týdnů (zahřátí flows), pokud je baseline aspoň 8 týdnů; `after` = vrcholový story point od startu do jeho `end` (nebo konce datasetu). Konec okna je exkluzivní. Živý běh 2026-11-27 porovnával sousední story pointy: okno `before` vyšlo prázdné (začátek = konec) a 18 z 27 hypotéz spadlo na chybě SQL.
 - Agent dostane hypotézy, sloupce observed tabulek a vrátí `{queries: [{hypothesisId, sql}]}`. `checkQueries`: dotaz pro každou hypotézu, čte její tabulku, vrací `period`/`value`, čte jen observed tabulky (`checkExpectationTables`).
 - Stav (`state`, snapshot flow) se měří jako dostupnost (podíl řádků s `value > 0`), ne průměrná hladina: u `supplier_delay` hladina zásob SUP-002 po zpoždění roste (objednávky `topUp` se překrývají), dostupnost klesá.
 - Integrační test `tests/integration/causal_gate.test.ts`: odvozené hypotézy `supplier_delay` (4 směrové + 2 kontroly) projdou na seedu 42 i na seedech 1..5.
@@ -132,7 +132,7 @@ Mapování mapy na scénář:
 - Kroky A2–A4 mají checks přes `withSchemaRetry`: 02 `checkModelShape`; 03 `checkInfluenceRefs`; 04 `checkStoryPlan`, `checkExpectationTables`, `checkStoryRefs`.
 - Po 3 neúspěších se `05_scenario` nezapíše, odmítnuté pokusy zůstanou v `05_scenario.rejected-N.json`, přijde `log` a `CascadeStepError`.
 - whatIf: agent vrátí celé `curves` + záplaty existujících `Param` přes JSON pointer (mimo `meta`, `curves`, `storyPoints`, `expectations`). Kód je aplikuje na kopii, seed a struktura zůstanou. Smyčka má `compileScenario` a story check `checkCurveCoverage` (záplata nesmí odpojit křivku), **bez `verify`**: protipříklad nemusí splnit expectations základního příběhu. Po 3 neúspěších `WhatIfFailed`.
-- Causal varianta nemá A5. `05_scenario` skládá kód (`finishCausal`: compile + `checkStoryPlan`, `checkModelShape`, `checkCurveCoverage`, `checkExpectationTables`), pak běží stejné `verify` jako ve v1. Chyba nejde žádnému agentovi: krok skončí `CascadeStepError` a `log`.
+- Causal varianta nemá A5. `05_scenario` skládá kód (`finishCausal`: compile + `checkStoryPlan`, `checkModelShape`, `checkCurveCoverage`, `checkExpectationTables`), pak běží stejné `verify` jako ve v1. Chyby gate jdou zpět agentovi 4b (vlastní rate, počty, initial), nejvýš `GATE_REPAIRS` = 2 kola. Mapa, overlay, křivky a SQL zůstanou; oprava 4b musí zachovat tabulky a sloupce, které SQL čte (`checkQueries`), a přepíše `03b_processes.json`. Pak `CascadeStepError` a `log`.
 
 ## Otevřené otázky
 
@@ -140,7 +140,8 @@ Mapování mapy na scénář:
 - **Agent 6 per úsek.** Matici vrací jeden agent (`04a_overlay`), žádní subagenti per úsek. Hranice úseků = story pointy, které agent sám navrhne.
 - **Tvary křivek.** Kód staví jen `step`. Pozvolný náběh (ramp) by potřeboval pravidlo, kdy ho kód zvolí.
 - **Kompatibilita druhů uzlů a typů hran.** Kontroluje se jen „žádná hrana do páky", „páka a větvení mají výstup" a realizace podle typu hrany. Např. „mechanická hrana musí končit ve `state`" kód nehlídá.
-- **Chyby ve 05 (causal).** Když složený scénář neprojde checks nebo `verify` (story gate), přijde `CascadeStepError` a `log`. Chyby se nevrací žádnému agentovi; zpráva gate radí měnit rate a initial, což je práce 4b. Úpravou 04_story nebo 03b_processes v UI se 05 přepočítá.
+- **Chyby ve 05 (causal).** Chyby gate jdou zpět 4b (2 kola). Chyby compile nebo story checks ve 05 nejdou nikomu (vznikají z 04a/04b, které už prošly vlastními kontrolami); úpravou 04_story nebo 03b_processes v UI se 05 přepočítá.
+- **Živý běh 2026-11-27** (Sonnet 5.5, bez gate v evalu): artefakty 01–05 validní, 05 se zkompiloval, expectations neprošly. Kromě prázdných oken: 4b nechal páku za podmínkou `if supplier_role == "hlavní"`, takže scope `SUP-001` na křivce nic neměnil, a zásoby byly s pevným množstvím dodávek trvale na 99 %. Na to jsou nové pokyny v promptu 4b a zpětná vazba gate → 4b; nový živý běh zatím neproběhl.
 - **Znaménka přes větvení.** Znaménko hrany z uzlu `branch` (fulfil → lost_sale = negative) dává směr jen tehdy, když ho 4a nakreslí konzistentně (víc zásoby → víc vyřízených → méně ztrát). Kód to neověřuje.
 - **whatIf** pracuje se složeným scénářem a o mapě neví; křivky může měnit libovolně, ne přes matici.
 - Kalibrace: kdo nastaví „pozaďová“ čísla (rate, initial), aby efekt byl vidět a data realistická.
