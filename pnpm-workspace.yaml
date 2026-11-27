@@ -6,3 +6,5 @@ allowBuilds:
   sharp: true
   "@parcel/watcher": true
   unrs-resolver: true
+# pnpm 12 defaults to 1 day; the lockfile has packages released today. See docs/decisions.md.
+minimumReleaseAge: 60
