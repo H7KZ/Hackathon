@@ -30,7 +30,7 @@ Four people work on this repo, humans and agents alike.
 
 - **Owners** (who reviews PRs in an area): see `.github/CODEOWNERS`. Changes to `packages/schema` are announced in the PR and approved by the owner before the compiler/engine change lands.
 - **One person, one workspace at a time** when possible. Shared files are conflict hotspots: `packages/schema/src/*`, `services/api/src/app.ts`, `pnpm-lock.yaml`, `scenarios/*.json`, `.cache/llm/`.
-- **Trunk:** `origin/main`. Never push to `main` directly; every change goes through a PR with green CI (`verify`).
+- **Trunk:** `origin/main`. Never push to `main` directly; every change goes through a PR, and the pre-commit hook plus `pnpm verify` must be green first.
 - **Branches:** one branch per feature (a larger unit of work, not per file or per commit), e.g. `feat/<area>-<name>`. Each person works on their own branch(es).
 - **Agents work in git worktrees**, one per branch, so parallel agents never share a checkout.
 - **Pushes:** push in larger, meaningful batches, not after every small commit. Keep the local history readable before pushing.
@@ -110,9 +110,9 @@ pnpm evidence <db> | pnpm detective <db> | pnpm compare <dbA> <dbB>
 ## Definition of done (for coding agents)
 
 - [ ] A test proves the change (new or updated), and it failed before the change.
-- [ ] `pnpm verify:fast` is green (the Claude Code Stop hook in `.claude/settings.json` blocks finishing otherwise).
+- [ ] `pnpm verify:fast` is green. The pre-commit hook (`.husky/pre-commit`) runs it on every commit, and the Claude Code Stop hook in `.claude/settings.json` blocks finishing otherwise. Agents must not use `--no-verify`.
 - [ ] Contract changes started in `packages/schema` and the compiler validates them.
-- [ ] Before committing: `pnpm verify` is green.
+- [ ] Before opening or updating the PR: `pnpm verify` is green.
 - [ ] If you touched prompts: `pnpm evals` (offline) still passes; re-record with `EVAL_LIVE=1` if the cache key changed.
 
 ## Verification for LLM agents (cascade)
