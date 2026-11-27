@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generate } from "../../src/index";
 import { runScenario } from "../../src/engine/run";
-import { mini, table } from "../support/scenarios";
+import { BASE, mini, table } from "../support/scenarios";
 
 const entities = (fields: Record<string, unknown>, extra: unknown[] = []) => [
   {
@@ -86,11 +86,12 @@ describe("field generators", () => {
     expect(table(runScenario(s, { seed: 8 }).tables, "item")).not.toEqual(a);
   });
 
-  it("referencing a later field fails with a path the agent can fix", () => {
-    const s = mini({
+  it("referencing a later field fails (already in the compiler) with a path the agent can fix", () => {
+    const raw = {
+      ...BASE,
       entities: entities({ a: { gen: "ref", path: "self.b" }, b: { gen: "const", value: 1 } }),
-    });
-    expect(generate(s)).toMatchObject({ ok: false, errors: [{ path: "entities[1].fields.a.path" }] });
+    };
+    expect(generate(raw)).toMatchObject({ ok: false, errors: [{ path: "entities[1].fields.a.path" }] });
   });
 
   it("scale shrinks only entities with count >= 50", () => {

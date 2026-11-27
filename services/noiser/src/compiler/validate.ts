@@ -238,6 +238,87 @@ export function compileScenario(raw: unknown): CompileResult {
     }
   });
 
+  // ---- self.* / source.* / key.* scopes ----
+  // The engine fails on these too, but only when that code path runs (e.g. inside a rarely taken `if`),
+  // so check them statically and tell A5 exactly which fields are available.
+  interface Scope {
+    /** fields of the current record visible here */
+    self: string[];
+    /** source record: its fields, `null` = no source here, `undefined` = checked elsewhere */
+    source?: { ref: string; fields: string[] } | null;
+    /** valid key.* names, `undefined` = checked elsewhere */
+    keys?: string[];
+  }
+  const checkScope = (value: unknown, at: string, scope: Scope) => {
+    for (const [path, v] of strings(value, at)) {
+      const name = v.slice(v.indexOf(".") + 1);
+      if (v.startsWith("self.") && !scope.self.includes(name)) {
+        err(
+          path,
+          scope.self.length > 0
+            ? `"${v}" is not available here. self.* sees only fields declared earlier in the same record; available: ${list(scope.self.map((f) => `self.${f}`))}.`
+            : `"${v}" is not available here: no field of the record exists yet (first field, condition or filter). Use source.*, key.* or day.`,
+        );
+      }
+      if (v.startsWith("source.") && scope.source === null) {
+        err(path, `"${v}": there is no source record here; source.* exists only in branch/derive processes.`);
+      }
+      if (v.startsWith("source.") && scope.source && !scope.source.fields.includes(name)) {
+        err(
+          path,
+          `"${v}" is not a field of the source record "${scope.source.ref}". Fields: ${list(scope.source.fields.map((f) => `source.${f}`))}.`,
+        );
+      }
+      if (v.startsWith("key.") && scope.keys && !scope.keys.includes(name)) {
+        err(
+          path,
+          scope.keys.length > 0
+            ? `"${v}" is not available here; valid keys: ${list(scope.keys.map((k) => `key.${k}`))}.`
+            : `"${v}": key.* is not available here (only in arrival processes and flow initial values).`,
+        );
+      }
+    }
+  };
+  const checkRecord = (
+    fields: Record<string, unknown>,
+    effects: unknown,
+    at: string,
+    scope: Omit<Scope, "self">,
+  ) => {
+    const names = Object.keys(fields);
+    names.forEach((name, i) => {
+      checkScope(fields[name], `${at}.fields.${name}`, { ...scope, self: names.slice(0, i) });
+    });
+    checkScope(effects, `${at}.effects`, { ...scope, self: names });
+  };
+  const sourceFields = (ref: string): { ref: string; fields: string[] } | undefined => {
+    const src = processes.get(sourceProcessId(ref));
+    const record = src?.type === "branch" ? (ref.endsWith(":else") ? src.else : src.then) : src;
+    return record ? { ref, fields: Object.keys(record.fields) } : undefined;
+  };
+
+  s.entities.forEach((e, i) => {
+    checkRecord(e.fields, undefined, `entities[${i}]`, { source: null, keys: [] });
+  });
+  s.flows.forEach((f, i) => {
+    checkScope(f.initial, `flows[${i}].initial`, { self: [], source: null, keys: f.keys });
+  });
+  s.processes.forEach((p, i) => {
+    const at = `processes[${i}]`;
+    if (p.type === "arrival") {
+      checkRecord(p.fields, p.effects, at, {});
+      checkScope(p.where, `${at}.where`, { self: [] });
+    } else {
+      const source = sourceFields(p.source);
+      if (p.type === "derive") checkRecord(p.fields, p.effects, at, { source });
+      else {
+        checkScope(p.cond, `${at}.cond`, { self: [], source });
+        if (p.then) checkRecord(p.then.fields, p.then.effects, `${at}.then`, { source });
+        if (p.else) checkRecord(p.else.fields, p.else.effects, `${at}.else`, { source });
+      }
+    }
+  });
+
   // ---- dates ----
   const inRange = (d: string) => d >= s.meta.start && d <= s.meta.end;
   const range = `${s.meta.start}..${s.meta.end}`;

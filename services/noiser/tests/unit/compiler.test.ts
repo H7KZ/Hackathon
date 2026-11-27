@@ -107,6 +107,48 @@ describe("compileScenario — references and shapes", () => {
     expect(errorsOf(s)[0]?.message).toMatch(/only schema main/);
   });
 
+  it("rejects self.* pointing at a later field, even inside an `if` branch, and lists earlier fields", () => {
+    const s = fixture();
+    s.processes[0].fields.delay_days.then = { gen: "ref", path: "self.actual_date" };
+    const [e] = errorsOf(s);
+    expect(e?.path).toBe("processes[0].fields.delay_days.then.path");
+    expect(e?.message).toMatch(/declared earlier.*"self.is_late"/);
+    expect(e?.message.split("available:")[1]).not.toMatch(/actual_date/);
+  });
+
+  it("allows every field of the finished record in effects, but rejects unknown ones", () => {
+    const s = fixture();
+    s.processes[0].effects[0].delta = "self.qty";
+    const [e] = errorsOf(s);
+    expect(e?.path).toBe("processes[0].effects[0].delta");
+    expect(e?.message).toMatch(/"self.quantity"/);
+  });
+
+  it("rejects self.* in a branch condition (the record does not exist yet)", () => {
+    const s = fixture();
+    s.processes[2].cond.value = "self.quantity";
+    expect(errorsOf(s)[0]?.path).toBe("processes[2].cond.value");
+  });
+
+  it("rejects source.* that is not a field of the source record and lists the valid ones", () => {
+    const s = fixture();
+    s.processes[2].cond.keys.store = "source.shop_id";
+    s.processes[3].fields.customer_id.path = "source.unit_price"; // lost_sale (fulfil:else) has no price
+    const errors = errorsOf(s);
+    expect(errors.map((e) => e.path)).toEqual([
+      "processes[2].cond.keys.store",
+      "processes[3].fields.customer_id.path",
+    ]);
+    expect(errors[0]?.message).toMatch(/"purchase_attempt".*"source.store_id"/);
+    expect(errors[1]?.message).toMatch(/"fulfil:else"/);
+  });
+
+  it("checks paths in flow initial values: only key.<flow key>", () => {
+    const s = fixture();
+    s.flows[0].initial = { gen: "lookup", entity: "product", key: "key.supplier", field: "price" };
+    expect(errorsOf(s)[0]).toMatchObject({ path: "flows[0].initial.key" });
+  });
+
   it("formats zod paths with brackets", () => {
     const s = fixture();
     s.processes[0].id = "Bad-Id";
