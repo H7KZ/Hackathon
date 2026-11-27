@@ -20,6 +20,11 @@ export const STEP_LABELS = {
   "01_company": "Poznávám firmu",
   "02_model": "Stavím datový model",
   "03_influences": "Kreslím vlivy",
+  // CASCADE_DESIGN=causal (docs/cascade-design.md D1–D4)
+  "03a_causal_map": "Kreslím kauzální mapu",
+  "03b_processes": "Převádím mapu na procesy",
+  "04a_overlay": "Rozvrhuji příběh v čase",
+  "04b_expectations": "Píšu ověřitelné hypotézy",
   "04_story": "Píšu příběh",
   "05_scenario": "Skládám scénář",
   engine: "Generuji data",
