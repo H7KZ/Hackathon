@@ -28,6 +28,19 @@ export const MODEL_SYNTAX = `Model JSON syntax (follow exactly, the output is va
 Example (different domain, syntax only):
 ${JSON.stringify(MODEL_EXAMPLE)}`;
 
+/**
+ * How to size background numbers so the story shows in the data (story gate, gate.ts). Learned from
+ * live runs on 2026-11-27: a lever hidden behind an "if", fixed delivery quantities with large stock,
+ * too little cover (weekly waves of lost sales before the story), and a chain-wide revenue target that
+ * one of three suppliers cannot move by 10 %. Shared by v1 A5 and causal 4b.
+ */
+export const CALIBRATION = `- Make the effect visible (the story gate measures it on generated data):
+  - The lever must reach every record in its scope: use {"curve": "<id>"} directly, do not hide it behind another condition (e.g. an "if" on a role or category the scoped ids may not have). The curve's scope (e.g. self.supplier_id) filters the records.
+  - Replenish with topUp (order-up-to), not fixed quantities. Size it so the BASELINE is calm and the lever bites: the target covers about 2 weeks of demand (stock-outs on fewer than 2% of days before the story; ~1.5 weeks of cover gave weekly waves of lost sales that look like a fake event), and a disruption the lever causes (e.g. a late delivery) lasts clearly longer than that cover, so the shelf empties and purchases turn into lost sales.
+  - Start in steady state: initial flow levels about the level the chain settles at, inflow about equal to outflow, so nothing drifts before the story starts.
+  - A whole-company outcome moves only by the affected share: if one of three suppliers is late, chain revenue falls by at most about a third of that supplier's lost sales. Give the affected part enough weight (e.g. more of the products, or the best-selling ones, from that supplier) so whole-company expectations reach their threshold.
+  - Background rates high enough that the outcome tables have several rows per day.`;
+
 export const A1_COMPANY = `${SHARED_RULES}
 Task A1: describe the company and its environment: industry, size, actors around it (suppliers, customers, competitors, ...) and the key business processes relevant to the story.`;
 
@@ -69,8 +82,8 @@ Task A5: turn the model skeleton (02_model) into a complete, runnable model: fin
 - Realize each influence edge of 03_influences as a probability, rate or condition in some process.
 - Pick start/end (ISO dates, both days included) so that every story point and curve segment date lies within start..end.
 - Keep the count and idPrefix of entities named by 04_story (story point entities, curve scope ids like SUP-002), so those ids exist.
-- Make the expected effect visible: background rates high enough that the story points move the outcome tables.
-- If compiler errors are given, return the corrected full object; fix every listed path.
+${CALIBRATION}
+- If compiler or story gate errors are given, return the corrected full object; fix every listed path. Story gate errors (an expectation measured on generated data, baseline drift) are fixed by changing parameters (counts, rates, initial values, quantities, topUp targets, lags, product-supplier mix), never by renaming tables or columns: the expectations read them.
 ${MODEL_SYNTAX}`;
 
 export const WHAT_IF = `${SHARED_RULES}

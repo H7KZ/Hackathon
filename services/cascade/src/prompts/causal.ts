@@ -2,7 +2,7 @@
  * Prompts of the causal design (docs/cascade-design.md D1–D4, CascadeOptions.design = "causal").
  * Changing a prompt changes the cache key -> re-record the demo cache.
  */
-import { MODEL_SYNTAX, SHARED_RULES } from "./index";
+import { CALIBRATION, MODEL_SYNTAX, SHARED_RULES } from "./index";
 
 export const CAUSAL_MAP = `${SHARED_RULES}
 Task 4a: draw the causal map of the story as a conceptual graph (no scenario syntax yet).
@@ -32,11 +32,7 @@ Mapping (checked by code):
 - Curves are referenced only by lever ids, {"curve": "<lever id>"}, and only where an edge leaves that lever. Every other p / rate is a constant number: the story effect must emerge through the chain. Code builds the curves later.
 - Every branch/derive process realizes some edge. Event/state tables named in the map must exist.
 - Keep entity names, counts and idPrefixes of 02_model where possible; use at least 5 linked tables.
-- Make the effect visible (a live run produced a valid model where the lever changed nothing):
-  - The lever must reach every record in its scope: use {"curve": "<lever id>"} directly, do not hide it behind another condition (e.g. an "if" on a role or category the scoped ids may not have). The curve's scope (e.g. self.supplier_id) filters the records.
-  - Replenish with topUp (order-up-to), not fixed quantities. Size it so the BASELINE is calm and the lever bites: the target covers about 2 weeks of demand (stock-outs on fewer than 2% of days before the story; live runs with ~1.5 weeks of cover had weekly waves of lost sales that look like a fake event), and a disruption the lever causes (e.g. a late delivery) lasts clearly longer than that cover, so the shelf empties and purchases turn into lost sales.
-  - Start in steady state: initial flow levels about the level the chain settles at, inflow about equal to outflow, so nothing drifts before the story starts.
-  - Background rates high enough that the outcome tables have several rows per day.
+${CALIBRATION}
 - If errors are given, return the corrected full object; fix every listed path. Errors from the story gate (expectations measured on generated data, baseline drift) are fixed by changing parameters (rates, counts, initial values, quantities, topUp targets, lags), never by renaming tables or columns: the SQL reads them.
 ${MODEL_SYNTAX}`;
 
