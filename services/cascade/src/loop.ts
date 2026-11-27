@@ -97,42 +97,55 @@ export function withSchemaRetry(
   const max = opts.maxIterations ?? MAX_ITERATIONS;
   return {
     async object<T>(req: ObjectRequest<T>): Promise<T> {
-      let failed: LlmOutputInvalid | undefined;
+      let failed: { err: LlmOutputInvalid; byCheck: boolean } | undefined;
       for (let n = 1; ; n++) {
         opts.signal?.throwIfAborted();
-        const prompt = failed === undefined ? req.prompt : `${req.prompt}\n\n${fixRequest(n - 1, failed)}`;
+        const prompt =
+          failed === undefined
+            ? req.prompt
+            : `${req.prompt}\n\n${fixRequest(n - 1, failed.err, failed.byCheck)}`;
+        let byCheck = false;
         try {
           const value = await llm.object({ ...req, prompt });
           const problems = opts.check?.(value) ?? [];
-          if (problems.length > 0)
-            throw new LlmOutputInvalid(req.schemaName, formatFeedback(problems), value);
+          byCheck = problems.length > 0;
+          if (byCheck) throw new LlmOutputInvalid(req.schemaName, formatFeedback(problems), value);
           if (n > 1) opts.onEvent?.({ type: "loop.iteration", step, n, ok: true, feedback: [] });
           return value;
         } catch (err) {
           if (!(err instanceof LlmOutputInvalid)) throw err;
           opts.onEvent?.({ type: "loop.iteration", step, n, ok: false, feedback: [err.issues] });
           if (n >= max) throw err;
-          failed = err;
+          failed = { err, byCheck };
         }
       }
     },
   };
 }
 
-/** One line on what the agent actually sent, when the schema issues alone do not show it. */
-function describeShape(raw: unknown): string[] {
+/**
+ * A hint when the answer is not one plain object, or is the object wrapped in a single key
+ * (e.g. {"scenario": {...}}). Correct top-level keys get no hint: the schema issues say enough.
+ */
+export function describeShape(raw: unknown): string[] {
   if (raw === undefined) return [];
   if (typeof raw !== "object" || raw === null || Array.isArray(raw))
     return [`Your answer was ${Array.isArray(raw) ? "an array" : typeof raw}, expected one JSON object.`];
-  const keys = Object.keys(raw);
-  return [`Your answer had top-level keys [${keys.join(", ")}]; put the fields directly at the top level.`];
+  const entries = Object.entries(raw);
+  const [only] = entries;
+  if (entries.length !== 1 || !only || typeof only[1] !== "object" || only[1] === null) return [];
+  return [`Your answer wrapped everything in "${only[0]}"; put the fields directly at the top level.`];
 }
 
 /** Retry section: the model's own rejected answer + the issues, so it edits instead of starting over. */
-function fixRequest(attempt: number, err: LlmOutputInvalid): string {
+function fixRequest(attempt: number, err: LlmOutputInvalid, byCheck: boolean): string {
   return [
-    `## Your previous answer (attempt ${attempt}) failed schema validation`,
-    "Return the same object with ONLY the listed paths fixed; keep everything else unchanged.",
+    byCheck
+      ? `## Your previous answer (attempt ${attempt}) is valid JSON but fails the story checks`
+      : `## Your previous answer (attempt ${attempt}) failed schema validation`,
+    byCheck
+      ? "Return the corrected object: fix every listed problem (add or change what it asks for); keep everything else unchanged."
+      : "Return the same object with ONLY the listed paths fixed; keep everything else unchanged.",
     err.raw === undefined ? "" : `### Previous answer\n${JSON.stringify(err.raw)}`,
     `### Issues\n${err.issues}`,
   ]

@@ -8,7 +8,7 @@ import type { Llm } from "@s2d/llm";
 import type { DataModel, Influences, StoryPlan } from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import { A5_DETAIL, userPrompt } from "./prompts/index";
-import { checkCurveCoverage, checkExpectationTables, checkModelShape } from "./checks";
+import { checkCurveCoverage, checkEntityIds, checkExpectationTables, checkModelShape } from "./checks";
 import { formatFeedback, repairLoop, type RepairLoopOptions } from "./loop";
 import type { CascadeInput } from "./steps";
 
@@ -89,6 +89,8 @@ export function a5Detail(
       ...checkCurveCoverage(s, a.story),
       // expectations come from 04_story; A5 must keep the table names and visibility they rely on
       ...checkExpectationTables(s.expectations, s),
+      // curve scopes / story point entities from 04_story must still name existing rows
+      ...checkEntityIds(a.story, s.entities),
     ],
   });
 }

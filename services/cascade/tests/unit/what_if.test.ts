@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { applyWhatIf, whatIf, WhatIfFailed } from "../../src/what_if";
+import { applyWhatIf, paramPointers, whatIf, WhatIfFailed } from "../../src/what_if";
 import type { CascadeEvent } from "../../src/events";
 import { base, setup } from "./fixtures";
 
@@ -46,6 +46,31 @@ describe("applyWhatIf", () => {
         "params.1.pointer",
         "params.2.pointer",
       ]);
+  });
+
+  it("rejects numbers that are structure, not Params (array length, entity count, lag)", () => {
+    const derive = base.processes.findIndex((p) => p.type === "derive" && p.lag !== undefined);
+    const res = applyWhatIf(base, {
+      curves: base.curves,
+      params: [
+        { pointer: "/processes/length", value: 0 },
+        { pointer: "/entities/0/count", value: 1 },
+        { pointer: `/processes/${derive}/lag/min`, value: 9 },
+      ],
+      rationale: "r",
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.errors).toHaveLength(3);
+    expect(base.processes.length).toBeGreaterThan(0);
+  });
+
+  it("lists Param slots of supplier_delay: rates, derive p and curve-driven generators", () => {
+    const slots = paramPointers(base);
+    expect(slots).toContain(firstParam);
+    for (const [i, p] of base.processes.entries())
+      if (p.type === "derive") expect(slots).toContain(`/processes/${i}/p`);
+    expect([...slots].every((s) => /^\/(entities|flows|processes)\//.test(s))).toBe(true);
+    expect([...slots].some((s) => s.endsWith("/count") || s.includes("/lag/"))).toBe(false);
   });
 });
 

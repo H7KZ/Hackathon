@@ -12,7 +12,7 @@ import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
-import { checkExpectationTables, checkModelShape } from "./checks";
+import { checkEntityIds, checkExpectationTables, checkModelShape, checkStoryPlan } from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
@@ -92,12 +92,13 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   const model = await step("02_model", DataModel, () =>
     a2Model(
       llm("02_model", (v) => checkModelShape(DataModel.parse(v))),
+      input,
       company,
     ),
   );
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>
-    a3Influences(llm("03_influences"), company, model),
+    a3Influences(llm("03_influences"), input, company, model),
   );
   if (!shouldRun("04_story")) return { dir, company, model, influences };
   const story = await step("04_story", StoryPlan, () =>
@@ -106,6 +107,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         const plan = StoryPlan.parse(v);
         // curves and story points go into 05 verbatim, so A5 cannot repair them: check them here
         return [
+          ...checkStoryPlan(plan),
           ...checkExpectationTables(plan.expectations, model),
           ...checkStoryRefs({ entities: model.entities, curves: plan.curves, storyPoints: plan.storyPoints }),
         ];
