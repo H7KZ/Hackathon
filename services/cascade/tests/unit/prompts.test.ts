@@ -36,3 +36,11 @@ describe("prompt few-shot example", () => {
     for (const p of [A2_MODEL, A5_DETAIL]) expect(p).toContain('"delivery_check:then"');
   });
 });
+
+describe("story rule 3 (curves only on levers)", () => {
+  it("A4 forbids curves on downstream probabilities and ratio expectations with constant p", async () => {
+    const { A4_STORY } = await import("../../src/prompts/index");
+    expect(A4_STORY).toMatch(/Downstream probabilities .* stay CONSTANT/);
+    expect(A4_STORY).toMatch(/COUNTS or LEVELS/);
+  });
+});

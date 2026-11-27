@@ -35,13 +35,24 @@ ${MODEL_SYNTAX}`;
 export const A3_INFLUENCES = `${SHARED_RULES}
 Task A3: build the causal influence graph between process parameters and outcomes: edges from -> to, direction, weight 0-1, delay in days, short rationale.`;
 
+/** Rule 3 (AGENTS.md): a real A4 run ramped complaint_prob directly instead of letting it emerge. */
+export const LEVERS_ONLY = `Curves only on ROOT CAUSES (levers):
+- A curve may move only the parameter where the story starts (e.g. a supplier's late-delivery probability, demand). Usually 1-2 curves.
+- Downstream probabilities and rates (complaints, cancellations, churn, switching to a competitor, lost sales, revenue) stay CONSTANT numbers. Their outcome must grow because more source records reach them through the process chain (e.g. more stock-outs -> more lost sales -> more complaints at the same p).
+- If the story says "more complaints", that is a consequence to show in the data, not a curve.`;
+
 export const A4_STORY = `${SHARED_RULES}
 Task A4: split the story into dated story points, define root curves (only on parameters) and SQL expectations.
-Each expectation SQL must return columns period ('before'|'after') and value DOUBLE, reading only schema main.`;
+${LEVERS_ONLY}
+Expectations:
+- Each expectation SQL must return columns period ('before'|'after') and value DOUBLE, reading only schema main.
+- Test consequences through the chain with COUNTS or LEVELS (e.g. complaints per week, lost sales per day, revenue per day), not a ratio whose probability is constant (complaints per lost sale stays flat by design).
+- Add at least one control that must stay stable (e.g. demand / visits).`;
 
 export const A5_DETAIL = `${SHARED_RULES}
 Task A5: turn the model skeleton (02_model) into a complete, runnable model: final entities (with counts and field generators), flows and processes with EVERY parameter filled in.
 - Curves, story points and expectations are taken from 04_story by code: reference curves only as {"curve": "<id>"} using ids defined there, never invent new curve ids.
+- Use a curve only where 04_story intends that lever; every downstream p / rate is a constant number, so the story effect emerges through the process chain.
 - Realize each influence edge of 03_influences as a probability, rate or condition in some process.
 - Pick start/end (ISO dates) so that every story point and curve segment lies inside [start, end).
 - Make the expected effect visible: background rates high enough that the story points move the outcome tables.
