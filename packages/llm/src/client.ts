@@ -137,6 +137,8 @@ export interface LlmOptions {
   cacheDir?: string;
   offline?: boolean;
   model?: string;
+  /** Per-call model by schemaName (e.g. { "05_scenario": "anthropic:claude-sonnet-5-5" }). */
+  modelBySchema?: Record<string, string>;
 }
 
 export interface Llm {
@@ -145,15 +147,16 @@ export interface Llm {
 
 export function createLlm(opts: LlmOptions = {}): Llm {
   const needEnv = opts.cacheDir === undefined || opts.offline === undefined || opts.model === undefined;
-  const env = needEnv ? readLlmEnv() : { cacheDir: "", offline: false, model: "" };
+  const env = needEnv ? readLlmEnv() : { cacheDir: "", offline: false, model: "", modelBySchema: {} };
   const cache = new DiskCache(opts.cacheDir ?? env.cacheDir);
   const offline = opts.offline ?? env.offline;
   const defaultModel = opts.model ?? env.model;
+  const modelBySchema = opts.modelBySchema ?? env.modelBySchema;
   const generate = opts.generate ?? aiSdkGenerate;
 
   return {
     async object<T>(req: ObjectRequest<T>): Promise<T> {
-      const model = req.model ?? defaultModel;
+      const model = req.model ?? modelBySchema[req.schemaName] ?? defaultModel;
       const instructions = req.instructions ?? "";
       const key = cacheKey({
         model,
