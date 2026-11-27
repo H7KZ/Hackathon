@@ -11,7 +11,7 @@ import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from
 import { Scenario } from "@s2d/schema/scenario";
 import { a5Detail } from "./a5_detail";
 import type { OnEvent } from "./events";
-import { formatFeedback } from "./loop";
+import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
 
 export interface CascadeOptions {
@@ -80,13 +80,17 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
-  const company = await step("01_company", CompanySpec, () => a1Company(opts.llm, input));
+  const llm = (name: ArtifactName) =>
+    withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal });
+  const company = await step("01_company", CompanySpec, () => a1Company(llm("01_company"), input));
   if (!shouldRun("02_model")) return { dir, company };
-  const model = await step("02_model", DataModel, () => a2Model(opts.llm, company));
+  const model = await step("02_model", DataModel, () => a2Model(llm("02_model"), company));
   if (!shouldRun("03_influences")) return { dir, company, model };
-  const influences = await step("03_influences", Influences, () => a3Influences(opts.llm, company, model));
+  const influences = await step("03_influences", Influences, () =>
+    a3Influences(llm("03_influences"), company, model),
+  );
   if (!shouldRun("04_story")) return { dir, company, model, influences };
-  const story = await step("04_story", StoryPlan, () => a4Story(opts.llm, input, model, influences));
+  const story = await step("04_story", StoryPlan, () => a4Story(llm("04_story"), input, model, influences));
   if (!shouldRun("05_scenario")) return { dir, company, model, influences, story };
   const scenario = await step("05_scenario", Scenario, async () => {
     const res = await a5Detail(

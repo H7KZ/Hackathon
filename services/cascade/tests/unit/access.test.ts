@@ -51,7 +51,7 @@ describe("cascade access functions", () => {
   });
 
   it("cascade() reports an invalid agent output as an error of that step instead of throwing", async () => {
-    const { llm, runsDir } = setup([{ industry: "x" }]);
+    const { llm, runsDir } = setup([{ industry: "x" }, { industry: "x" }, { industry: "x" }]);
     const res = await cascade(input, { llm, runsDir, runId: "r2", until: "01_company" });
     expect(res.ok).toBe(false);
     if (res.ok) return;

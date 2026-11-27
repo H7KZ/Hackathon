@@ -2,7 +2,7 @@
  * Repair loop shared by A5 and whatIf (docs/cascade-design.md D5/D6): ask the agent, assemble the
  * scenario in code, `compileScenario`, feed the errors back. No engine run, no expectations here.
  */
-import { LlmOutputInvalid } from "@s2d/llm";
+import { LlmOutputInvalid, type Llm, type ObjectRequest } from "@s2d/llm";
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
 import type { ArtifactName } from "@s2d/schema/artifacts";
@@ -61,6 +61,40 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
     feedback = compiled.errors;
   }
   return { ok: false, feedback, iterations: max };
+}
+
+/**
+ * Wraps an Llm so a schema-invalid answer is re-asked with the zod issues appended to the prompt
+ * (A1–A4 have no compile step; A5/whatIf use repairLoop). Emits `loop.iteration` per attempt.
+ */
+export function withSchemaRetry(
+  llm: Llm,
+  step: ArtifactName,
+  opts: { onEvent?: OnEvent | undefined; signal?: AbortSignal | undefined; maxIterations?: number } = {},
+): Llm {
+  const max = opts.maxIterations ?? MAX_ITERATIONS;
+  return {
+    async object<T>(req: ObjectRequest<T>): Promise<T> {
+      let issues: string | undefined;
+      for (let n = 1; ; n++) {
+        opts.signal?.throwIfAborted();
+        const prompt =
+          issues === undefined
+            ? req.prompt
+            : `${req.prompt}\n\n## Your previous answer (attempt ${n - 1}) failed schema validation, fix every issue\n${issues}`;
+        try {
+          const value = await llm.object({ ...req, prompt });
+          if (n > 1) opts.onEvent?.({ type: "loop.iteration", step, n, ok: true, feedback: [] });
+          return value;
+        } catch (err) {
+          if (!(err instanceof LlmOutputInvalid)) throw err;
+          opts.onEvent?.({ type: "loop.iteration", step, n, ok: false, feedback: [err.issues] });
+          if (n >= max) throw err;
+          issues = err.issues;
+        }
+      }
+    },
+  };
 }
 
 export function formatFeedback(feedback: Feedback): string {
