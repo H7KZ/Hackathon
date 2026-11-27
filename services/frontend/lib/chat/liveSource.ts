@@ -10,7 +10,8 @@ import type { DatasetEvidence, DetectiveResult, SessionCommand, SessionEvent, Se
 import type { MetricDiff } from "@s2d/schema/evidence";
 import type { Step } from "../a2ui/catalog";
 import { API_URL } from "../api";
-import { addDays } from "./mockData";
+import { DEFAULT_CONFIG, normalize } from "./config";
+import { addDays } from "./curve";
 import { STEP_LABELS, type StepKey } from "./phrases";
 import {
   compareSurface,
@@ -21,17 +22,26 @@ import {
   setSteps,
   storySurface,
   type DatasetView,
+  type ExpectationToggle,
   type SeriesRow,
+  type StoryConfig,
   type StoryPointEdit,
 } from "./surfaces";
 import type { ChatSource, Emit, UserInput } from "./types";
 
 type StoryArtifact = {
-  storyPoints: { id: string; title: string; description: string; start: string; end?: string }[];
+  storyPoints: {
+    id: string;
+    phase?: number;
+    title: string;
+    description: string;
+    start: string;
+    end?: string;
+  }[];
   curves: {
     id: string;
     baseline: number;
-    segments: { kind: string; start: string; end?: string; to: number }[];
+    segments: { kind: string; start: string; end?: string; to: number; storyPointId?: string }[];
   }[];
   expectations: { id: string; description: string }[];
 };
@@ -42,27 +52,78 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Weekly sample of the first curve, so the user sees the bend before approving. */
-export function previewCurve(story: StoryArtifact): { rows: SeriesRow[]; from: string; to: string } {
+/** 04_story → editor model: story points become knots on the first curve (segment `to` = level). */
+export function storyToEdit(story: StoryArtifact): {
+  points: StoryPointEdit[];
+  config: StoryConfig;
+  expectations: ExpectationToggle[];
+} {
   const curve = story.curves[0];
-  const starts = story.storyPoints.map((p) => p.start).sort();
-  const from = addDays(starts[0] ?? "2026-01-01", -56);
-  const to = addDays(starts.at(-1) ?? from, 84);
-  const rows: SeriesRow[] = [];
-  for (let day = from; day <= to; day = addDays(day, 7)) {
-    let value = curve?.baseline ?? 0;
-    for (const s of curve?.segments ?? []) {
-      if (day < s.start) continue;
-      const inside = !s.end || day < s.end;
-      if (s.kind === "spike" || s.kind === "decay") value = inside ? s.to : value;
-      else if (s.kind === "ramp" && s.end && inside) {
-        const t = (Date.parse(day) - Date.parse(s.start)) / (Date.parse(s.end) - Date.parse(s.start));
-        value = value + (s.to - value) * t;
-      } else value = s.to;
-    }
-    rows.push({ day, value: Math.round(value * 100) / 100 });
-  }
-  return { rows, from, to };
+  const points = story.storyPoints.map((p) => {
+    const seg = curve?.segments.find((x) => x.storyPointId === p.id);
+    return {
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      start: seg?.start ?? p.start,
+      level: seg?.to ?? curve?.baseline ?? 0,
+      ...((seg?.end ?? p.end) && { end: seg?.end ?? p.end }),
+    };
+  });
+  const starts = points.map((x) => x.start).sort();
+  const from = addDays(starts[0] ?? DEFAULT_CONFIG.period.from, -56);
+  const levels = [curve?.baseline ?? 0, ...points.map((x) => x.level)];
+  const max = Math.max(...levels);
+  return {
+    points,
+    config: normalize({
+      ...DEFAULT_CONFIG,
+      period: { from, to: from },
+      curve: {
+        ...DEFAULT_CONFIG.curve,
+        label: curve?.id ?? DEFAULT_CONFIG.curve.label,
+        unit: "",
+        baseline: curve?.baseline ?? 0,
+        min: Math.min(0, ...levels),
+        max: max > 0 ? Math.ceil(max * 1.4) : 1,
+      },
+    }),
+    expectations: story.expectations.map((e) => ({ id: e.id, description: e.description, enabled: true })),
+  };
+}
+
+/** Editor model → 04_story: updates points and their ramp segments; adds new, drops deleted ones. */
+export function editToStory(
+  story: StoryArtifact,
+  edited: StoryPointEdit[],
+  baseline?: number,
+): StoryArtifact {
+  const [curve, ...rest] = story.curves;
+  const maxPhase = story.storyPoints.reduce((m, p) => Math.max(m, p.phase ?? 0), 0);
+  const storyPoints = edited.map((e, i) => {
+    const old = story.storyPoints.find((p) => p.id === e.id);
+    const { level: _level, ...point } = e;
+    return { ...old, ...point, phase: old?.phase ?? maxPhase + i + 1 };
+  });
+  if (!curve) return { ...story, storyPoints };
+  const segments = [
+    ...curve.segments.filter((s) => !s.storyPointId),
+    ...edited.map((e) => {
+      const old = curve.segments.find((s) => s.storyPointId === e.id);
+      return {
+        kind: old?.kind ?? "ramp",
+        start: e.start,
+        to: e.level,
+        storyPointId: e.id,
+        ...(e.end && { end: e.end }),
+      };
+    }),
+  ].sort((x, y) => x.start.localeCompare(y.start));
+  return {
+    ...story,
+    storyPoints,
+    curves: [{ ...curve, baseline: baseline ?? curve.baseline, segments }, ...rest],
+  };
 }
 
 export function evidenceToView(
@@ -138,13 +199,15 @@ export function createLiveSource(sessionId: string): ChatSource {
   async function showStory() {
     const { value } = await getJson<{ value: StoryArtifact }>(`/sessions/${sessionId}/artifacts/04_story`);
     story = value;
-    const preview = previewCurve(value);
-    const points: StoryPointEdit[] = value.storyPoints.map((p) => ({ ...p, strength: 50 }));
-    emit({ type: "a2ui", message: storySurface(`story-${String(runs)}`, points, preview.rows, preview) });
+    const edit = storyToEdit(value);
+    emit({
+      type: "a2ui",
+      message: storySurface(`story-${String(runs)}`, edit.points, edit.config, edit.expectations),
+    });
     emit({
       type: "say",
       role: "agent",
-      text: "Návrh příběhu je připravený. Upravte body a klikněte **Schválit a generovat**.",
+      text: "Návrh příběhu je připravený. Body posuňte přímo v grafu, pak klikněte **Generovat data**.",
     });
   }
 
@@ -214,7 +277,7 @@ export function createLiveSource(sessionId: string): ChatSource {
     };
     switch (e.type) {
       case "status":
-        if (e.status === "drafting") newProgress("Návrh příběhu", CASCADE_KEYS.slice(0, 4));
+        if (e.status === "drafting") newProgress("Agenti navrhují příběh", CASCADE_KEYS.slice(0, 4));
         if (e.status === "generating") newProgress("Generování dat", ["05_scenario", "engine", "evidence"]);
         if (e.status === "detecting") newProgress("Detektiv", ["detective"]);
         if (e.status === "awaiting_refinement") {
@@ -282,17 +345,15 @@ export function createLiveSource(sessionId: string): ChatSource {
       if (action.name === "approve") {
         const edited = action.context.points as StoryPointEdit[] | undefined;
         if (story && edited) {
-          const storyPoints = story.storyPoints.map((p) => {
-            const e = edited.find((x) => x.id === p.id);
-            return e ? { ...p, title: e.title, start: e.start } : p;
-          });
-          const changed = JSON.stringify(storyPoints) !== JSON.stringify(story.storyPoints);
+          const config = action.context.config as StoryConfig | undefined;
+          const next = editToStory(story, edited, config?.curve.baseline);
+          const changed = JSON.stringify(next) !== JSON.stringify(story);
           if (changed) {
             pendingApprove = true;
             void fetch(`${API_URL}/sessions/${sessionId}/artifacts/04_story`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...story, storyPoints }),
+              body: JSON.stringify(next),
             });
             return;
           }

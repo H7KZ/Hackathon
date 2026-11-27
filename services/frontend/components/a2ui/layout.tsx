@@ -86,6 +86,22 @@ export function Tabs({ node }: NodeProps) {
   );
 }
 
+/** Disclosure: closed by default; native <details> so it works with keyboard and screen readers. */
+export function Collapsible({ node }: NodeProps) {
+  const resolve = useResolve();
+  return (
+    <details className="a2-collapsible" open={resolve(node.open) === true}>
+      <summary>
+        <span className="a2-collapsible-title">{str(resolve(node.title))}</span>
+        {node.summary !== undefined && (
+          <span className="a2-collapsible-sum">{str(resolve(node.summary))}</span>
+        )}
+      </summary>
+      <div className="a2-collapsible-body">{node.child && <Node id={node.child} />}</div>
+    </details>
+  );
+}
+
 export function Divider() {
   return <hr className="a2-divider" />;
 }

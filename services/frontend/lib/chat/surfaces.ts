@@ -22,9 +22,21 @@ export type StoryPointEdit = {
   description: string;
   start: string;
   end?: string;
-  /** 0–100, how hard the curve bends at this point */
-  strength: number;
+  /** curve value from this point on (ramp segment `to`) */
+  level: number;
 };
+
+/** Everything the Generate button sends (basic + advanced settings). */
+export type StoryConfig = {
+  curve: { label: string; unit: string; baseline: number; rampDays: number; min: number; max: number };
+  period: { from: string; to: string };
+  months: string[];
+  seed: number;
+  scale: number;
+  noise: { missing: number; duplicates: number; hourJitter: boolean };
+  size: { stores: number; products: number; customers: number };
+};
+export type ExpectationToggle = { id: string; description: string; enabled: boolean };
 export type SeriesRow = Record<string, number | string> & { day: string };
 export type Marker = { date: string; label: string };
 export type ExpectationRow = {
@@ -116,7 +128,7 @@ export function companySurface(id: string, c: CompanyView, demo = false): A2uiMe
       { id: "industry", component: "Text", variant: "h3", text: path("/industry") },
       { id: "size", component: "Text", variant: "muted", text: path("/size") },
       { id: "actors", component: "Row", gap: "sm", children: { componentId: "actor", path: "/actors" } },
-      { id: "actor", component: "Badge", tone: "info", text: path("name") },
+      { id: "actor", component: "Badge", tone: "neutral", text: path("name") },
       { id: "proc", component: "Text", variant: "caption", text: path("/processes") },
     ],
     { ...c, processes: `Procesy: ${c.keyProcesses.join(" · ")}` },
@@ -124,88 +136,207 @@ export function companySurface(id: string, c: CompanyView, demo = false): A2uiMe
   );
 }
 
-// ---------- story (canvas): timeline + editable points + approve ----------
+// ---------- story (canvas): curve editor, basic settings, advanced disclosure, generate ----------
 
+/**
+ * The refinement step. First view: the interactive curve (drag / add / delete story points) and three
+ * basic settings. Everything else sits in "Pokročilé nastavení". All of it is two-way bound into the
+ * surface data model and travels with the Generate action, so what the user touched is what runs.
+ */
 export function storySurface(
   id: string,
   points: StoryPointEdit[],
-  preview: SeriesRow[],
-  period: { from: string; to: string },
+  config: StoryConfig,
+  expectations: ExpectationToggle[],
   demo = false,
 ): A2uiMessage {
+  const section = (sid: string, title: string, children: string[]): ComponentNode[] => [
+    { id: sid, component: "Column", gap: "sm", children: [`${sid}-t`, ...children] },
+    { id: `${sid}-t`, component: "Text", variant: "label", text: title },
+  ];
   return create(
     id,
-    "Příběh",
+    "Návrh příběhu",
     "canvas",
     [
       {
         id: "root",
         component: "Column",
         gap: "lg",
-        children: ["head", "timeline", "chart", "editTitle", "points", "actions"],
+        children: ["intro", "curve", "basic", "advanced", "actions"],
       },
-      { id: "head", component: "Column", gap: "sm", children: ["h", "sub"] },
-      { id: "h", component: "Text", variant: "h2", text: "Návrh příběhu" },
       {
-        id: "sub",
+        id: "intro",
         component: "Text",
         variant: "muted",
-        text: "Body příběhu ohnou křivky parametrů. Upravte je, pak schvalte. Data vzniknou až potom.",
+        text: "Body příběhu ohýbají křivku parametru. Táhněte je v grafu, dvojklikem přidáte nový. Data vzniknou až po vygenerování.",
       },
       {
-        id: "timeline",
-        component: "StoryTimeline",
+        id: "curve",
+        component: "CurveEditor",
         points: path("/points"),
-        from: path("/period/from"),
-        to: path("/period/to"),
+        baseline: path("/config/curve/baseline"),
+        rampDays: path("/config/curve/rampDays"),
+        from: path("/config/period/from"),
+        to: path("/config/period/to"),
+        min: path("/config/curve/min"),
+        max: path("/config/curve/max"),
+        label: path("/config/curve/label"),
+        unit: path("/config/curve/unit"),
+        locked: path("/locked"),
+      },
+      { id: "basic", component: "Row", gap: "md", children: ["months", "scale", "seed"] },
+      {
+        id: "months",
+        component: "ChoicePicker",
+        label: "Období",
+        variant: "single",
+        value: path("/config/months"),
+        options: [
+          { label: "3 měsíce", value: "3" },
+          { label: "6 měsíců", value: "6" },
+          { label: "12 měsíců", value: "12" },
+        ],
       },
       {
-        id: "chart",
-        component: "LineChart",
-        title: "Náhled křivky: průměrné zpoždění dodávky (dny)",
-        data: path("/preview"),
-        markers: path("/markers"),
-        lines: [{ key: "value", label: "Zpoždění" }],
-        height: 200,
-      },
-      { id: "editTitle", component: "Text", variant: "h3", text: "Body příběhu" },
-      { id: "points", component: "List", children: { componentId: "point", path: "/points" } },
-      { id: "point", component: "Card", child: "pointCol" },
-      { id: "pointCol", component: "Column", gap: "sm", children: ["pointHead", "pointDesc", "pointFields"] },
-      { id: "pointHead", component: "Row", justify: "spaceBetween", children: ["pointTitle", "pointBadge"] },
-      { id: "pointTitle", component: "Text", variant: "h3", text: path("title") },
-      { id: "pointBadge", component: "Badge", tone: "story", text: path("id") },
-      { id: "pointDesc", component: "Text", variant: "muted", text: path("description") },
-      { id: "pointFields", component: "Row", gap: "md", children: ["pointStart", "pointStrength"] },
-      { id: "pointStart", component: "TextField", label: "Začátek (RRRR-MM-DD)", value: path("start") },
-      {
-        id: "pointStrength",
+        id: "scale",
         component: "Slider",
-        label: "Síla",
+        label: "Objem dat",
+        unit: "×",
+        min: 0.2,
+        max: 3,
+        steps: 0.1,
+        value: path("/config/scale"),
+      },
+      { id: "seed", component: "TextField", variant: "number", label: "Seed", value: path("/config/seed") },
+      {
+        id: "advanced",
+        component: "Collapsible",
+        title: "Pokročilé nastavení",
+        summary: "body příběhu, křivka, šum, velikost firmy, hypotézy",
+        child: "adv",
+      },
+      {
+        id: "adv",
+        component: "Column",
+        gap: "lg",
+        children: ["s-points", "s-curve", "s-noise", "s-size", "s-exp"],
+      },
+      ...section("s-points", "Body příběhu", ["pointList"]),
+      { id: "pointList", component: "List", children: { componentId: "pt", path: "/points" } },
+      { id: "pt", component: "Card", child: "ptCol" },
+      { id: "ptCol", component: "Column", gap: "sm", children: ["ptRow1", "ptRow2"] },
+      { id: "ptRow1", component: "Row", gap: "md", children: ["ptBadge", "ptTitle", "ptLevel"] },
+      { id: "ptBadge", component: "Badge", tone: "story", text: path("id") },
+      { id: "ptTitle", component: "TextField", label: "Název", value: path("title"), weight: 2 },
+      { id: "ptLevel", component: "TextField", variant: "number", label: "Hodnota", value: path("level") },
+      { id: "ptRow2", component: "Row", gap: "md", children: ["ptStart", "ptEnd", "ptDesc"] },
+      { id: "ptStart", component: "DateTimeInput", label: "Začátek", value: path("start") },
+      { id: "ptEnd", component: "DateTimeInput", label: "Návrat k normálu", value: path("end") },
+      { id: "ptDesc", component: "TextField", label: "Popis", value: path("description"), weight: 2 },
+      ...section("s-curve", "Křivka", ["curveRow"]),
+      { id: "curveRow", component: "Row", gap: "md", children: ["cBase", "cRamp", "cLabel"] },
+      {
+        id: "cBase",
+        component: "Slider",
+        label: "Výchozí hodnota",
+        min: 0,
+        max: 10,
+        steps: 0.5,
+        value: path("/config/curve/baseline"),
+      },
+      {
+        id: "cRamp",
+        component: "Slider",
+        label: "Náběh změny",
+        unit: "dní",
+        min: 1,
+        max: 42,
+        steps: 1,
+        value: path("/config/curve/rampDays"),
+      },
+      { id: "cLabel", component: "TextField", label: "Popisek osy", value: path("/config/curve/label") },
+      ...section("s-noise", "Šum v datech", ["noiseRow"]),
+      { id: "noiseRow", component: "Row", gap: "md", children: ["nMissing", "nDup", "nJitter"] },
+      {
+        id: "nMissing",
+        component: "Slider",
+        label: "Chybějící hodnoty",
         unit: "%",
         min: 0,
-        max: 100,
-        steps: 5,
-        value: path("strength"),
-        weight: 1,
+        max: 20,
+        steps: 1,
+        value: path("/config/noise/missing"),
       },
-      { id: "actions", component: "Row", justify: "end", children: ["approve"] },
       {
-        id: "approve",
+        id: "nDup",
+        component: "Slider",
+        label: "Duplicitní řádky",
+        unit: "%",
+        min: 0,
+        max: 10,
+        steps: 1,
+        value: path("/config/noise/duplicates"),
+      },
+      {
+        id: "nJitter",
+        component: "CheckBox",
+        label: "Rozházet časy v rámci dne",
+        value: path("/config/noise/hourJitter"),
+      },
+      ...section("s-size", "Velikost firmy", ["sizeRow"]),
+      { id: "sizeRow", component: "Row", gap: "md", children: ["zStores", "zProducts", "zCustomers"] },
+      {
+        id: "zStores",
+        component: "Slider",
+        label: "Prodejny",
+        min: 1,
+        max: 20,
+        steps: 1,
+        value: path("/config/size/stores"),
+      },
+      {
+        id: "zProducts",
+        component: "Slider",
+        label: "Produkty",
+        min: 10,
+        max: 500,
+        steps: 10,
+        value: path("/config/size/products"),
+      },
+      {
+        id: "zCustomers",
+        component: "Slider",
+        label: "Zákazníci",
+        min: 100,
+        max: 10000,
+        steps: 100,
+        value: path("/config/size/customers"),
+      },
+      ...section("s-exp", "Ověřované hypotézy", ["expList"]),
+      { id: "expList", component: "List", children: { componentId: "exp", path: "/expectations" } },
+      { id: "exp", component: "CheckBox", label: path("description"), value: path("enabled") },
+      { id: "actions", component: "Row", justify: "end", children: ["generate"] },
+      {
+        id: "generate",
         component: "Button",
         variant: "primary",
-        label: "Schválit a generovat",
+        label: "Generovat data",
         disabled: path("/locked"),
         action: {
           event: {
             name: "approve",
-            userMessage: "Schvaluji příběh, generuj data.",
-            context: { points: path("/points") },
+            userMessage: "Generuj data podle návrhu.",
+            context: {
+              points: path("/points"),
+              config: path("/config"),
+              expectations: path("/expectations"),
+            },
           },
         },
       },
     ],
-    { points, preview, period, markers: points.map((p) => ({ date: p.start, label: p.title })) },
+    { points, config, expectations },
     demo,
   );
 }
@@ -226,11 +357,10 @@ export function datasetSurface(id: string, d: DatasetView, demo = false): A2uiMe
   ]);
   return create(
     id,
-    `Data ${d.datasetId}`,
+    `Dataset ${d.datasetId}`,
     "canvas",
     [
-      { id: "root", component: "Column", gap: "lg", children: ["h", "kpis", "tabs"] },
-      { id: "h", component: "Text", variant: "h2", text: `Dataset ${d.datasetId}` },
+      { id: "root", component: "Column", gap: "lg", children: ["kpis", "tabs"] },
       { id: "kpis", component: "Row", gap: "md", children: ["k1", "k2", "k3", "k4"] },
       { id: "k1", component: "Kpi", label: "Řádků", value: path("/totals/rows"), format: "int" },
       { id: "k2", component: "Kpi", label: "Tabulek", value: path("/totals/tables"), format: "int" },
@@ -329,11 +459,10 @@ export function readySurface(id: string, datasetId: string, demo = false): A2uiM
 export function detectiveSurface(id: string, d: DetectiveView, demo = false): A2uiMessage {
   return create(
     id,
-    `Detektiv ${d.datasetId}`,
+    `Slepý detektiv · ${d.datasetId}`,
     "canvas",
     [
-      { id: "root", component: "Column", gap: "lg", children: ["h", "kpis", "story", "table"] },
-      { id: "h", component: "Text", variant: "h2", text: "Slepý detektiv" },
+      { id: "root", component: "Column", gap: "lg", children: ["kpis", "story", "table"] },
       { id: "kpis", component: "Row", children: ["recall", "precision", "count"] },
       {
         id: "recall",
@@ -373,11 +502,10 @@ export function detectiveSurface(id: string, d: DetectiveView, demo = false): A2
 export function compareSurface(id: string, c: CompareView, demo = false): A2uiMessage {
   return create(
     id,
-    `${c.a} ↔ ${c.b}`,
+    `Porovnání ${c.a} ↔ ${c.b}`,
     "canvas",
     [
-      { id: "root", component: "Column", gap: "lg", children: ["h", "q", "chart", "table"] },
-      { id: "h", component: "Text", variant: "h2", text: `Porovnání ${c.a} ↔ ${c.b}` },
+      { id: "root", component: "Column", gap: "lg", children: ["q", "chart", "table"] },
       { id: "q", component: "Callout", tone: "story", title: "Otázka", text: path("/question") },
       {
         id: "chart",

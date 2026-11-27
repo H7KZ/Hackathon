@@ -5,9 +5,10 @@ import type { ComponentName } from "../../lib/a2ui/catalog";
 import type { SurfaceStore } from "../../lib/a2ui/store";
 import { SurfaceProvider, type ActionHandler } from "./context";
 import { Node, type NodeProps, type Registry } from "./tree";
-import { Card, Column, Divider, List, Row, Tabs } from "./layout";
+import { Card, Collapsible, Column, Divider, List, Row, Tabs } from "./layout";
 import { Badge, Callout, Text } from "./content";
-import { Button, ChoicePicker, Slider, TextField } from "./inputs";
+import { Button, CheckBox, ChoicePicker, DateTimeInput, Slider, TextField } from "./inputs";
+import { CurveEditor } from "./curve";
 import { Kpi, Table } from "./data";
 import { BarChart, LineChart } from "./charts";
 import { Steps, StoryTimeline } from "./story";
@@ -19,6 +20,7 @@ export const REGISTRY: Registry & Record<ComponentName, ComponentType<NodeProps>
   Card,
   List,
   Tabs,
+  Collapsible,
   Divider,
   Text,
   Badge,
@@ -27,12 +29,15 @@ export const REGISTRY: Registry & Record<ComponentName, ComponentType<NodeProps>
   TextField,
   Slider,
   ChoicePicker,
+  CheckBox,
+  DateTimeInput,
   Kpi,
   Table,
   LineChart,
   BarChart,
   Steps,
   StoryTimeline,
+  CurveEditor,
 };
 
 export function useStoreState(store: SurfaceStore) {

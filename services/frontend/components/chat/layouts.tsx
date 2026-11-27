@@ -31,11 +31,30 @@ export function Bubble({ text }: { text: string }) {
   );
 }
 
-function useAutoScroll(deps: unknown[]) {
+/**
+ * Follows new content only while the reader is at the bottom (like a terminal); editing a chart or
+ * scrolling up never yanks the view. A new big panel scrolls to its top so it is read from the start.
+ */
+function useAutoScroll(deps: unknown[], anchor?: string | null) {
   const ref = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
   useEffect(() => {
     const el = ref.current;
-    if (el) el.scrollTop = el.scrollHeight; // scroll-behavior: smooth in CSS
+    if (!el) return;
+    const onScroll = () => {
+      atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const target = anchor ? el.querySelector<HTMLElement>(`[data-item="${anchor}"]`) : null;
+    if (target) el.scrollTop = target.offsetTop - 16;
+    else if (atBottom.current) el.scrollTop = el.scrollHeight; // scroll-behavior: smooth in CSS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   return ref;
@@ -44,10 +63,12 @@ function useAutoScroll(deps: unknown[]) {
 /** Big inline panel for a canvas surface inside the thread: title strip + A2UI meta + actions. */
 function Panel({
   s,
+  itemId,
   surfaceId,
   onInspect,
 }: {
   s: ChatSession;
+  itemId: string;
   surfaceId: string;
   onInspect?: (id: string) => void;
 }) {
@@ -55,12 +76,14 @@ function Panel({
   if (!surface) return null;
   const count = Object.keys(surface.components).length;
   return (
-    <section className="panel" aria-label={surface.meta.title}>
+    <section className="panel" data-item={itemId} aria-label={surface.meta.title}>
       <header className="panel-head">
         <strong>{surface.meta.title}</strong>
-        <span className="panel-meta">
-          A2UI · {count} {count < 5 ? "komponenty" : "komponent"}
-        </span>
+        {onInspect && (
+          <span className="panel-meta">
+            A2UI · {count} {count < 5 ? "komponenty" : "komponent"}
+          </span>
+        )}
         {onInspect && (
           <button
             type="button"
@@ -104,7 +127,7 @@ function ThreadItems({
         const canvas = s.state.surfaces[item.surfaceId]?.meta.placement === "canvas";
         if (canvas && !inline) return null;
         return canvas ? (
-          <Panel key={item.id} s={s} surfaceId={item.surfaceId} onInspect={onInspect} />
+          <Panel key={item.id} itemId={item.id} s={s} surfaceId={item.surfaceId} onInspect={onInspect} />
         ) : (
           <div key={item.id} className="msg surface">
             <A2uiSurface store={s.store} surfaceId={item.surfaceId} onAction={s.onAction} />
@@ -118,7 +141,12 @@ function ThreadItems({
 
 /** A. One centered column: everything inline, like a document that writes itself. */
 export function ThreadLayout({ s, onInspect }: { s: ChatSession; onInspect?: (id: string) => void }) {
-  const scroll = useAutoScroll([s.items, s.busy, s.state]);
+  const last = s.items.at(-1);
+  const panelId =
+    last?.role === "surface" && s.state.surfaces[last.surfaceId]?.meta.placement === "canvas"
+      ? last.id
+      : null;
+  const scroll = useAutoScroll([s.items.length, s.busy], panelId);
   return (
     <div className="thread-layout">
       <div className="thread-scroll" ref={scroll} aria-live="polite">
@@ -229,7 +257,7 @@ export function InspectorLayout({ s }: { s: ChatSession }) {
 /** C. Chat column + canvas tabs (the first prototype), now full-bleed. */
 export function SplitLayout({ s }: { s: ChatSession }) {
   const [view, setView] = useState<"chat" | "canvas">("chat");
-  const scroll = useAutoScroll([s.items, s.busy]);
+  const scroll = useAutoScroll([s.items.length, s.busy]);
   const onAction: ChatSession["onAction"] = (a) => {
     if (a.name === "open_canvas") setView("canvas");
     s.onAction(a);

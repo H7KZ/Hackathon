@@ -9,9 +9,10 @@ import { a2ui } from "../a2ui/protocol";
 import { STEP_LABELS, type StepKey } from "./phrases";
 import {
   MOCK_COMPANY,
+  DEFAULT_CONFIG,
+  MOCK_EXPECTATIONS,
   MOCK_POINTS,
-  PERIOD,
-  curvePreview,
+  normalize,
   mockCompare,
   mockDataset,
   mockDetective,
@@ -26,6 +27,8 @@ import {
   setSteps,
   steps,
   storySurface,
+  type ExpectationToggle,
+  type StoryConfig,
   type StoryPointEdit,
 } from "./surfaces";
 import type { ChatSource, Emit, UserInput } from "./types";
@@ -42,6 +45,8 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
   let emit: Emit = () => undefined;
   let phase: Phase = "drafting";
   let points: StoryPointEdit[] = MOCK_POINTS;
+  let config: StoryConfig = DEFAULT_CONFIG;
+  let expectations: ExpectationToggle[] = MOCK_EXPECTATIONS;
   let datasets = 0;
   let runs = 0;
   const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -88,7 +93,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
       role: "agent",
       text: "Pouštím se do toho. Nejdřív firmu poznám, pak navrhnu příběh.",
     });
-    await pipeline("Návrh příběhu", ["01_company", "02_model", "03_influences", "04_story"], 1500, {
+    await pipeline("Agenti navrhují příběh", ["01_company", "02_model", "03_influences", "04_story"], 1500, {
       "01_company": "4 aktéři, 4 procesy",
       "02_model": "12 tabulek, 9 vazeb",
       "03_influences": "7 vlivů",
@@ -98,13 +103,13 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     emit({ type: "a2ui", message: companySurface("company", MOCK_COMPANY, true) });
     emit({
       type: "a2ui",
-      message: storySurface("story", points, curvePreview(points), PERIOD, true),
+      message: storySurface("story", points, config, expectations, true),
     });
     emit({ type: "busy", step: null });
     emit({
       type: "say",
       role: "agent",
-      text: "Návrh příběhu je připravený. Posuňte body nebo jejich sílu a klikněte **Schválit a generovat**.",
+      text: "Návrh příběhu je připravený. Body posuňte přímo v grafu, pak klikněte **Generovat data**.",
     });
     phase = "awaiting_refinement";
   }
@@ -112,14 +117,16 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
   async function generate() {
     phase = "generating";
     const id = `d${String(++datasets)}`;
+    const ds = mockDataset(id, points, config, expectations);
+    const passed = ds.expectations.filter((e) => e.pass).length;
     await pipeline("Generování dat", ["05_scenario", "engine", "integrity", "evidence"], 1300, {
-      "05_scenario": "2 iterace (e3 napoprvé neprošlo, křivka upravena)",
-      engine: "48 210 řádků",
+      "05_scenario": `${String(points.length)} body příběhu, seed ${String(config.seed)}`,
+      engine: `${ds.totals.rows.toLocaleString("cs-CZ")} řádků`,
       integrity: "všechny cizí klíče sedí",
-      evidence: "4 / 4 hypotézy splněny",
+      evidence: `${String(passed)} / ${String(ds.expectations.length)} hypotéz splněno`,
     });
     if (stopped) return;
-    emit({ type: "a2ui", message: datasetSurface(`dataset-${id}`, mockDataset(id, points), true) });
+    emit({ type: "a2ui", message: datasetSurface(`dataset-${id}`, ds, true) });
     emit({ type: "a2ui", message: readySurface(`ready-${id}`, id, true) });
     emit({ type: "busy", step: null });
     emit({ type: "suggest", items: WHAT_IF_SUGGESTIONS });
@@ -151,10 +158,13 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     const id = `d${String(++datasets)}`;
     await pipeline(`Co kdyby… (${id})`, ["whatIf", "engine", "evidence", "compare"], 1100, {
       whatIf: "upravena 1 křivka, stejný seed",
-      engine: "48 210 řádků",
+      engine: "stejný seed, stejné tabulky",
     });
     if (stopped) return;
-    emit({ type: "a2ui", message: compareSurface(`compare-d1-${id}`, mockCompare(question, points), true) });
+    emit({
+      type: "a2ui",
+      message: compareSurface(`compare-d1-${id}`, mockCompare(question, points, config), true),
+    });
     emit({ type: "busy", step: null });
     emit({
       type: "say",
@@ -183,7 +193,10 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
         if (action.name === "open_canvas") return; // handled by the workspace
         if (action.userMessage) emit({ type: "say", role: "user", text: action.userMessage });
         if (action.name === "approve" && phase === "awaiting_refinement") {
-          if (Array.isArray(action.context.points)) points = action.context.points as StoryPointEdit[];
+          const ctx = action.context;
+          if (Array.isArray(ctx.points)) points = ctx.points as StoryPointEdit[];
+          if (ctx.config && typeof ctx.config === "object") config = normalize(ctx.config as StoryConfig);
+          if (Array.isArray(ctx.expectations)) expectations = ctx.expectations as ExpectationToggle[];
           emit({ type: "a2ui", message: a2ui.data("story", "/locked", true) });
           void generate();
         } else if (action.name === "detect" && phase === "ready") {
@@ -199,7 +212,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
         emit({
           type: "say",
           role: "agent",
-          text: "Příběh upravíte přímo v návrhu. Až budete spokojeni, klikněte **Schválit a generovat**.",
+          text: "Příběh upravíte přímo v návrhu. Až budete spokojeni, klikněte **Generovat data**.",
         });
       else emit({ type: "say", role: "agent", text: "Chvilku, ještě pracuju. Hned jak doběhnu, ozvu se." });
     },

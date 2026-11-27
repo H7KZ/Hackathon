@@ -3,7 +3,7 @@
 import { useResolve } from "./context";
 import { str, type NodeProps } from "./tree";
 
-type Variant = "h1" | "h2" | "h3" | "body" | "caption" | "muted";
+type Variant = "h1" | "h2" | "h3" | "label" | "body" | "caption" | "muted";
 
 /** Plain text; `**bold**` is the only markup (no HTML, no links: nothing executable from an agent). */
 function Rich({ text }: { text: string }) {
@@ -30,14 +30,16 @@ export function Text({ node }: NodeProps) {
 }
 
 export type Tone = "ok" | "fail" | "info" | "story" | "neutral";
-const ICON: Record<Tone, string> = { ok: "✓", fail: "✗", info: "i", story: "◆", neutral: "•" };
+/** Icons only where they carry meaning (pass, fail, story point); info/neutral are plain. */
+const ICON: Record<Tone, string> = { ok: "✓", fail: "✗", info: "", story: "◆", neutral: "" };
 
 export function Badge({ node }: NodeProps) {
   const resolve = useResolve();
   const tone = (resolve(node.tone) as Tone | undefined) ?? "neutral";
   return (
     <span className={`a2-badge ${tone}`}>
-      <span aria-hidden="true">{ICON[tone]}</span> {str(resolve(node.text))}
+      {ICON[tone] && <span aria-hidden="true">{ICON[tone]}</span>}
+      {str(resolve(node.text))}
     </span>
   );
 }

@@ -23,23 +23,70 @@ export function Button({ node }: NodeProps) {
   );
 }
 
+/** `variant`: text (default) | longText | number (writes a number; empty = removed). */
 export function TextField({ node }: NodeProps) {
   const resolve = useResolve();
-  const [value, setValue] = useBinding<string>(node.value);
+  const [value, setValue] = useBinding<string | number>(node.value);
   const id = useId();
+  const variant = (node.variant as string | undefined) ?? (node.multiline ? "longText" : "text");
   const common = {
     id,
     value: value ?? "",
     placeholder: str(resolve(node.placeholder)),
     onChange: (e: { target: { value: string } }) => {
-      setValue(e.target.value);
+      const v = e.target.value;
+      if (variant === "number") setValue(v === "" ? (undefined as unknown as number) : Number(v));
+      else setValue(v);
     },
   };
   return (
-    <div className="a2-field">
+    <div className="a2-field" style={{ flexGrow: node.weight }}>
       <label htmlFor={id}>{str(resolve(node.label))}</label>
-      {node.multiline ? <textarea rows={2} {...common} /> : <input type="text" {...common} />}
+      {variant === "longText" ? (
+        <textarea rows={2} {...common} />
+      ) : (
+        <input type={variant === "number" ? "number" : "text"} step="any" {...common} />
+      )}
     </div>
+  );
+}
+
+/** Date picker (A2UI basic DateTimeInput, date only). Empty input removes the value. */
+export function DateTimeInput({ node }: NodeProps) {
+  const resolve = useResolve();
+  const [value, setValue] = useBinding<string>(node.value);
+  const id = useId();
+  return (
+    <div className="a2-field" style={{ flexGrow: node.weight }}>
+      <label htmlFor={id}>{str(resolve(node.label))}</label>
+      <input
+        id={id}
+        type="date"
+        value={value ?? ""}
+        min={str(resolve(node.min)) || undefined}
+        max={str(resolve(node.max)) || undefined}
+        onChange={(e) => {
+          setValue(e.target.value || (undefined as unknown as string));
+        }}
+      />
+    </div>
+  );
+}
+
+export function CheckBox({ node }: NodeProps) {
+  const resolve = useResolve();
+  const [value, setValue] = useBinding<boolean>(node.value);
+  return (
+    <label className="a2-check" style={{ flexGrow: node.weight }}>
+      <input
+        type="checkbox"
+        checked={value === true}
+        onChange={(e) => {
+          setValue(e.target.checked);
+        }}
+      />
+      <span>{str(resolve(node.label))}</span>
+    </label>
   );
 }
 
@@ -52,7 +99,7 @@ export function Slider({ node }: NodeProps) {
   const unit = str(resolve(node.unit));
   const current = value ?? min;
   return (
-    <div className="a2-field a2-slider">
+    <div className="a2-field a2-slider" style={{ flexGrow: node.weight }}>
       <label htmlFor={id}>
         {str(resolve(node.label))}
         <output htmlFor={id}>

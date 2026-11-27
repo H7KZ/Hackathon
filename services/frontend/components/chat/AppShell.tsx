@@ -92,7 +92,7 @@ function Sidebar({ activeId, onClose }: { activeId?: string; onClose: () => void
         </ul>
       )}
       <div className="sb-foot">
-        <a href="/lab">Varianty rozložení</a>
+        <a href="/lab/components">A2UI komponenty</a>
         <a href="/design">Design systém</a>
       </div>
     </aside>

@@ -51,11 +51,9 @@
   box-shadow: var(--shadow-card);
 }
 .a2-card-title {
-  color: var(--color-green-dark);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 .a2-list {
   display: grid;
@@ -100,6 +98,10 @@
 }
 .a2-text.muted {
   color: var(--color-muted);
+}
+.a2-text.label {
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 .a2-text.caption {
   color: var(--color-muted);
@@ -202,11 +204,9 @@
 .a2-choices legend {
   display: flex;
   justify-content: space-between;
-  color: var(--color-green-dark);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 .a2-field output {
   color: var(--color-fis-dark);
@@ -215,6 +215,8 @@
   text-transform: none;
 }
 .a2-field input[type="text"],
+.a2-field input[type="number"],
+.a2-field input[type="date"],
 .a2-field textarea {
   padding: 8px 12px;
   border: 1px solid var(--color-line);
@@ -222,9 +224,9 @@
   outline: none;
   transition: box-shadow 0.18s;
 }
-.a2-field input[type="text"]:focus,
+.a2-field input:focus,
 .a2-field textarea:focus {
-  box-shadow: 0 0 0 3px rgb(0 149 125 / 38%);
+  border-color: var(--color-green);
 }
 .a2-slider input[type="range"] {
   accent-color: var(--color-green);
@@ -309,13 +311,11 @@
 }
 .a2-table th button {
   width: 100%;
-  padding: 9px 12px;
-  color: var(--color-green-dark);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
   text-align: inherit;
-  text-transform: uppercase;
 }
 .a2-table td {
   padding: 8px 12px;
@@ -452,7 +452,7 @@
 }
 .a2-timeline ol {
   position: relative;
-  height: 150px;
+  height: 172px;
   margin: 0 70px 0 0;
 }
 .a2-timeline li {
@@ -494,10 +494,10 @@
   font-size: 0.8rem;
 }
 .a2-timeline li.lane1 .chip {
-  top: 58px;
+  top: 66px;
 }
 .a2-timeline li.lane2 .chip {
-  top: 100px;
+  top: 116px;
 }
 .a2-timeline small {
   color: var(--color-muted);
@@ -508,4 +508,252 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* checkbox */
+.a2-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.a2-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-green-dark);
+}
+
+/* collapsible (advanced settings) */
+.a2-collapsible {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+}
+.a2-collapsible summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.a2-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+.a2-collapsible summary::before {
+  content: "›";
+  display: inline-block;
+  width: 10px;
+  color: var(--color-muted);
+  transition: rotate 0.2s;
+}
+.a2-collapsible[open] summary::before {
+  rotate: 90deg;
+}
+.a2-collapsible-title {
+  font-weight: 600;
+}
+.a2-collapsible-sum {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+.a2-collapsible-body {
+  padding: 6px 16px 18px;
+  border-top: 1px solid var(--color-line);
+}
+.a2-collapsible-body .a2-card {
+  box-shadow: none;
+  background: #fafbfb;
+}
+
+/* curve editor */
+.a2-curve {
+  display: grid;
+  gap: 6px;
+}
+.a2-curve-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.a2-curve-tools {
+  display: flex;
+  gap: 4px;
+}
+.a2-curve-tools button {
+  min-width: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.85rem;
+}
+.a2-curve-tools button:hover {
+  border-color: var(--color-green);
+  color: var(--color-green-dark);
+}
+.a2-curve-canvas {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+.a2-curve-canvas:focus-visible {
+  border-color: var(--color-green);
+}
+.a2-curve-canvas svg {
+  display: block;
+}
+.a2-curve .hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+.a2-curve.locked .hit {
+  cursor: default;
+}
+.a2-curve .tick line {
+  stroke: #eef1f0;
+}
+.a2-curve .tick text,
+.a2-curve .xtick {
+  fill: var(--color-muted);
+  font-size: 11px;
+}
+.a2-curve .area {
+  fill: rgb(0 149 125 / 7%);
+  pointer-events: none;
+}
+.a2-curve .line {
+  fill: none;
+  stroke: var(--color-green);
+  stroke-width: 2;
+  pointer-events: none;
+}
+.a2-curve .guide {
+  pointer-events: none;
+}
+.a2-curve .guide line {
+  stroke: #c9d1cf;
+  stroke-dasharray: 2 3;
+}
+.a2-curve .guide text {
+  fill: var(--color-muted);
+  font-size: 11px;
+}
+.a2-curve .mark {
+  stroke: var(--color-amber);
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.a2-curve .num {
+  fill: var(--color-amber);
+  font-size: 11px;
+  font-weight: 700;
+}
+.a2-curve .handle {
+  fill: #fff;
+  stroke: var(--color-amber);
+  stroke-width: 2.5;
+  cursor: grab;
+  transition: r 0.12s;
+  outline: none;
+}
+.a2-curve .handle:active {
+  cursor: grabbing;
+}
+.a2-curve .knot.on .handle,
+.a2-curve .handle:focus-visible {
+  fill: var(--color-amber);
+}
+.a2-curve .end {
+  fill: #fff;
+  stroke: var(--color-amber);
+  stroke-width: 2;
+  cursor: ew-resize;
+  outline: none;
+}
+.a2-curve .end:focus-visible {
+  fill: var(--color-amber);
+}
+.a2-curve .tip {
+  fill: var(--color-fis-dark);
+  font-size: 12px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 4px;
+  pointer-events: none;
+}
+.a2-curve.locked .handle,
+.a2-curve.locked .end {
+  cursor: default;
+}
+.a2-curve-hint {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+.a2-curve-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid #f0d9b5;
+  border-radius: 8px;
+  background: #fffaf2;
+}
+.a2-curve-edit label {
+  display: grid;
+  gap: 3px;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.a2-curve-edit label.wide {
+  flex: 1;
+  min-width: 200px;
+}
+.a2-curve-edit label.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+.a2-curve-edit input[type="text"],
+.a2-curve-edit input[type="date"],
+.a2-curve-edit input[type="number"] {
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-fis-dark);
+  font-weight: 400;
+  outline: none;
+}
+.a2-curve-edit input[type="number"] {
+  width: 90px;
+}
+.a2-curve-edit input:focus {
+  border-color: var(--color-green);
+}
+.a2-curve-edit .danger {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid #f1c9bd;
+  border-radius: 6px;
+  color: var(--color-error);
+  font-size: 0.85rem;
+}
+.a2-curve-edit .danger:hover {
+  background: #fdf1ee;
+}
+.a2-row > .a2-badge {
+  align-self: center;
 }

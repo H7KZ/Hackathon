@@ -1,16 +1,23 @@
 /**
  * Mock data for the demo workflow (`?demo=1`). Shaped like the real artifacts/evidence
  * (`04_story`, DatasetEvidence, DetectiveResult, MetricDiff) so the presenter is exercised as-is.
- * Deterministic: a tiny LCG, so screenshots and tests are stable. Never used outside demo mode.
+ * Deterministic (LCG on the seed). The story curve the user edits drives the metrics, so a dragged
+ * point visibly moves the generated dataset. Never used outside demo mode.
  */
+import { DEFAULT_CONFIG, normalize, periodFor } from "./config";
+import { addDays, curveAt, daysBetween } from "./curve";
 import type {
   CompanyView,
   CompareView,
   DatasetView,
   DetectiveView,
+  ExpectationToggle,
   SeriesRow,
+  StoryConfig,
   StoryPointEdit,
 } from "./surfaces";
+
+export { addDays, DEFAULT_CONFIG, normalize, periodFor };
 
 function lcg(seed: number) {
   let s = seed >>> 0;
@@ -20,13 +27,9 @@ function lcg(seed: number) {
   };
 }
 
-const DAY = 86_400_000;
-export const addDays = (iso: string, n: number) =>
-  new Date(Date.parse(iso) + n * DAY).toISOString().slice(0, 10);
-
-export const PERIOD = { from: "2026-01-05", to: "2026-06-29" };
-const WEEKS = 26;
 const round = (v: number, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
+
+export const PERIOD = periodFor(6);
 
 export const MOCK_COMPANY: CompanyView = {
   industry: "E-shop s domácími spotřebiči",
@@ -46,54 +49,48 @@ export const MOCK_POINTS: StoryPointEdit[] = [
     title: "Dodavatel začíná zpožďovat",
     description: "ElektroParts prodlouží dodací lhůty, zásoby na skladě začnou docházet.",
     start: "2026-03-02",
-    strength: 60,
+    level: 5.5,
   },
   {
     id: "sp2",
     title: "Vyprodané zboží",
     description: "U praček a lednic chybí zboží, objednávky čekají na naskladnění.",
     start: "2026-03-16",
-    strength: 45,
+    level: 7,
   },
   {
     id: "sp3",
     title: "Zákazníci ruší objednávky",
     description: "Část zákazníků po týdnu čekání objednávku stornuje a stěžuje si.",
-    start: "2026-03-30",
+    start: "2026-04-06",
     end: "2026-05-25",
-    strength: 50,
+    level: 6.5,
   },
 ];
 
-const weekOf = (iso: string) => Math.round((Date.parse(iso) - Date.parse(PERIOD.from)) / (7 * DAY));
+export const MOCK_EXPECTATIONS: ExpectationToggle[] = [
+  { id: "e1", description: "Průměrné zpoždění dodávek po začátku příběhu vzrostlo", enabled: true },
+  { id: "e2", description: "Podíl stornovaných objednávek vzrostl", enabled: true },
+  { id: "e3", description: "Počet stížností zákazníků vzrostl", enabled: true },
+  { id: "e4", description: "Počet objednávek neklesl o více než 10 %", enabled: true },
+];
 
-/** Delay curve the user sees before approving (a parameter, not generated data). */
-export function curvePreview(points: StoryPointEdit[]): SeriesRow[] {
-  const sp1 = points.find((p) => p.id === "sp1") ?? MOCK_POINTS[0];
-  const startW = weekOf(sp1?.start ?? "2026-03-02");
-  const peak = 2 + ((sp1?.strength ?? 60) / 100) * 7;
-  return Array.from({ length: WEEKS }, (_, w) => ({
-    day: addDays(PERIOD.from, w * 7),
-    value: round(w < startW ? 2 : Math.min(peak, 2 + (peak - 2) * ((w - startW + 1) / 3))),
-  }));
-}
-
-/** Weekly metrics that "emerged" from the process chain. `recoverWeek` ends the delay early (what-if). */
-export function mockSeries(points: StoryPointEdit[], seed = 42, recoverWeek?: number): SeriesRow[] {
-  const rnd = lcg(seed);
-  const curve = curvePreview(points);
-  const sp3 = points.find((p) => p.id === "sp3");
-  const cancelBoost = (sp3?.strength ?? 50) / 100;
-  return curve.map((row, w) => {
-    const raw = Number(row.value);
-    const delay =
-      recoverWeek !== undefined && w >= recoverWeek ? Math.max(2, raw - (w - recoverWeek + 1) * 1.5) : raw;
-    const stress = Math.max(0, delay - 2);
+/** Weekly metrics that "emerged" from the process chain, driven by the story curve. */
+export function mockSeries(points: StoryPointEdit[], config: StoryConfig = DEFAULT_CONFIG): SeriesRow[] {
+  const c = normalize(config);
+  const rnd = lcg(c.seed || 0);
+  const wobble = 0.6 + c.noise.missing / 10;
+  const base = c.curve.baseline;
+  const weeks = Math.floor(daysBetween(c.period.from, c.period.to) / 7) + 1;
+  return Array.from({ length: weeks }, (_, w) => {
+    const day = addDays(c.period.from, w * 7);
+    const delay = curveAt(day, base, points, c.curve.rampDays);
+    const stress = Math.max(0, delay - base);
     return {
-      day: row.day,
-      delay: round(delay + (rnd() - 0.5) * 0.6),
-      cancel: round(3 + stress * 1.1 * (0.5 + cancelBoost) + (rnd() - 0.5)),
-      complaints: Math.round(4 + stress * 1.8 + rnd() * 3),
+      day,
+      delay: round(delay + (rnd() - 0.5) * wobble),
+      cancel: round(3 + stress * 0.9 + (rnd() - 0.5)),
+      complaints: Math.round(4 + stress * 1.6 + rnd() * 3),
     };
   });
 }
@@ -106,11 +103,11 @@ const avg = (rows: SeriesRow[], key: string, from: number, to: number) => {
 const STATUSES = ["doručeno", "doručeno", "doručeno", "čeká na zboží", "stornováno"] as const;
 const PRODUCTS = ["Pračka Beko 7 kg", "Lednice Gorenje", "Mikrovlnka Sencor", "Myčka Bosch", "Vysavač ETA"];
 
-function mockTables(seed: number) {
+function mockTables(seed: number, storyStart: string) {
   const rnd = lcg(seed + 7);
   const orders = Array.from({ length: 24 }, (_, i) => {
     const day = addDays("2026-02-16", i * 3);
-    const late = day >= "2026-03-16";
+    const late = day >= storyStart;
     const status = late ? (STATUSES[Math.floor(rnd() * STATUSES.length)] ?? "doručeno") : "doručeno";
     return {
       id: `orders-${String(i + 1).padStart(6, "0")}`,
@@ -123,7 +120,7 @@ function mockTables(seed: number) {
   });
   const deliveries = Array.from({ length: 18 }, (_, i) => {
     const ordered = addDays("2026-02-02", i * 7);
-    const delay = ordered >= "2026-03-02" ? Math.round(4 + rnd() * 5) : Math.round(1 + rnd() * 2);
+    const delay = ordered >= storyStart ? Math.round(4 + rnd() * 5) : Math.round(1 + rnd() * 2);
     return {
       id: `deliveries-${String(i + 1).padStart(6, "0")}`,
       supplier_id: i % 3 === 2 ? "sup-002" : "sup-001",
@@ -141,42 +138,52 @@ export const SERIES_LINES = [
   { key: "complaints", label: "Stížnosti / týden" },
 ];
 
+const firstStart = (points: StoryPointEdit[]) =>
+  [...points].sort((a, b) => a.start.localeCompare(b.start))[0]?.start ?? "2026-03-02";
+
+const weekOf = (from: string, day: string) => addDays(from, Math.floor(daysBetween(from, day) / 7) * 7);
+
 export function mockDataset(
   datasetId: string,
   points: StoryPointEdit[],
-  seed = 42,
-  recoverWeek?: number,
+  config: StoryConfig = DEFAULT_CONFIG,
+  expectations: ExpectationToggle[] = MOCK_EXPECTATIONS,
 ): DatasetView {
-  const series = mockSeries(points, seed, recoverWeek);
-  const split = weekOf(points[0]?.start ?? "2026-03-02");
+  const c = normalize(config);
+  const series = mockSeries(points, c);
+  const split = Math.max(1, Math.floor(daysBetween(c.period.from, firstStart(points)) / 7));
   const rel = (b: number, a: number) => round((a - b) / b, 3);
-  const exp = (id: string, description: string, key: string, kind: "increase" | "stable" = "increase") => {
+  const exp = (id: string, key: string) => {
     const before = avg(series, key, 0, split);
-    const after = avg(series, key, split + 2, WEEKS);
+    const after = avg(series, key, split + 2, series.length);
     const relChange = rel(before, after);
-    const pass = kind === "increase" ? relChange >= 0.2 : Math.abs(relChange) < 0.1;
-    return { id, description, before, after, relChange, pass };
+    return { id, before, after, relChange, pass: relChange >= 0.2 };
   };
-  const tables = mockTables(seed);
+  const results: Record<string, Omit<DatasetView["expectations"][number], "description">> = {
+    e1: exp("e1", "delay"),
+    e2: exp("e2", "cancel"),
+    e3: exp("e3", "complaints"),
+    e4: { id: "e4", before: 812, after: 768, relChange: -0.054, pass: true },
+  };
+  const tables = mockTables(c.seed || 0, firstStart(points));
+  const sizeFactor = (c.size.customers / 2400 + c.size.products / 120 + c.size.stores / 3) / 3;
+  const days = daysBetween(c.period.from, c.period.to) + 1;
   return {
     datasetId,
-    totals: { rows: 48_210, tables: 12, days: 176 },
+    totals: {
+      rows: Math.round(48_210 * c.scale * sizeFactor * (1 + c.noise.duplicates / 100) * (days / 182)),
+      tables: 12,
+      days,
+    },
     series,
     seriesLines: SERIES_LINES,
-    markers: points.map((p) => ({ date: addDays(PERIOD.from, weekOf(p.start) * 7), label: p.title })),
-    expectations: [
-      exp("e1", "Průměrné zpoždění dodávek po začátku příběhu vzrostlo", "delay"),
-      exp("e2", "Podíl stornovaných objednávek vzrostl", "cancel"),
-      exp("e3", "Počet stížností zákazníků vzrostl", "complaints"),
-      {
-        id: "e4",
-        description: "Počet objednávek neklesl o více než 10 %",
-        before: 812,
-        after: 768,
-        relChange: -0.054,
-        pass: true,
-      },
-    ],
+    markers: points.map((p) => ({ date: weekOf(c.period.from, p.start), label: p.title })),
+    expectations: expectations
+      .filter((e) => e.enabled)
+      .flatMap((e) => {
+        const r = results[e.id];
+        return r ? [{ ...r, description: e.description }] : [];
+      }),
     tables: [
       {
         name: "orders",
@@ -211,32 +218,41 @@ export function mockDetective(datasetId: string): DetectiveView {
   return {
     datasetId,
     narrative:
-      "Od začátku března se u dodavatele sup-001 prodlužují dodací lhůty z ~2 na ~6 dní. O dva týdny později roste podíl objednávek ve stavu „čeká na zboží“ a od konce března přibývá storen a stížností. Objednávky celkově mírně klesají.",
+      "Od začátku března se u dodavatele sup-001 prodlužují dodací lhůty z ~2 na ~6 dní. O dva týdny později roste podíl objednávek ve stavu „čeká na zboží“ a od dubna přibývá storen a stížností. Objednávky celkově mírně klesají.",
     recall: 0.67,
     precision: 0.75,
     findings: [
       { claim: "Dodávky od sup-001 se zpožďují", start: "2026-03-02", entities: "sup-001", matched: true },
       {
         claim: "Roste podíl stornovaných objednávek",
-        start: "2026-03-30",
+        start: "2026-04-06",
         entities: "orders",
         matched: true,
       },
       { claim: "Více reklamací u vysavačů", start: "2026-04-20", entities: "prod-005", matched: false },
-      { claim: "Nárůst stížností zákazníků", start: "2026-04-06", entities: "tickets", matched: false },
+      { claim: "Nárůst stížností zákazníků", start: "2026-04-13", entities: "tickets", matched: false },
     ],
   };
 }
 
-export function mockCompare(question: string, points: StoryPointEdit[]): CompareView {
-  const a = mockSeries(points, 42);
-  const recover = weekOf(addDays(points[0]?.start ?? "2026-03-02", 14));
-  const b = mockSeries(points, 42, recover);
+/** What-if "the supplier recovers after 2 weeks": every point ends 14 days after the first one starts. */
+export function mockCompare(
+  question: string,
+  points: StoryPointEdit[],
+  config: StoryConfig = DEFAULT_CONFIG,
+): CompareView {
+  const cutoff = addDays(firstStart(points), 14);
+  const changed = points
+    .filter((p) => p.start < cutoff)
+    .map((p) => ({ ...p, end: p.end && p.end < cutoff ? p.end : cutoff }));
+  const a = mockSeries(points, config);
+  const b = mockSeries(changed, config);
+  const c = normalize(config);
+  const from = Math.floor(daysBetween(c.period.from, cutoff) / 7);
   const rel = (x: number, y: number) => round((y - x) / x, 3);
-  const after = (rows: SeriesRow[], key: string) => avg(rows, key, recover, WEEKS);
   const metric = (label: string, key: string) => {
-    const va = after(a, key);
-    const vb = after(b, key);
+    const va = avg(a, key, from, a.length);
+    const vb = avg(b, key, from, b.length);
     return { metric: label, a: va, b: vb, relChange: rel(va, vb) };
   };
   return {
@@ -245,7 +261,7 @@ export function mockCompare(question: string, points: StoryPointEdit[]): Compare
     question,
     metric: "Zpoždění dodávky (dny), týdně",
     series: a.map((row, i) => ({ day: row.day, a: Number(row.delay), b: Number(b[i]?.delay ?? 0) })),
-    markers: [{ date: addDays(PERIOD.from, recover * 7), label: "Dodavatel se vrací k normálu" }],
+    markers: [{ date: weekOf(c.period.from, cutoff), label: "Dodavatel se vrací k normálu" }],
     diff: [
       metric("Zpoždění dodávky (dny)", "delay"),
       metric("Storna (%)", "cancel"),

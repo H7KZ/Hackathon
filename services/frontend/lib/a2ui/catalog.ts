@@ -15,6 +15,7 @@ export const COMPONENTS = [
   "Card",
   "List",
   "Tabs",
+  "Collapsible",
   "Divider",
   // content
   "Text",
@@ -25,6 +26,8 @@ export const COMPONENTS = [
   "TextField",
   "Slider",
   "ChoicePicker",
+  "CheckBox",
+  "DateTimeInput",
   // data (custom)
   "Kpi",
   "Table",
@@ -33,6 +36,7 @@ export const COMPONENTS = [
   // story (custom)
   "Steps",
   "StoryTimeline",
+  "CurveEditor",
 ] as const;
 export type ComponentName = (typeof COMPONENTS)[number];
 
@@ -46,6 +50,9 @@ export const DATA_PROPS: Partial<Record<ComponentName, readonly string[]>> = {
   TextField: ["value"],
   Slider: ["value"],
   ChoicePicker: ["value"],
+  CheckBox: ["value"],
+  DateTimeInput: ["value"],
+  CurveEditor: ["points"],
 };
 
 const known = new Set<string>(COMPONENTS);

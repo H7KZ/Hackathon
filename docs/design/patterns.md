@@ -13,7 +13,7 @@ Full screen, no outer frame: push sidebar (history) + topbar + layout. Inspirati
 
 | Route | Layout | When |
 | --- | --- | --- |
-| `/lab/thread` (default for `/chat`) | **A · Vlákno**: one centered column (max 880px); big surfaces render inline as panels with a title strip and `A2UI · N komponent` chip | default product view |
+| `/lab/thread` (**chosen**, default for `/chat`) | **A · Vlákno**: one centered column (max 880px); big surfaces render inline as panels with a title strip and `A2UI · N komponent` chip | default product view |
 | `/lab/inspector` | **B · Vlákno + inspektor**: thread + right panel with the live A2UI message stream and per-surface data model | demo / jury: shows how agents build UI and that numbers come from data |
 | `/lab/split` | **C · Chat + plátno**: narrow chat + canvas tabs | most room for charts |
 
@@ -26,11 +26,13 @@ Full screen, no outer frame: push sidebar (history) + topbar + layout. Inspirati
 - Under the thread a **thinking row** shows the current step label (fixed) + a rotating phrase every 2.8s (`lib/chat/phrases.ts`). The composer is disabled while busy ("Pracuji…").
 - Canvas shows an empty state until the first canvas surface arrives. Surfaces that stream in late show shimmering placeholders.
 
-## 4. Refine before generating
+## 4. Refine before generating ("it just works")
 
-- After `04_story` the story surface shows: timeline of story points, curve preview, and one editable card per point (date text field + strength slider, two-way bound into the surface data model).
-- "Schválit a generovat" sends `approve` with the edited points as context; the button locks (`/locked`).
-- Live mode: changed points → `PUT artifacts/04_story`, then `approve` once the session is back in `awaiting_refinement`.
+- The story panel opens with the **CurveEditor**: the story is a parameter curve bent at story points (same shape as `CurveDef.segments`: each point is a ramp to `level`, optional `end` ramps back to baseline).
+- Direct manipulation, like Figma: drag a point in time and value, drag its square to change when things return to normal, double-click empty space to add a point, arrows nudge, Delete removes, Ctrl+Z / Ctrl+Shift+Z undo / redo, a hover guide shows date + value. The selected point gets an inline editor (name, dates, value, description, delete).
+- Below: **basic settings** (období, objem dat, seed). Everything else is in **Pokročilé nastavení** (collapsed): point list, curve baseline / ramp / label, noise (missing, duplicates, hour jitter), company size, which expectations to check.
+- Every control is two-way bound into the surface data model. **Generovat data** sends `points`, `config` and `expectations` as action context, so the run uses exactly what is on screen; the editor locks (`/locked`).
+- Live mode: `editToStory` writes points back into `04_story` (story points + ramp segments of the first curve), then `approve`.
 
 ## 5. Counterfactual loop
 

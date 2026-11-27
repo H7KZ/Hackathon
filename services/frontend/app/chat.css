@@ -270,8 +270,8 @@
   line-height: 1.55;
 }
 .msg.surface {
-  align-self: flex-start;
-  width: min(100%, 540px);
+  align-self: stretch;
+  width: 100%;
 }
 
 /* thinking */
@@ -398,6 +398,7 @@
   min-height: 0;
 }
 .thread-scroll {
+  position: relative;
   flex: 1;
   overflow-y: auto;
   scroll-behavior: smooth;
@@ -758,5 +759,107 @@
   .shell * {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* /lab/components playground */
+.playground {
+  display: grid;
+  gap: 20px;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 40px 0 120px;
+}
+.playground h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+.playground header p {
+  margin: 4px 0 12px;
+  color: var(--color-muted);
+}
+.playground nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.playground nav a {
+  padding: 2px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.8rem;
+}
+.playground nav a:hover {
+  border-color: var(--color-green);
+}
+.pg-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fff;
+  scroll-margin-top: 16px;
+}
+.pg-main {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 16px 18px;
+}
+.pg-main h2 {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.pg-try {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+.pg-stage {
+  margin-top: 8px;
+}
+.pg-data {
+  max-height: 360px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-left: 1px solid var(--color-line);
+  background: #f7f9f8;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.pg-log {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 5;
+  width: 340px;
+  max-height: 220px;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(0 32 27 / 10%);
+  font-size: 0.8rem;
+}
+.pg-log p {
+  color: var(--color-muted);
+}
+.pg-log li {
+  padding: 3px 0;
+  border-top: 1px dashed #edf1f0;
+  word-break: break-word;
+}
+@media (max-width: 900px) {
+  .pg-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pg-data {
+    border-top: 1px solid var(--color-line);
+    border-left: none;
   }
 }

@@ -14,7 +14,8 @@ Living versions:
 
 - `/design` route — tokens + every catalog component rendered with mock data.
 - `/chat?demo=1` — full demo workflow on scripted mock data, no API needed.
-- `/lab` — the same demo in three workspace layouts (thread, thread + A2UI inspector, chat + canvas).
+- `/lab/components` — every A2UI component live, with its data model and actions.
+- `/lab` — the same demo in three workspace layouts (thread is the chosen one).
 
 Protocol research (primary sources): [`docs/research/a2ui.md`](../research/a2ui.md).
 

@@ -33,7 +33,7 @@ SessionEvent │  liveSource.ts                │            │  services/api 
 | `updateComponents` | progressive layout, replacing nodes by id |
 | `updateDataModel` | progress steps, live numbers, locking a form (`/locked`) |
 | `deleteSurface` | closing a tab (not used in the demo yet) |
-| `action` (renderer → agent) | `approve` (context: edited story points), `detect`, `open_canvas` (handled locally) |
+| `action` (renderer → agent) | `approve` (context: points, config, expectations), `detect`, `open_canvas` (handled locally) |
 
 Not implemented (not needed for the demo): functions (`@call`), `callRendererFunction`, catalog negotiation, `sendDataModel`. Our catalog id: `https://jojo.vse.cz/a2ui/catalogs/jojo/v1/catalog.json`.
 
