@@ -103,3 +103,61 @@ describe("field generators", () => {
     expect(table(tables, "item")).toHaveLength(40);
   });
 });
+
+describe("topUp", () => {
+  // One store, stock starts at 2, order up to 5 every 7 days, every delivery arrives 10 days late.
+  const s = mini({
+    entities: [{ name: "store", count: 1, idPrefix: "STO", fields: { id: { gen: "id" } } }],
+    flows: [
+      {
+        id: "stock",
+        keys: ["store"],
+        initial: { gen: "const", value: 2 },
+        min: 0,
+        snapshot: { table: "stock_daily" },
+      },
+    ],
+    processes: [
+      {
+        type: "arrival",
+        id: "delivery",
+        table: "delivery",
+        per: ["store"],
+        schedule: { everyDays: 7 },
+        fields: {
+          id: { gen: "id" },
+          store_id: { gen: "ref", path: "key.store" },
+          planned_date: { gen: "ref", path: "day" },
+          quantity: { gen: "topUp", flow: "stock", keys: { store: "key.store" }, target: 5 },
+          delay_days: { gen: "const", value: 10 },
+          actual_date: { gen: "dateOffset", base: "self.planned_date", days: "self.delay_days" },
+        },
+        effects: [
+          {
+            flow: "stock",
+            keys: { store: "self.store_id" },
+            delta: "self.quantity",
+            sign: 1,
+            on: "self.actual_date",
+          },
+        ],
+      },
+    ],
+  });
+
+  it("orders target - current level and ignores stock in transit (pinned: see Noiser story gate note)", () => {
+    const { tables } = runScenario(s, { seed: 1 });
+    const deliveries = table(tables, "delivery");
+    const stock = new Map(table(tables, "stock_daily").map((r) => [r.date, r.value]));
+
+    expect(deliveries.map((d) => [d.planned_date, d.actual_date])).toContainEqual([
+      "2025-01-01",
+      "2025-01-11",
+    ]);
+    // Day 0 and day 7: the first order is still in transit on day 7, so topUp orders 3 again.
+    expect(deliveries.slice(0, 3).map((d) => d.quantity)).toEqual([3, 3, 0]);
+    expect(stock.get("2025-01-10")).toBe(2);
+    expect(stock.get("2025-01-11")).toBe(5); // effect lands on actual_date
+    expect(stock.get("2025-01-18")).toBe(8); // both orders arrived -> overshoot past target
+  });
+});

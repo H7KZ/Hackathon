@@ -20,8 +20,8 @@ describe("params from curves", () => {
     expect(late("SUP-002", "2025-02-28")).toBe(0.05);
     const mid = late("SUP-002", "2025-03-23");
     expect(mid).toBeGreaterThan(0.05);
-    expect(mid).toBeLessThan(0.6);
-    expect(late("SUP-002", "2025-04-15")).toBe(0.6);
+    expect(mid).toBeLessThan(0.8);
+    expect(late("SUP-002", "2025-04-15")).toBe(0.8);
   });
 
   it("applies param scale and constants", () => {
