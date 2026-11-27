@@ -18,6 +18,7 @@ import { toDay } from "./days";
 import { EntityStore } from "./entities";
 import { EngineError } from "./errors";
 import { FlowStore } from "./flows";
+import { createNoise } from "./noise";
 import { arrivalRunner } from "./processes/arrival";
 import { branchRunner } from "./processes/branch";
 import { Bus, type Runner } from "./processes/common";
@@ -25,7 +26,7 @@ import { deriveRunner } from "./processes/derive";
 import { hashString } from "./rng";
 import type { Runtime } from "./types";
 
-export const ENGINE_VERSION = "1.0.0";
+export const ENGINE_VERSION = "1.1.0";
 
 export interface RunOptions {
   seed?: number;
@@ -101,12 +102,16 @@ export function runScenario(scenario: Scenario, opts: RunOptions = {}): RunResul
     flows.snapshot(day);
   }
 
+  const noise = createNoise(scenario.noise, seed, bus.dayOf);
   return {
     // declaration order: entities, processes, snapshots
     tables: [
-      ...entities.toTables(),
-      ...[...runners].sort((a, b) => a.index - b.index).flatMap((r) => r.run.tables()),
-      ...flows.toTables(),
+      ...entities.toTables().map((t) => noise(t, false)),
+      ...[...runners]
+        .sort((a, b) => a.index - b.index)
+        .flatMap((r) => r.run.tables())
+        .map((t) => noise(t, true)),
+      ...flows.toTables().map((t) => noise(t, false)),
     ],
     meta: {
       scenarioId: scenario.meta.id,

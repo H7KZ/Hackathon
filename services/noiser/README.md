@@ -55,6 +55,12 @@ for day in [meta.start .. meta.end]:
 - **Faker.** `new Faker({ locale: [cs_CZ, en, base] })` with the stream as randomizer. Names, companies and cities are Czech. Product names fall back to English because cs_CZ has none.
 - **Output order.** Entity tables, then process tables in declaration order, then snapshot tables. `meta.scenarioHash` is 16 hex chars over the scenario and effective seed/scale. Use the first 8 in file names.
 
+- **Noise** (optional `noise` block). Applied after the simulation, only to observed tables, so the story is encoded in clean records and noise only degrades what analysts and the detective see. ground_truth tables stay clean. Each table/column has its own stream (`noise:<kind>:<table>#<n>[.<field>]`).
+  - `hourJitter: true` adds a `ts` column (`YYYY-MM-DD HH:MM:SS`, record day 08:00–19:59) to observed process tables. DuckDB reads it as TIMESTAMP.
+  - `missing: { "<table>.<field>": p }` sets the field to null with probability p. Not allowed on `id` columns.
+  - `duplicates: { "<table>": p }` inserts an exact copy (same id) right after the row with probability p.
+  - Order per table: `ts`, then `missing`, then `duplicates` (a duplicate copies the nulls and the `ts`). The compiler rejects unknown or ground_truth tables, unknown columns, and an existing `ts` column when `hourJitter` is on.
+
 Purity is lint-enforced in `src/engine/**`: no `Math.random`, wall clock, `process.env`, Node I/O, LLM or DB imports, and no global faker.
 
 ## Layout
@@ -73,6 +79,7 @@ src/
     entities.ts         EntityStore (generate, lookup, pick)
     flows.ts            FlowStore (levels, scheduled effects, snapshots)
     processes/          arrival.ts, branch.ts, derive.ts, common.ts (Bus, DueQueue, effects, ids)
+    noise.ts            data-quality noise on observed output tables
     rng.ts random.ts    streams and distributions
     faker.ts days.ts util.ts errors.ts
 ```

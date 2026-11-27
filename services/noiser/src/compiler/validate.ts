@@ -319,6 +319,95 @@ export function compileScenario(raw: unknown): CompileResult {
     }
   });
 
+  // ---- noise: only observed tables, existing non-id columns ----
+  if (s.noise) {
+    interface TableInfo {
+      visibility: string;
+      columns: Set<string>;
+      ids: Set<string>;
+      process: boolean;
+    }
+    const tables = new Map<string, TableInfo>();
+    const addTable = (
+      name: string,
+      visibility: string | undefined,
+      fields: Record<string, { gen: string }> | string[],
+      process: boolean,
+    ) => {
+      const info = tables.get(name) ?? {
+        visibility: visibility ?? "observed",
+        columns: new Set<string>(),
+        ids: new Set<string>(),
+        process,
+      };
+      for (const [col, gen] of Array.isArray(fields)
+        ? fields.map((c) => [c, undefined] as const)
+        : Object.entries(fields)) {
+        info.columns.add(col);
+        if (gen?.gen === "id") info.ids.add(col);
+      }
+      tables.set(name, info);
+    };
+    s.entities.forEach((e) => {
+      addTable(e.name, e.visibility, e.fields, false);
+    });
+    s.processes.forEach((p) => {
+      const outs = p.type === "branch" ? [p.then, p.else] : [p];
+      for (const o of outs) if (o) addTable(o.table, o.visibility, o.fields, true);
+    });
+    s.flows.forEach((f) => {
+      if (f.snapshot) {
+        addTable(
+          f.snapshot.table,
+          f.snapshot.visibility,
+          ["date", ...f.keys.map((k) => `${k}_id`), "value"],
+          false,
+        );
+      }
+    });
+    const observed = [...tables].filter(([, t]) => t.visibility === "observed").map(([n]) => n);
+    const observedTable = (path: string, name: string): TableInfo | undefined => {
+      const t = tables.get(name);
+      if (!t) err(path, `Unknown table "${name}". Observed tables: ${list(observed)}.`);
+      else if (t.visibility !== "observed") {
+        err(
+          path,
+          `Table "${name}" is ground_truth; noise applies only to observed tables: ${list(observed)}.`,
+        );
+      } else return t;
+      return undefined;
+    };
+    for (const target of Object.keys(s.noise.missing ?? {})) {
+      const path = `noise.missing["${target}"]`;
+      const dot = target.indexOf(".");
+      if (dot < 0) {
+        err(path, `Key must be "<table>.<field>" with one of the observed tables: ${list(observed)}.`);
+        continue;
+      }
+      const t = observedTable(path, target.slice(0, dot));
+      const field = target.slice(dot + 1);
+      if (!t) continue;
+      const valid = [...t.columns].filter((c) => !t.ids.has(c));
+      if (t.ids.has(field))
+        err(path, `"${field}" is the record id and cannot be missing. Use one of ${list(valid)}.`);
+      else if (!t.columns.has(field))
+        err(path, `Table "${target.slice(0, dot)}" has no column "${field}". Use one of ${list(valid)}.`);
+    }
+    for (const name of Object.keys(s.noise.duplicates ?? {}))
+      observedTable(`noise.duplicates["${name}"]`, name);
+    if (s.noise.hourJitter) {
+      const clash = [...tables].filter(
+        ([, t]) => t.process && t.visibility === "observed" && t.columns.has("ts"),
+      );
+      if (clash.length > 0) {
+        err(
+          "noise.hourJitter",
+          `hourJitter adds a "ts" column, but ${list(clash.map(([n]) => n))} already has one; rename that field.`,
+        );
+      }
+    }
+  }
+
   // ---- dates ----
   const inRange = (d: string) => d >= s.meta.start && d <= s.meta.end;
   const range = `${s.meta.start}..${s.meta.end}`;

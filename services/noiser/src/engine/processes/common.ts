@@ -17,12 +17,15 @@ type Listener = (record: Row, day: number) => void;
 /** Routes emitted records ("<processId>" or "<branchId>:then|else") to consuming processes. */
 export class Bus {
   private readonly listeners = new Map<string, Listener[]>();
+  /** Day each process record was emitted on (every process record goes through `emit`). */
+  readonly dayOf = new WeakMap<Row, number>();
 
   subscribe(ref: string, fn: Listener): void {
     this.listeners.set(ref, [...(this.listeners.get(ref) ?? []), fn]);
   }
 
   emit(ref: string, record: Row, day: number): void {
+    this.dayOf.set(record, day);
     for (const fn of this.listeners.get(ref) ?? []) fn(record, day);
   }
 }
