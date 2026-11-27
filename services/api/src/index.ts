@@ -7,6 +7,7 @@ export type {
   DatasetEvidence,
   DatasetInfo,
   DetectiveResult,
+  GenerationSettings,
   SessionCommand,
   SessionEvent,
   SessionInput,

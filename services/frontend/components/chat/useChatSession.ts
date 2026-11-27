@@ -77,7 +77,11 @@ export function useChatSession(source: ChatSource) {
   const canvasIds = state.order.filter((id) => state.surfaces[id]?.meta.placement === "canvas");
   const focused = focus && state.surfaces[focus] ? focus : (canvasIds.at(-1) ?? null);
 
+  // only a live session can be cancelled (the API aborts the job and returns to the last stable state)
+  const cancel = useMemo(() => (source.cancel ? () => source.cancel?.() : undefined), [source]);
+
   return {
+    cancel,
     store,
     state,
     items: log.items,

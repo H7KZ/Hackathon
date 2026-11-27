@@ -20,6 +20,8 @@ export type ChatSource = {
   /** Starts the stream; returns a stop function (cancels timers / closes EventSource). */
   start: (emit: Emit) => () => void;
   send: (input: UserInput) => void;
+  /** Aborts the running job (live sessions only); the thinking indicator shows "Zrušit" when set. */
+  cancel?: () => void;
   /** true = scripted mock data; the UI shows a "Demo data" badge (principle 8). */
   demo: boolean;
 };

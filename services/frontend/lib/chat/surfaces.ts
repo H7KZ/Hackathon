@@ -29,7 +29,16 @@ export type StoryPointEdit = {
 
 /** Everything the Generate button sends (basic + advanced settings). */
 export type StoryConfig = {
-  curve: { label: string; unit: string; baseline: number; rampDays: number; min: number; max: number };
+  /** `step` = slider resolution for baseline / levels (0.01 for probabilities, 1 for counts). */
+  curve: {
+    label: string;
+    unit: string;
+    baseline: number;
+    rampDays: number;
+    min: number;
+    max: number;
+    step?: number;
+  };
   time: TimeConfig;
   seed: number;
   scale: number;
@@ -151,6 +160,12 @@ export function storySurface(
   config: StoryConfig,
   expectations: ExpectationToggle[],
   demo = false,
+  /**
+   * live = a real API session: the period comes from the cascade and company size from its model,
+   * so those controls are left out; what remains is exactly what approve sends (seed, volume, noise,
+   * hypotheses) plus the curve itself.
+   */
+  live = false,
 ): A2uiMessage {
   const section = (sid: string, title: string, children: string[]): ComponentNode[] => [
     { id: sid, component: "Column", gap: "sm", children: [`${sid}-t`, ...children] },
@@ -187,7 +202,7 @@ export function storySurface(
         unit: path("/config/curve/unit"),
         locked: path("/locked"),
       },
-      { id: "basic", component: "Column", gap: "md", children: ["time", "basicRow"] },
+      { id: "basic", component: "Column", gap: "md", children: live ? ["basicRow"] : ["time", "basicRow"] },
       { id: "time", component: "PeriodPicker", value: path("/config/time") },
       { id: "basicRow", component: "Row", gap: "md", children: ["scale", "seed"] },
       {
@@ -205,14 +220,18 @@ export function storySurface(
         id: "advanced",
         component: "Collapsible",
         title: "Pokročilé nastavení",
-        summary: "body příběhu, křivka, šum, velikost firmy, hypotézy",
+        summary: live
+          ? "body příběhu, křivka, šum, hypotézy"
+          : "body příběhu, křivka, šum, velikost firmy, hypotézy",
         child: "adv",
       },
       {
         id: "adv",
         component: "Column",
         gap: "lg",
-        children: ["s-points", "s-curve", "s-noise", "s-size", "s-exp"],
+        children: live
+          ? ["s-points", "s-curve", "s-noise", "s-exp"]
+          : ["s-points", "s-curve", "s-noise", "s-size", "s-exp"],
       },
       ...section("s-points", "Body příběhu", ["pointList"]),
       { id: "pointList", component: "List", children: { componentId: "pt", path: "/points" } },
@@ -227,14 +246,19 @@ export function storySurface(
       { id: "ptEnd", component: "DateTimeInput", label: "Návrat k normálu", value: path("end") },
       { id: "ptDesc", component: "TextField", label: "Popis", value: path("description"), weight: 2 },
       ...section("s-curve", "Křivka", ["curveRow"]),
-      { id: "curveRow", component: "Row", gap: "md", children: ["cBase", "cRamp", "cLabel"] },
+      {
+        id: "curveRow",
+        component: "Row",
+        gap: "md",
+        children: live ? ["cBase", "cLabel"] : ["cBase", "cRamp", "cLabel"],
+      },
       {
         id: "cBase",
         component: "Slider",
         label: "Výchozí hodnota",
-        min: 0,
-        max: 10,
-        steps: 0.5,
+        min: path("/config/curve/min"),
+        max: path("/config/curve/max"),
+        steps: path("/config/curve/step"),
         value: path("/config/curve/baseline"),
       },
       {
@@ -453,6 +477,39 @@ export function readySurface(id: string, datasetId: string, demo = false): A2uiM
       },
     ],
     {},
+    demo,
+  );
+}
+
+// ---------- recover (chat): an interrupted, failed or cancelled job ----------
+
+/** Card with the reason and one button; the button locks itself after a click (`/locked`). */
+export function recoverSurface(
+  id: string,
+  text: string,
+  label: string,
+  action: "resume" | "restart",
+  demo = false,
+): A2uiMessage {
+  return create(
+    id,
+    "Přerušeno",
+    "chat",
+    [
+      { id: "root", component: "Card", child: "col" },
+      { id: "col", component: "Column", gap: "sm", children: ["t", "row"] },
+      { id: "t", component: "Text", text: path("/text") },
+      { id: "row", component: "Row", gap: "sm", children: ["go"] },
+      {
+        id: "go",
+        component: "Button",
+        variant: "primary",
+        label,
+        disabled: path("/locked"),
+        action: { event: { name: action, context: { surfaceId: id } } },
+      },
+    ],
+    { text, locked: false },
     demo,
   );
 }

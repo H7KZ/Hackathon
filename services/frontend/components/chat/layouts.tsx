@@ -134,7 +134,7 @@ function ThreadItems({
           </div>
         );
       })}
-      {s.busy && <Thinking step={s.busy} />}
+      {s.busy && <Thinking step={s.busy} onCancel={s.cancel} />}
     </>
   );
 }

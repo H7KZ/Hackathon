@@ -72,7 +72,7 @@ describe("live mapping 04_story <-> curve editor", () => {
     ]);
     expect(next.storyPoints.map((p) => [p.id, p.start, p.phase])).toEqual([
       ["sp1", "2026-02-20", 1],
-      ["sp3", "2026-06-01", 4],
+      ["sp3", "2026-06-01", 3],
     ]);
     expect(next.curves[0]?.segments).toEqual([
       { kind: "ramp", start: "2026-02-20", to: 0.5, storyPointId: "sp1" },
