@@ -54,7 +54,7 @@ export interface CascadeOptions {
   /**
    * "v1" (default): A1 company -> A2 model -> A3 influences -> A4 story -> A5 detail.
    * "causal": docs/cascade-design.md D1–D4 (typed causal map, 4a/4b with trace, curves and
-   * expectations built by code). Not recorded in the demo cache yet.
+   * expectations built by code). Both designs have a passing eval recording (docs/handoffs/cascade.md).
    */
   design?: CascadeDesign;
 }

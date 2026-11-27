@@ -1,3 +1,5 @@
+> **Nahrazeno** (2026-11-28): aktuální handoff kaskády je [`docs/handoffs/cascade.md`](handoffs/cascade.md). Tento dokument popisuje stav z 2026-11-27 večer.
+
 # Handoff: kaskáda agentů
 
 Stav k 2026-11-27 večer. Design: [`docs/cascade-design.md`](cascade-design.md) (rozhodnutí D1–D7).
