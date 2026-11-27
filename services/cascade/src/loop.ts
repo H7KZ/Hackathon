@@ -25,6 +25,8 @@ export interface RepairLoopOptions<T> {
   onEvent?: OnEvent | undefined;
   signal?: AbortSignal | undefined;
   maxIterations?: number;
+  /** A rejected attempt (raw agent output or assembled scenario), e.g. to keep it for debugging. */
+  onRejected?: ((n: number, value: unknown) => void) | undefined;
 }
 
 export type RepairResult<T> =
@@ -43,8 +45,9 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
     } catch (err) {
       // Schema-invalid agent output is a repairable mistake, not a crash.
       if (!(err instanceof LlmOutputInvalid)) throw err;
-      feedback = [err.issues];
+      feedback = [...describeShape(err.raw), err.issues];
       if (err.raw !== undefined) previous = err.raw;
+      opts.onRejected?.(n, err.raw);
       opts.onEvent?.({ type: "loop.iteration", step: opts.step, n, ok: false, feedback });
       continue;
     }
@@ -59,6 +62,7 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
       feedback: compiled.ok ? [] : compiled.errors,
     });
     if (compiled.ok) return { ok: true, scenario: compiled.scenario, output, iterations: n };
+    opts.onRejected?.(n, assembled.ok ? assembled.scenario : output);
     feedback = compiled.errors;
   }
   return { ok: false, feedback, iterations: max };
@@ -93,6 +97,15 @@ export function withSchemaRetry(
       }
     },
   };
+}
+
+/** One line on what the agent actually sent, when the schema issues alone do not show it. */
+function describeShape(raw: unknown): string[] {
+  if (raw === undefined) return [];
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    return [`Your answer was ${Array.isArray(raw) ? "an array" : typeof raw}, expected one JSON object.`];
+  const keys = Object.keys(raw);
+  return [`Your answer had top-level keys [${keys.join(", ")}]; put the fields directly at the top level.`];
 }
 
 /** Retry section: the model's own rejected answer + the issues, so it edits instead of starting over. */

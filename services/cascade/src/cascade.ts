@@ -96,12 +96,19 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     const res = await a5Detail(
       opts.llm,
       { input, runId: opts.runId, model, influences, story },
-      { onEvent: opts.onEvent, signal: opts.signal },
+      {
+        onEvent: opts.onEvent,
+        signal: opts.signal,
+        // kept next to the artifacts so a failed A5 can be inspected or fixed by hand
+        onRejected: (n, value) => {
+          writeFileSync(join(dir, `05_scenario.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
+        },
+      },
     );
     if (res.ok) return res.scenario;
     opts.onEvent?.({
       type: "log",
-      message: `Krok A5 ani po ${res.iterations} pokusech nesestavil platný scénář. Uprav 04_story nebo nahraj 05_scenario ručně.`,
+      message: `Krok A5 ani po ${res.iterations} pokusech nesestavil platný scénář. Neúspěšné pokusy jsou v 05_scenario.rejected-N.json; uprav 04_story nebo nahraj 05_scenario ručně.`,
     });
     throw new CascadeStepError(
       "05_scenario",

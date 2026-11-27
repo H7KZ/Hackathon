@@ -114,6 +114,9 @@ describe("runCascade A1–A5", () => {
     expect(loops.map((e) => e.ok)).toEqual([false, true]);
     expect(typeof loops[0]?.feedback[0]).toBe("string");
     expect(r.fake.calls[5]?.prompt).toContain('"name": "x"'); // the rejected answer is shown back
+    expect(loops[0]?.feedback[0]).toBe(
+      "Your answer had top-level keys [name]; put the fields directly at the top level.",
+    );
   });
 
   it("stops A5 after 3 iterations, logs it and writes no 05_scenario", async () => {
@@ -123,6 +126,11 @@ describe("runCascade A1–A5", () => {
     expect(r.events.at(-1)).toMatchObject({ type: "log" });
     expect(r.fake.calls).toHaveLength(4 + 3);
     expect(existsSync(join(r.dir, "05_scenario.json"))).toBe(false);
+    expect([1, 2, 3].map((n) => existsSync(join(r.dir, `05_scenario.rejected-${n}.json`)))).toEqual([
+      true,
+      true,
+      true,
+    ]);
   });
 
   it("an aborted signal stops the run between steps", async () => {

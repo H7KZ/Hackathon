@@ -61,7 +61,7 @@ function scenarioId(runId: string): string {
 export function a5Detail(
   llm: Llm,
   a: A5Input,
-  opts: Pick<RepairLoopOptions<ScenarioDetail>, "onEvent" | "signal">,
+  opts: Pick<RepairLoopOptions<ScenarioDetail>, "onEvent" | "signal" | "onRejected">,
 ) {
   return repairLoop<ScenarioDetail>({
     step: "05_scenario",
