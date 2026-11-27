@@ -7,7 +7,7 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { createLlm } from "@s2d/llm";
-import { runCascade } from "@s2d/cascade";
+import { runCascade, storyGate } from "@s2d/cascade";
 import { loadConfig } from "../config";
 import { gen } from "./gen";
 
@@ -48,6 +48,7 @@ async function main(): Promise<number> {
           llm: createLlm(),
           runsDir: cfg.runsDir,
           runId,
+          verify: storyGate,
           onEvent: (e) => {
             if (e.type === "step.done") console.log(`${e.step}: ${e.cached ? "cached" : "done"}`);
             else if (e.type === "loop.iteration")

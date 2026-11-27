@@ -12,3 +12,4 @@ export {
   observedTables,
   sqlTables,
 } from "./checks";
+export { storyGate, baselineDrift, formatExpectationFailure } from "./gate";

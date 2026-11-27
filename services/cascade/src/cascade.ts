@@ -26,6 +26,8 @@ export interface CascadeOptions {
   onEvent?: OnEvent;
   /** Checked between steps and between A5 iterations (a running LLM call is not interrupted). */
   signal?: AbortSignal;
+  /** Story gate for A5 (gate.ts `storyGate`): engine + expectations; failures go back to the agent. */
+  verify?: (scenario: Scenario) => Promise<CompileError[]>;
 }
 
 const ORDER = ["01_company", "02_model", "03_influences", "04_story", "05_scenario"] as const;
@@ -121,6 +123,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       {
         onEvent: opts.onEvent,
         signal: opts.signal,
+        verify: opts.verify,
         // kept next to the artifacts so a failed A5 can be inspected or fixed by hand
         onRejected: (n, value) => {
           writeFileSync(join(dir, `05_scenario.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
