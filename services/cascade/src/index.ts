@@ -26,3 +26,6 @@ export { a4aCausalMap, a4bProcesses, a4Overlay, flatLeverCurves } from "./causal
 export { buildCurves, checkOverlay, leverPeriods } from "./causal/curves";
 export { checkOverlayScenario } from "./causal/overlay";
 export { assembleCausal } from "./causal/assemble";
+export { deriveHypotheses, netSign, pathsFrom } from "./causal/hypotheses";
+export { a4bExpectations, causalStory, checkQueries, observedColumns } from "./causal/sql";
+export { finishCausal } from "./causal/assemble";

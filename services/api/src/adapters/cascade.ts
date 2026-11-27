@@ -3,11 +3,11 @@
  * Change freely; keep `Ports["cascade"]` in ../ports.ts and tests/support/fakePorts.ts in sync.
  */
 import { basename, dirname } from "node:path";
-import { runCascade, storyGate, whatIf } from "@s2d/cascade";
+import { runCascade, storyGate, whatIf, type CascadeDesign } from "@s2d/cascade";
 import { createLlm, type Llm } from "@s2d/llm";
 import type { Ports } from "../ports";
 
-export function cascadePort(): Ports["cascade"] {
+export function cascadePort(design: CascadeDesign = "v1"): Ports["cascade"] {
   let llm: Llm | undefined;
   // lazy: constructing the app (tests, server start) must not read LLM env or touch the cache
   const getLlm = () => (llm ??= createLlm());
@@ -23,6 +23,7 @@ export function cascadePort(): Ports["cascade"] {
         signal,
         // A5 is accepted only when the story shows in the data (engine + expectations + flat baseline)
         verify: storyGate,
+        design,
       });
     },
     whatIf: (question, base, { onEvent, signal }) => whatIf(getLlm(), question, base, { onEvent, signal }),

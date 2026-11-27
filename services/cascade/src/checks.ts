@@ -88,7 +88,7 @@ export function observedTables(model: ModelTables): string[] {
  * built every expectation on a ground_truth table, so all of them failed with "table does not exist".
  */
 export function checkExpectationTables(
-  expectations: Pick<StoryPlan, "expectations">["expectations"],
+  expectations: readonly Pick<StoryPlan["expectations"][number], "id" | "sql">[],
   model: ModelTables,
 ): CompileError[] {
   const tables = modelTables(model);

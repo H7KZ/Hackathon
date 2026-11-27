@@ -105,3 +105,31 @@ export const overlay: StoryOverlay = {
     },
   ],
 };
+
+const BEFORE_DAYS = 59; // 2025-01-01 .. 2025-02-28
+const AFTER_DAYS = 184; // 2025-03-01 .. 2025-08-31
+
+/** Per-day rate (or average level) before/after 1 March, as the SQL agent is asked to write it. */
+function rateSql(from: string, date: string, where: string, agg: "count" | "avg" = "count"): string {
+  const value =
+    agg === "count"
+      ? `CAST(COUNT(*) AS DOUBLE) / CASE period WHEN 'before' THEN ${BEFORE_DAYS} ELSE ${AFTER_DAYS} END`
+      : "AVG(CASE WHEN v > 0 THEN 1.0 ELSE 0.0 END)"; // availability of a state (EXPECTATION_SQL prompt)
+  return `SELECT period, ${value} AS value FROM (SELECT CASE WHEN ${date} < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, ${agg === "avg" ? "t.value" : "1"} AS v FROM ${from} WHERE ${where}) GROUP BY period`;
+}
+
+const sup = (op: "=" | "<>") => `p.supplier_id ${op} 'SUP-002'`;
+const viaProduct = (table: string) => `main.${table} t JOIN main.product p ON p.id = t.product_id`;
+
+/** One query per hypothesis that deriveHypotheses yields for the fixtures. */
+export const queries = [
+  {
+    hypothesisId: "sp1_late_delivery",
+    sql: rateSql("main.delivery t", "t.planned_date", "t.is_late AND t.supplier_id = 'SUP-002'"),
+  },
+  { hypothesisId: "sp1_stock", sql: rateSql(viaProduct("stock_daily"), "t.date", sup("="), "avg") },
+  { hypothesisId: "sp1_stock_outside", sql: rateSql(viaProduct("stock_daily"), "t.date", sup("<>"), "avg") },
+  { hypothesisId: "sp1_sale", sql: rateSql(viaProduct("sale"), "t.date", sup("=")) },
+  { hypothesisId: "sp1_sale_outside", sql: rateSql(viaProduct("sale"), "t.date", sup("<>")) },
+  { hypothesisId: "sp1_complaint", sql: rateSql(viaProduct("complaint"), "t.date", sup("=")) },
+];

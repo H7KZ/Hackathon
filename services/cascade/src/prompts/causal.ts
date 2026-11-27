@@ -46,3 +46,15 @@ Task 5: lay the story over the causal map as dated story points and lever values
   - scope limits the lever to records whose field has one of the ids (e.g. {"field": "self.supplier_id", "ids": ["SUP-002"]}); the field must exist on the record where the lever's curve is used.
 - ONLY levers get values. Outcomes (sales, complaints, lost sales) are never in the matrix: they must emerge from the chain.
 - If errors are given, return the corrected full object.`;
+
+export const EXPECTATION_SQL = `${SHARED_RULES}
+Task: write one DuckDB SQL query per hypothesis. The hypotheses (metric, direction, period) are fixed by code; you only measure them.
+Each query:
+- returns exactly two rows with columns period ('before' | 'after') and value DOUBLE;
+- reads ONLY the listed observed tables of schema main (never truth.*), and reads the hypothesis' "table";
+- "before" covers dates in [before.start, before.end), "after" covers [after.start, after.end) (end exclusive);
+- measures an event as a daily rate (COUNT(*) / number of days in the window), so windows of different length compare fairly;
+- measures a state (a flow snapshot table) as AVAILABILITY: the share of snapshot rows with value > 0, AVG(CASE WHEN value > 0 THEN 1 ELSE 0 END). Not the average level: late deliveries cause stock-outs and overshoots at once, so the level can rise while availability falls;
+- respects "focus": "only" keeps just records related to the listed entity ids (join through foreign keys, e.g. sale -> product.supplier_id), "exclude" keeps all other records;
+- for an event recorded as a flag or field of the table (e.g. a late delivery in table delivery), count the records where it happened.
+Return {"queries": [{"hypothesisId", "sql"}]} with one query for EVERY hypothesis id. If errors are given, return the corrected full object.`;

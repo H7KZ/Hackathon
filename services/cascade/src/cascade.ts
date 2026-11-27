@@ -12,6 +12,8 @@ import {
   CausalMap,
   CompanySpec,
   DataModel,
+  ExpectationQueries,
+  ExpectationsPlan,
   Influences,
   ProcessesPlan,
   StoryOverlay,
@@ -22,7 +24,10 @@ import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
 import { checkCausalMap } from "./causal/map";
+import { finishCausal } from "./causal/assemble";
+import { deriveHypotheses } from "./causal/hypotheses";
 import { checkOverlayScenario } from "./causal/overlay";
+import { a4bExpectations, causalStory, checkQueries } from "./causal/sql";
 import { a4aCausalMap, a4bProcesses, a4Overlay } from "./causal/steps";
 import {
   checkExpectationTables,
@@ -58,7 +63,16 @@ export type CascadeDesign = "v1" | "causal";
 /** Artifacts each design writes, in order. `until` must name one of them. */
 export const DESIGN_STEPS: Record<CascadeDesign, readonly ArtifactName[]> = {
   v1: ["01_company", "02_model", "03_influences", "04_story", "05_scenario"],
-  causal: ["01_company", "02_model", "03a_causal_map", "03b_processes", "04a_overlay"],
+  causal: [
+    "01_company",
+    "02_model",
+    "03a_causal_map",
+    "03b_processes",
+    "04a_overlay",
+    "04b_expectations",
+    "04_story",
+    "05_scenario",
+  ],
 };
 
 /** An agent step could not produce its artifact (invalid LLM output, or no cache entry offline). */
@@ -166,7 +180,44 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         { input, map: causalMap, plan: processes },
       ),
     );
-    return { dir, company, model, causalMap, processes, overlay };
+    if (!shouldRun("04b_expectations")) return { dir, company, model, causalMap, processes, overlay };
+    const expectations = await step("04b_expectations", ExpectationsPlan, async () => {
+      const hypotheses = deriveHypotheses(causalMap, overlay, processes);
+      if (hypotheses.length === 0)
+        throw new CascadeStepError(
+          "04b_expectations",
+          new Error(
+            "No hypothesis follows from 04a_overlay: no lever moves, or no observed event/state table lies on a path. Edit 03a_causal_map or 04a_overlay.",
+          ),
+        );
+      const sql = await a4bExpectations(
+        llm("04b_expectations", (v) =>
+          checkQueries(hypotheses, ExpectationQueries.parse(v).queries, processes),
+        ),
+        { hypotheses, plan: processes, overlay },
+      );
+      return { hypotheses, queries: sql.queries };
+    });
+    if (!shouldRun("04_story")) return { dir, company, model, causalMap, processes, overlay, expectations };
+    // code only: the UI timeline edits 04_story, and 05 is rebuilt from it
+    const story = await step("04_story", StoryPlan, () =>
+      Promise.resolve(causalStory(causalMap, overlay, expectations)),
+    );
+    if (!shouldRun("05_scenario"))
+      return { dir, company, model, causalMap, processes, overlay, expectations, story };
+    const scenario = await step("05_scenario", Scenario, () => {
+      const res = finishCausal({ input, runId: opts.runId, plan: processes, overlay, story });
+      if (res.ok) return Promise.resolve(res.scenario);
+      opts.onEvent?.({
+        type: "log",
+        message: "Složený scénář neprošel kontrolami. Uprav 04_story (nebo 03b_processes) a spusť znovu.",
+      });
+      throw new CascadeStepError(
+        "05_scenario",
+        new Error(`Causal scenario fails the checks:\n${formatFeedback(res.errors)}`),
+      );
+    });
+    return { dir, company, model, causalMap, processes, overlay, expectations, story, scenario };
   }
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>

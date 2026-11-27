@@ -3,7 +3,7 @@
  * Each artifact is an editable JSON file in runs/<runId>/NN_name.json.
  */
 import { z } from "zod";
-import { Expectation } from "./evidence";
+import { Expectation, ExpectationCheck } from "./evidence";
 import { CurveDef, EntityDef, FlowDef, Ident, IsoDate, ProcessDef, Scenario, StoryPoint } from "./scenario";
 
 export const CompanySpec = z.object({
@@ -116,6 +116,45 @@ export const StoryOverlay = z.object({
 });
 export type StoryOverlay = z.infer<typeof StoryOverlay>;
 
+/** Half-open date window [start, end). */
+export const DateWindow = z.object({ start: IsoDate, end: IsoDate });
+
+/**
+ * D3: an expectation derived by code from the overlay (which lever moves, which way) and the map
+ * (edge signs along the paths). Off-path metrics and out-of-scope records are `stable` controls.
+ */
+export const Hypothesis = z.object({
+  id: z.string(),
+  storyPointId: z.string(),
+  /** Metric node of 03a_causal_map and the observed table it is counted in. */
+  node: Ident,
+  table: Ident,
+  direction: ExpectationCheck.shape.kind,
+  minRelChange: z.number().nonnegative(),
+  /** Restrict to (only) or leave out (exclude) records related to these entity ids, e.g. supplier SUP-002. */
+  focus: z
+    .object({ entity: z.string(), ids: z.array(z.string()).min(1), mode: z.enum(["only", "exclude"]) })
+    .optional(),
+  before: DateWindow,
+  after: DateWindow,
+  /** Edge ids of the strongest path from the moved lever; empty for off-path controls. */
+  path: z.array(z.string()),
+  description: z.string(),
+});
+export type Hypothesis = z.infer<typeof Hypothesis>;
+
+export const ExpectationQuery = z.object({ hypothesisId: z.string(), sql: z.string().min(1) });
+/** What the 04b agent returns: only SQL, one query per hypothesis. */
+export const ExpectationQueries = z.object({ queries: z.array(ExpectationQuery).min(1) });
+export type ExpectationQueries = z.infer<typeof ExpectationQueries>;
+
+/** 04b_expectations: hypotheses (code) + their SQL (agent). Code then writes 04_story. */
+export const ExpectationsPlan = z.object({
+  hypotheses: z.array(Hypothesis).min(1),
+  queries: z.array(ExpectationQuery),
+});
+export type ExpectationsPlan = z.infer<typeof ExpectationsPlan>;
+
 /** Order matters: saving an artifact invalidates every later one (SPEC §2 rule 9). */
 export const ArtifactName = z.enum([
   "01_company",
@@ -124,6 +163,7 @@ export const ArtifactName = z.enum([
   "03a_causal_map",
   "03b_processes",
   "04a_overlay",
+  "04b_expectations",
   "04_story",
   "05_scenario",
 ]);
@@ -137,6 +177,7 @@ export const ArtifactSchemas: Record<ArtifactName, z.ZodType> = {
   "03a_causal_map": CausalMap,
   "03b_processes": ProcessesPlan,
   "04a_overlay": StoryOverlay,
+  "04b_expectations": ExpectationsPlan,
   "04_story": StoryPlan,
   "05_scenario": Scenario,
 };
