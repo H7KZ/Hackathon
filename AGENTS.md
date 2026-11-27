@@ -16,7 +16,7 @@ One backend service. `services/api` imports the other services as **plain functi
 | `packages/schema`     | zod contract, **single source of truth** (`scenario`, `evidence`, `run`, `artifacts`, `detective`, `api`) | nothing internal                    |
 | `packages/llm`        | the only LLM entry point: AI SDK + disk cache + offline mode                                              | —                                   |
 | `packages/test-utils` | fixtures, temp dirs, `fakeGenerate` (tests only)                                                          | —                                   |
-| `services/noiser`     | compiler (`src/compiler`) + pure deterministic engine (`src/engine`)                                      | `schema`                            |
+| `services/noiser`     | compiler (`src/compiler`) + pure deterministic engine (`src/engine`), docs: `services/noiser/README.md`   | `schema`                            |
 | `services/dataer`     | DuckDB store, evidence, detective, compare                                                                | `schema`, `llm`                     |
 | `services/cascade`    | agents A1–A5 + orchestrator, evals                                                                        | `schema`, `llm`, `noiser`, `dataer` |
 | `services/api`        | Hono REST app + CLI (`src/cli`)                                                                           | everything                          |
