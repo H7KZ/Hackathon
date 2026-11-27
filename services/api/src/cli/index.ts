@@ -48,8 +48,11 @@ async function main(): Promise<number> {
           llm: createLlm(),
           runsDir: cfg.runsDir,
           runId,
-          onStep: (n, st) => {
-            console.log(`${n}: ${st}`);
+          onEvent: (e) => {
+            if (e.type === "step.done") console.log(`${e.step}: ${e.cached ? "cached" : "done"}`);
+            else if (e.type === "loop.iteration")
+              console.log(`${e.step} #${e.n}: ${e.ok ? "ok" : `${e.feedback.length} errors`}`);
+            else if (e.type === "log") console.log(e.message);
           },
         },
       );

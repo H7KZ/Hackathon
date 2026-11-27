@@ -48,21 +48,42 @@ describe("runCascade", () => {
     const { mkdirSync } = await import("node:fs");
     mkdirSync(join(runsDir, "r2"), { recursive: true });
     writeFileSync(join(runsDir, "r2", "01_company.json"), JSON.stringify({ ...company, size: "upraveno" }));
-    const steps: string[] = [];
+    const events: unknown[] = [];
     const res = await runCascade(
       { story: "s", company: "c" },
-      { llm, runsDir, runId: "r2", until: "01_company", onStep: (n, s) => steps.push(`${n}:${s}`) },
+      { llm, runsDir, runId: "r2", until: "01_company", onEvent: (e) => events.push(e) },
     );
     expect(res.company.size).toBe("upraveno");
     expect(fake.calls).toHaveLength(0);
-    expect(steps).toEqual(["01_company:cached"]);
+    expect(events).toEqual([{ type: "step.done", step: "01_company", cached: true }]);
   });
 
-  it("fails loudly when the agent output does not match the artifact schema", async () => {
-    const { llm, runsDir } = setup([{ industry: "x" }]);
+  it("fails loudly when the agent output still misses the schema after 3 attempts", async () => {
+    const bad = { industry: "x" };
+    const { llm, fake, runsDir } = setup([bad, bad, bad]);
     await expect(
       runCascade({ story: "s", company: "c" }, { llm, runsDir, runId: "r3", until: "01_company" }),
     ).rejects.toThrow(/01_company failed validation/);
+    expect(fake.calls).toHaveLength(3);
+  });
+
+  it("re-asks with the zod issues when the answer misses the schema", async () => {
+    const { llm, fake, runsDir } = setup([{ industry: "x" }, company]);
+    const events: unknown[] = [];
+    const res = await runCascade(
+      { story: "s", company: "c" },
+      { llm, runsDir, runId: "r5", until: "01_company", onEvent: (e) => events.push(e) },
+    );
+    expect(res.company).toEqual(company);
+    expect(fake.calls[1]?.prompt).toMatch(
+      /failed schema validation[\s\S]*Previous answer\n\{"industry":"x"\}[\s\S]*keyProcesses/,
+    );
+    expect(events).toEqual([
+      { type: "step.started", step: "01_company" },
+      { type: "loop.iteration", step: "01_company", n: 1, ok: false, feedback: [expect.any(String)] },
+      { type: "loop.iteration", step: "01_company", n: 2, ok: true, feedback: [] },
+      { type: "step.done", step: "01_company", cached: false },
+    ]);
   });
 
   it("refuses to reuse a run dir created for a different story", async () => {
@@ -74,5 +95,4 @@ describe("runCascade", () => {
   });
 
   it.todo("A2–A4 chain passes previous artifacts into the prompt");
-  it.todo("A5 loop: compile errors are fed back to the agent (max 3 iterations)");
 });

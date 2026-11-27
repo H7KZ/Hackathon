@@ -3,7 +3,7 @@ import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { fakeGenerate, makeTempDir } from "@s2d/test-utils";
-import { createLlm, LlmCacheMiss, LlmOutputInvalid } from "../../src/client";
+import { createLlm, LlmCacheMiss, LlmOutputInvalid, resolveModel } from "../../src/client";
 import { readLlmEnv } from "../../src/env";
 
 const Person = z.object({ name: z.string(), age: z.number().int() });
@@ -58,11 +58,61 @@ describe("createLlm", () => {
 describe("readLlmEnv", () => {
   it("parses defaults and offline flag", () => {
     const env = readLlmEnv({ LLM_OFFLINE: "1", LLM_CACHE_DIR: "/tmp/x" });
-    expect(env).toEqual({ model: "anthropic:claude-sonnet-5-5", offline: true, cacheDir: "/tmp/x" });
+    expect(env).toEqual({
+      model: "anthropic:claude-sonnet-5-5",
+      modelBySchema: {},
+      offline: true,
+      cacheDir: "/tmp/x",
+    });
   });
 
   it("rejects a malformed model id with a readable message", () => {
     expect(() => readLlmEnv({ LLM_MODEL: "gpt" })).toThrow(/anthropic:<model>/);
+  });
+
+  it("accepts a groq model id (model names may contain a slash)", () => {
+    expect(readLlmEnv({ LLM_MODEL: "groq:openai/gpt-oss-120b" }).model).toBe("groq:openai/gpt-oss-120b");
+  });
+});
+
+describe("per-step model", () => {
+  it("reads LLM_MODEL_<SCHEMA> overrides and rejects bad ids", () => {
+    const env = readLlmEnv({ LLM_MODEL_01_COMPANY: "anthropic:claude-haiku-5-5", LLM_MODEL_WHAT_IF: "" });
+    expect(env.modelBySchema).toEqual({ "01_company": "anthropic:claude-haiku-5-5" });
+    expect(() => readLlmEnv({ LLM_MODEL_02_MODEL: "haiku" })).toThrow(/LLM_MODEL_02_MODEL/);
+  });
+
+  it("uses the override for that schemaName only", async () => {
+    const tmp = makeTempDir();
+    const models: string[] = [];
+    const llm = createLlm({
+      generate: (r) => {
+        models.push(r.model);
+        return Promise.resolve({ name: "A", age: 1 });
+      },
+      cacheDir: tmp.dir,
+      offline: false,
+      model: "anthropic:big",
+      modelBySchema: { cheap: "anthropic:small" },
+    });
+    await llm.object({ ...req, schemaName: "cheap" });
+    await llm.object({ ...req, schemaName: "other" });
+    tmp.cleanup();
+    expect(models).toEqual(["anthropic:small", "anthropic:big"]);
+  });
+});
+
+describe("resolveModel", () => {
+  it("maps groq:<model> to Groq's OpenAI-compatible chat endpoint", () => {
+    const model = resolveModel("groq:openai/gpt-oss-120b");
+    expect(typeof model).toBe("object");
+    if (typeof model === "string") return;
+    expect(model.modelId).toBe("openai/gpt-oss-120b");
+    expect(model.provider).toMatch(/^groq/);
+  });
+
+  it("rejects an unknown provider", () => {
+    expect(() => resolveModel("mistral:x")).toThrow(/Unknown LLM provider/);
   });
 });
 
