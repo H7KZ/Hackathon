@@ -4,13 +4,12 @@
  *   cascade "<story>" "<company>"
  *   evidence <db> | detective <db> | compare <dbA> <dbB>
  */
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { compileScenario } from "@s2d/noiser";
 import { createLlm } from "@s2d/llm";
 import { runCascade } from "@s2d/cascade";
 import { loadConfig } from "../config";
+import { gen } from "./gen";
 
 const [command, ...rest] = process.argv.slice(2);
 const cfg = loadConfig();
@@ -25,15 +24,13 @@ async function main(): Promise<number> {
       });
       const file = positionals[0];
       if (!file) return usage("gen <scenario.json> [--seed N] [--scale X]");
-      const result = compileScenario(JSON.parse(readFileSync(resolve(cfg.root, file), "utf8")));
-      if (!result.ok) {
-        for (const e of result.errors) console.error(`${e.path}: ${e.message}`);
-        return 1;
-      }
-      console.log(`compiled ${result.scenario.meta.id}: ${result.order.join(" -> ")}`);
-      console.log(`seed=${values.seed ?? result.scenario.meta.seed} scale=${values.scale ?? 1}`);
-      console.error("engine not implemented yet (services/noiser/src/engine/run.ts)");
-      return 2;
+      const res = await gen({
+        file: resolve(cfg.root, file),
+        outDir: resolve(cfg.root, "out"),
+        ...(values.seed === undefined ? {} : { seed: Number(values.seed) }),
+        ...(values.scale === undefined ? {} : { scale: Number(values.scale) }),
+      });
+      return res.ok ? 0 : 1;
     }
     case "cascade": {
       const { positionals, values } = parseArgs({
