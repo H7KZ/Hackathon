@@ -119,18 +119,17 @@ describe("runCascade A1–A5", () => {
     expect(JSON.stringify(loops[0]?.feedback)).toContain("entities");
   });
 
-  it("stops A5 after 3 iterations, logs it and writes no 05_scenario", async () => {
-    const r = run([...ALL, brokenDetail, brokenDetail, brokenDetail, detail]);
+  it("stops A5 after A5_MAX_ITERATIONS, logs it and writes no 05_scenario", async () => {
+    const { A5_MAX_ITERATIONS: max } = await import("../../src/a5_detail");
+    const r = run([...ALL, ...Array.from({ length: max }, () => brokenDetail), detail]);
     await expect(r.promise).rejects.toThrow(/does not compile/);
-    expect(r.events.filter((e) => e.type === "loop.iteration")).toHaveLength(3);
+    expect(r.events.filter((e) => e.type === "loop.iteration")).toHaveLength(max);
     expect(r.events.at(-1)).toMatchObject({ type: "log" });
-    expect(r.fake.calls).toHaveLength(4 + 3);
+    expect(r.fake.calls).toHaveLength(4 + max);
     expect(existsSync(join(r.dir, "05_scenario.json"))).toBe(false);
-    expect([1, 2, 3].map((n) => existsSync(join(r.dir, `05_scenario.rejected-${n}.json`)))).toEqual([
-      true,
-      true,
-      true,
-    ]);
+    expect(
+      Array.from({ length: max }, (_, i) => existsSync(join(r.dir, `05_scenario.rejected-${i + 1}.json`))),
+    ).toEqual(Array.from({ length: max }, () => true));
   });
 
   it("an aborted signal stops the run between steps", async () => {

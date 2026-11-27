@@ -282,7 +282,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         // curves and story points go into 05 verbatim, so A5 cannot repair them: check them here
         return [
           ...checkStoryPlan(plan),
-          ...checkCurveScopes(plan),
+          ...checkCurveScopes(plan, model.entities),
           ...checkExpectationTables(plan.expectations, model),
           ...checkStoryRefs({ entities: model.entities, curves: plan.curves, storyPoints: plan.storyPoints }),
         ];

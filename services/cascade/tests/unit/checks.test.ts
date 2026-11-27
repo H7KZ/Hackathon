@@ -244,3 +244,25 @@ describe("curve scope follows the story point entity", () => {
     expect(errors[0]?.message).toMatch(/late_prob.*SUP-002.*scope/);
   });
 });
+
+describe("story entities must be specific", () => {
+  it("a story point or curve scope naming every supplier is sent back", async () => {
+    // live v1 run 2026-11-28: "one supplier is late" became a scope over SUP-001..SUP-003
+    const { checkCurveScopes } = await import("../../src/checks");
+    const sup = base.entities.find((e) => e.name === "supplier")!;
+    const all = Array.from(
+      { length: sup.count },
+      (_, i) => `${sup.idPrefix}-${String(i + 1).padStart(3, "0")}`,
+    );
+    const wide = {
+      storyPoints: story.storyPoints.map((p) => (p.entity ? { ...p, entity: { ...p.entity, ids: all } } : p)),
+      curves: story.curves.map((c) => (c.scope ? { ...c, scope: { ...c.scope, ids: all } } : c)),
+    };
+    const errors = checkCurveScopes(wide, base.entities);
+    expect(errors.map((e) => e.path)).toEqual(
+      expect.arrayContaining(["curves.0.scope.ids", "storyPoints.0.entity.ids"]),
+    );
+    expect(errors[0]?.message).toMatch(/every supplier/);
+    expect(checkCurveScopes(story, base.entities)).toEqual([]);
+  });
+});

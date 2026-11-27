@@ -368,7 +368,11 @@ export function checkCurvesOnRoots(
   const errors: CompileError[] = [];
   for (const { curve, ref, path } of curveParamRefs(scenario)) {
     const owner = ref.split(".")[0] ?? "";
-    const from = [...(incoming.get(ref) ?? []), ...(chained.has(owner) ? (incoming.get(owner) ?? []) : [])];
+    // an edge from the owning process to its own field (delivery -> delivery.is_late) is structure, not a cause
+    const from = [
+      ...(incoming.get(ref) ?? []),
+      ...(chained.has(owner) ? (incoming.get(owner) ?? []) : []),
+    ].filter((f) => f !== owner && !f.startsWith(`${owner}.`));
     if (from.length === 0) continue;
     errors.push({
       path,
@@ -383,8 +387,37 @@ export function checkCurvesOnRoots(
  * must be scoped to those ids. A live v1 run turned "one supplier is late" into late deliveries for
  * every supplier, which also made the whole-company expectations meaningless.
  */
-export function checkCurveScopes(story: Pick<StoryPlan, "storyPoints" | "curves">): CompileError[] {
+export function checkCurveScopes(
+  story: Pick<StoryPlan, "storyPoints" | "curves">,
+  entities: readonly EntityIds[] = [],
+): CompileError[] {
   const errors: CompileError[] = [];
+  // naming EVERY row of an entity (all 3 suppliers) is not specific: a live run did that to pass the scope rule
+  const everyRow = (ids: readonly string[]) => {
+    const prefix = /^([A-Z][A-Z0-9]*)-\d+$/.exec(ids[0] ?? "")?.[1];
+    const e = entities.find((x) => x.idPrefix === prefix);
+    return e &&
+      e.count > 1 &&
+      Array.from({ length: e.count }, (_, n) => entityId(e, n + 1)).every((id) => ids.includes(id))
+      ? e
+      : undefined;
+  };
+  story.storyPoints.forEach((p, i) => {
+    const e = p.entity && everyRow(p.entity.ids);
+    if (e)
+      errors.push({
+        path: `storyPoints.${i}.entity.ids`,
+        message: `Story point "${p.id}" names every ${e.name} (${p.entity?.ids.join(", ")}). Name only the ${e.name}(s) the story is about (e.g. the one late supplier), so the effect has a place and a control.`,
+      });
+  });
+  story.curves.forEach((c, i) => {
+    const e = c.scope && everyRow(c.scope.ids);
+    if (e)
+      errors.push({
+        path: `curves.${i}.scope.ids`,
+        message: `Curve "${c.id}" is scoped to every ${e.name}, which is the same as no scope. Scope it to the ${e.name}(s) the story is about.`,
+      });
+  });
   story.curves.forEach((c, i) => {
     if (c.scope) return;
     const sp = c.segments

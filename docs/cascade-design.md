@@ -136,7 +136,8 @@ Mapování mapy na scénář:
 
 ## Otevřené otázky
 
-- **Nahrání cache.** K 2026-11-27 není v `.cache/llm/` nahraná žádná odpověď (ani pro v1), oba evaly se offline přeskočí. Varianta v1 zůstává výchozí a funguje, ale konvence jmen hran v promptu A3 mění klíč cache v1 od kroku 03 dál. Nahrávku v1 pořízenou před sloučením této změny je proto potřeba nahrát znovu; nahrávat až po sloučení. Prompty causal varianty: `services/cascade/src/prompts/causal.ts`.
+- **Živý eval causal PROŠEL (2026-11-28, 00:19):** `supplier_delay_causal` splnil seed 42, ≥ 4/5 seedů i story gate. Nahrávka (9 souborů v `.cache/llm/`) se přehraje offline za ~8 s: `LLM_OFFLINE=1 LLM_MODEL_01_COMPANY=anthropic:claude-haiku-5-5 pnpm evals` (krok 01 byl nahraný na Haiku, ostatní na `anthropic:claude-sonnet-5-5`; klíč cache obsahuje model). v1 eval zatím neprošel.
+- **Nahrání cache.** K 2026-11-27 nebylo v `.cache/llm/` nahraná žádná odpověď (ani pro v1), oba evaly se offline přeskočí. Varianta v1 zůstává výchozí a funguje, ale konvence jmen hran v promptu A3 mění klíč cache v1 od kroku 03 dál. Nahrávku v1 pořízenou před sloučením této změny je proto potřeba nahrát znovu; nahrávat až po sloučení. Prompty causal varianty: `services/cascade/src/prompts/causal.ts`.
 - **Agent 6 per úsek.** Matici vrací jeden agent (`04a_overlay`), žádní subagenti per úsek. Hranice úseků = story pointy, které agent sám navrhne.
 - **Tvary křivek.** Kód staví jen `step`. Pozvolný náběh (ramp) by potřeboval pravidlo, kdy ho kód zvolí.
 - **Kompatibilita druhů uzlů a typů hran.** Kontroluje se jen „žádná hrana do páky", „páka a větvení mají výstup" a realizace podle typu hrany. Např. „mechanická hrana musí končit ve `state`" kód nehlídá.

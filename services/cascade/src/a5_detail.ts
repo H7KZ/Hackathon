@@ -31,6 +31,12 @@ export type ScenarioDetail = z.infer<typeof ScenarioDetail>;
 
 export const DEFAULT_SEED = 42;
 
+/**
+ * A5 gets more attempts than the other loops: with the story gate it converges slowly (live runs:
+ * revenue -6.6% -> -8.7% for a -10% target within 3 attempts, one attempt lost to a non-JSON answer).
+ */
+export const A5_MAX_ITERATIONS = 5;
+
 export interface A5Input {
   input: CascadeInput;
   runId: string;
@@ -72,6 +78,7 @@ export function a5Detail(
 ) {
   return repairLoop<ScenarioDetail>({
     step: "05_scenario",
+    maxIterations: A5_MAX_ITERATIONS,
     ...opts,
     ask: (feedback, previous, n) =>
       llm.object({

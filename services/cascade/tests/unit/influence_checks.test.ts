@@ -37,6 +37,13 @@ describe("curves only on roots of the map", () => {
     expect(checkCurvesOnRoots(base, influences)).toEqual([]);
   });
 
+  it("an edge from a process to its own field is not a predecessor (live v1 run)", () => {
+    const own = {
+      edges: [...influences.edges, { ...influences.edges[0]!, from: "delivery", to: "delivery.is_late" }],
+    };
+    expect(checkCurvesOnRoots(base, own)).toEqual([]);
+  });
+
   it("a curve on a param with an incoming edge is reported", () => {
     const onDownstream = JSON.parse(
       JSON.stringify(base).replace('"p":0.25', '"p":{"curve":"late_prob"}'),
