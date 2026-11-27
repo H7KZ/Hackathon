@@ -28,4 +28,5 @@ Format: **symptom** → **rule** (guard, if any).
 - **`pnpm test:watch` runs everything.** → For one file: `pnpm vitest run <path>`.
 - **Stop hook blocks finishing.** `pnpm verify:fast` is red. → Read the printed output; the hook lets you stop on the second failure, so do not ignore it.
 - **Lockfile conflict after rebase.** → Take `main`'s `pnpm-lock.yaml`, run `pnpm install`, commit.
+- **Agent command blocked with "agents must not touch env files".** Intentional: `scripts/block-env.mjs` blocks Bash commands that mention an env file (`.env.example` and `process.env` are fine). → Run commands that need real keys yourself; agents use `LLM_OFFLINE=1`.
 - **Playwright missing browser.** → `pnpm --filter @s2d/frontend exec playwright install chromium`.
