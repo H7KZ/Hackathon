@@ -228,3 +228,19 @@ describe("04_story coherence", () => {
     expect(t.fake.calls[2]?.prompt).toContain("## Story\ns"); // A3 sees the story too
   });
 });
+
+describe("curve scope follows the story point entity", () => {
+  it("supplier_delay (late_prob scoped to SUP-002 on an SUP-002 story point) passes", async () => {
+    const { checkCurveScopes } = await import("../../src/checks");
+    expect(checkCurveScopes(story)).toEqual([]);
+  });
+
+  it("an unscoped curve on a story point about one supplier is sent back", async () => {
+    // live v1 run 2026-11-27: "one supplier is late" became late_prob for every supplier
+    const { checkCurveScopes } = await import("../../src/checks");
+    const unscoped = { ...story, curves: story.curves.map(({ scope: _scope, ...c }) => c) };
+    const errors = checkCurveScopes(unscoped);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toMatch(/late_prob.*SUP-002.*scope/);
+  });
+});

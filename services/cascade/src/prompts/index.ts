@@ -72,6 +72,7 @@ Expectations:
 - The SQL may read ONLY the listed observed tables. ground_truth tables (hidden causes, e.g. purchase attempts) are not in the evidence database; build day lists from observed tables (e.g. sales, deliveries).
 - Test consequences through the chain with COUNTS or LEVELS (e.g. complaints per week, lost sales per day, revenue per day), not a ratio whose probability is constant (complaints per lost sale stays flat by design).
 - Add at least one control that must stay stable (e.g. demand / visits).
+- Measure the effect where it happens: if a story point is about specific entities (e.g. supplier SUP-002), scope its curve to them and restrict the expectation SQL to the affected records (e.g. sales of products whose supplier is SUP-002, via product.supplier_id), with a stable control on the unaffected rest. A whole-company total moves only by the affected share (one of three suppliers moves chain revenue by a few percent); use one only with a threshold that share can reach.
 Curves: {id, baseline, segments: [{kind: step|ramp|spike|decay, start, end?, to, storyPointId}], scope?: {field: Path, ids: [...]}, clamp?: [min, max]}. scope limits the curve to records whose field has one of the ids (e.g. {"field": "self.supplier_id", "ids": ["SUP-002"]}); entity ids are <idPrefix>-001 .. <idPrefix>-<count> of 02_model.`;
 
 export const A5_DETAIL = `${SHARED_RULES}

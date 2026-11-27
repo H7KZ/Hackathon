@@ -377,3 +377,24 @@ export function checkCurvesOnRoots(
   }
   return errors;
 }
+
+/**
+ * A curve whose segments belong to a story point about specific entities (e.g. supplier SUP-002)
+ * must be scoped to those ids. A live v1 run turned "one supplier is late" into late deliveries for
+ * every supplier, which also made the whole-company expectations meaningless.
+ */
+export function checkCurveScopes(story: Pick<StoryPlan, "storyPoints" | "curves">): CompileError[] {
+  const errors: CompileError[] = [];
+  story.curves.forEach((c, i) => {
+    if (c.scope) return;
+    const sp = c.segments
+      .map((g) => story.storyPoints.find((p) => p.id === g.storyPointId))
+      .find((p) => p?.entity && p.entity.ids.length > 0);
+    if (!sp?.entity) return;
+    errors.push({
+      path: `curves.${i}.scope`,
+      message: `Curve "${c.id}" moves story point "${sp.id}", which is about ${sp.entity.name} ${sp.entity.ids.join(", ")}, but has no scope, so it would change every ${sp.entity.name}. Add "scope": {"field": "self.<${sp.entity.name}>_id", "ids": ${JSON.stringify(sp.entity.ids)}} (the record field that holds the ${sp.entity.name} id).`,
+    });
+  });
+  return errors;
+}

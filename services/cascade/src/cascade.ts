@@ -29,7 +29,13 @@ import { deriveHypotheses } from "./causal/hypotheses";
 import { checkOverlayScenario } from "./causal/overlay";
 import { a4bExpectations, causalStory, checkQueries } from "./causal/sql";
 import { a4aCausalMap, a4bProcesses, a4Overlay } from "./causal/steps";
-import { checkExpectationTables, checkInfluenceRefs, checkModelShape, checkStoryPlan } from "./checks";
+import {
+  checkCurveScopes,
+  checkExpectationTables,
+  checkInfluenceRefs,
+  checkModelShape,
+  checkStoryPlan,
+} from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
@@ -276,6 +282,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         // curves and story points go into 05 verbatim, so A5 cannot repair them: check them here
         return [
           ...checkStoryPlan(plan),
+          ...checkCurveScopes(plan),
           ...checkExpectationTables(plan.expectations, model),
           ...checkStoryRefs({ entities: model.entities, curves: plan.curves, storyPoints: plan.storyPoints }),
         ];
