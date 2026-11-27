@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
+import { checkStoryRefs } from "@s2d/noiser";
 import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
@@ -99,7 +100,14 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   if (!shouldRun("04_story")) return { dir, company, model, influences };
   const story = await step("04_story", StoryPlan, () =>
     a4Story(
-      llm("04_story", (v) => checkExpectationTables(StoryPlan.parse(v).expectations, model)),
+      llm("04_story", (v) => {
+        const plan = StoryPlan.parse(v);
+        // curves and story points go into 05 verbatim, so A5 cannot repair them: check them here
+        return [
+          ...checkExpectationTables(plan.expectations, model),
+          ...checkStoryRefs({ entities: model.entities, curves: plan.curves, storyPoints: plan.storyPoints }),
+        ];
+      }),
       input,
       model,
       influences,
