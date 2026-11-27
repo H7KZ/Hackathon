@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod";
-import type { Llm } from "@s2d/llm";
+import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
 import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from "@s2d/schema/artifacts";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
 
@@ -21,6 +21,25 @@ export interface CascadeOptions {
 
 const ORDER = ["01_company", "02_model", "03_influences", "04_story"] as const;
 
+/** An agent step could not produce its artifact (invalid LLM output, or no cache entry offline). */
+export class CascadeStepError extends Error {
+  constructor(
+    readonly step: ArtifactName,
+    cause: Error,
+  ) {
+    super(cause.message, { cause });
+    this.name = "CascadeStepError";
+  }
+}
+
+/** The run dir belongs to another story/company. */
+export class CascadeRunMismatch extends Error {
+  constructor(runId: string) {
+    super(`Run "${runId}" was created for a different story/company. Use a new runId.`);
+    this.name = "CascadeRunMismatch";
+  }
+}
+
 export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   const dir = join(opts.runsDir, opts.runId);
   mkdirSync(dir, { recursive: true });
@@ -33,7 +52,14 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       opts.onStep?.(name, "cached");
       return schema.parse(JSON.parse(readFileSync(file, "utf8")));
     }
-    const value = await produce();
+    let value: T;
+    try {
+      value = await produce();
+    } catch (err) {
+      if (err instanceof LlmOutputInvalid || err instanceof LlmCacheMiss)
+        throw new CascadeStepError(name, err);
+      throw err;
+    }
     writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
     opts.onStep?.(name, "done");
     return value;
@@ -43,7 +69,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   const inputFile = join(dir, "00_input.json");
   const inputJson = `${JSON.stringify(input, null, 2)}\n`;
   if (existsSync(inputFile) && readFileSync(inputFile, "utf8") !== inputJson) {
-    throw new Error(`Run "${opts.runId}" was created for a different story/company. Use a new runId.`);
+    throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
   const company = await step("01_company", CompanySpec, () => a1Company(opts.llm, input));

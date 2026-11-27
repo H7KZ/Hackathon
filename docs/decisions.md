@@ -26,6 +26,13 @@ Template:
 - **Who:** API owner (grilling session).
 - **Affects:** `services/api`, `services/frontend` (hc + EventSource), cascade (`onEvent`, `signal`), dataer (`evidence(db, expectations)`). Contract in `services/api/src/contract.draft.ts` waits for the `packages/schema` owner's approval, then moves there.
 
+## 2026-11-27 — Cascade design: agents emit JSON parts, code assembles the scenario
+
+- **Decision:** the cascade is a chain of agents (company → objects → attributes → typed causal map → story overlay → per-period subagents), each returning a part of the JSON. Code assembles `scenario.json`: it builds curves from the agents' time × value matrix and derives expectation hypotheses from the overlay + causal map (LLM writes only their SQL). Causal edges are typed (probabilistic / mechanical / attribute). Details: `docs/cascade-design.md`.
+- **Why:** the LLM only decides values and structure, while dates, curve segments and test directions come from deterministic code, so fewer invalid scenarios and the story is traceable.
+- **Who:** cascade owner (design session).
+- **Affects:** `services/cascade`, `packages/schema/src/artifacts.ts` (future change, will be announced).
+
 ## 2026-11-27 — Team workflow (by convention, no branch protection)
 
 - **Decision:** changes reach `main` through PRs after local verification (`pnpm verify`), by team convention. No CI workflow. Branch protection is not enabled. Agents work in worktrees on feature branches and ask before contract, push or paid-API actions (see AGENTS.md).
