@@ -1,0 +1,22 @@
+# Owners review PRs that touch their area. Fill in the handles and uncomment.
+# Team members (GitHub logins): ikoronka, H7KZ, OndrejZemlicka, janvrzal
+#
+# Format: <path> @owner [@owner2]
+# Last matching line wins, so keep the catch-all first.
+
+# Default: the whole team is responsible for anything not listed below.
+# * @ikoronka @H7KZ @OndrejZemlicka @janvrzal
+
+# Contract: changes here affect every workspace.
+# packages/schema/        @TODO-owner
+# packages/llm/           @TODO-owner
+# services/noiser/        @TODO-owner
+# services/dataer/        @TODO-owner
+# services/cascade/       @TODO-owner
+# services/api/           @TODO-owner
+# services/frontend/      @TODO-owner
+
+# Generated / shared data: owner must agree before anyone touches these.
+# .cache/llm/             @TODO-owner
+# scenarios/              @TODO-owner
+# pnpm-lock.yaml          @TODO-owner
