@@ -1,52 +1,121 @@
 # Handoff: noiser (`services/noiser`: compiler + engine)
 
-Shared rules and the API overview: [README.md](README.md). Contract: SPEC §3.B–C, §4. The TDD backlog is in `services/noiser/tests/unit/engine.test.ts` (`it.todo`).
+Shared rules and the API overview: [README.md](README.md). Package docs (engine semantics, layout, tests): [`services/noiser/README.md`](../../services/noiser/README.md). Contract: SPEC §3.B–C, §4.
 
-## Goal
+## Status
 
-`runScenario(scenario, { seed, scale? }) → RunResult`: pure and deterministic. It is the **only** place where data comes from. The API calls it for every dataset (the original and every counterfactual) with the **same seed** as the parent, so the diff of two runs shows only the effect of the change.
+The compiler and engine are implemented and wired into the API, the CLI (`pnpm gen`) and the cascade. This document says how the rest of the system plugs into them and what breaks if they change.
 
-## What the API calls (`Ports["noiser"]`)
+Open:
 
-```ts
-run(scenario: Scenario, seed: number): RunResult     // synchronous, pure
+- The "expectations pass at ≥ 4/5 of seeds 1..5" check on `supplier_delay` has no automated test. Only seed 42 is covered.
+
+## Where it sits
+
+```
+cascade ──scenario──► compileScenario ──► runScenario ──RunResult──► dataer.storeRun ──► DuckDB ──► evidence / compare / detective
 ```
 
-- The adapter [`services/api/src/adapters/noiser.ts`](../../services/api/src/adapters/noiser.ts) just calls `runScenario(scenario, { seed })`. If you need `scale`, or an async signature (a worker, for example), change the port per the README rule.
-- The input has already passed `compileScenario` in the API: the orchestrator calls it before every `run`.
-- The output goes straight to `dataer.store(run, dbPath)` (`writeRun`).
-- The cascade (A5) calls it too, directly, with `scale: 1` (see docs/decisions.md).
+Noiser imports only `@s2d/schema`. It never touches DuckDB, the file system, the network or an LLM. The hand-off in is `Scenario` (`@s2d/schema/scenario`), the hand-off out is `RunResult` (`@s2d/schema/run`).
 
-## Tasks
+## How to plug in
 
-1. Turn the `it.todo` items in `engine.test.ts` into tests and implement `engine/run.ts` (arrival → branch/derive → flows → tables). Use the `rng.ts` streams `hash(seed, processId)`; never `Math.random` or `Date.now` (eslint enforces this).
-2. Golden test for `scenarios/supplier_delay.json` at seed 42 (`tests/golden/`), plus the required tests from AGENTS.md: determinism, stream isolation, integrity.
-3. The `supplier_delay` expectations must pass at seed 42 and at ≥ 4/5 of seeds 1..5.
-4. Optional: if the meeting's "curve per attribute + noise level" survives, it belongs in the **scenario contract** (`packages/schema/src/scenario.ts`, owner's approval), not in the API.
+Add `"@s2d/noiser": "workspace:*"` to your `package.json`. Only `api` and `cascade` may import it (`dataer` may not, the frontend goes over REST).
 
-## Done = these pass
+You have **untrusted JSON** (LLM output, a file, a request body): use `generate`. It compiles, runs, and returns errors instead of throwing for bad input.
 
-- `pnpm vitest run services/noiser` (unit + property + golden).
-- `pnpm vitest run services/api` green (it uses fake ports, so you can't break it as long as the port signature stays the same).
-- End to end through the API (below): `approve` ends in `ready` and `dataset.ready`.
+```ts
+import { generate } from "@s2d/noiser";
+
+const result = generate(raw, { seed: 42 });
+if (!result.ok) return result.errors; // CompileError[]: { path, message }
+await storeRun(dbPath, result.run); // from @s2d/dataer
+```
+
+You already have a **compiled** scenario: use `runScenario`. It does not validate, and throws `EngineError` (`{ path, message }`) on a runtime problem.
+
+```ts
+import { compileScenario, runScenario } from "@s2d/noiser";
+
+const compiled = compileScenario(raw);
+if (!compiled.ok) return compiled.errors;
+const run = runScenario(compiled.scenario, { seed: compiled.scenario.meta.seed });
+```
+
+### Options
+
+| Option | Default | Note |
+|---|---|---|
+| `seed` | `meta.seed` | Same scenario + seed ⇒ identical tables. |
+| `scale` | `meta.scale ?? 1` | Keep 1 for anything checked by expectations: flow levels don't scale, so small scales distort the story ([decisions](../decisions.md)). |
+
+## Who calls what
+
+| Caller | Uses | Purpose |
+|---|---|---|
+| `api/src/adapters/noiser.ts` | `runScenario` | every dataset (`Ports["noiser"]`) |
+| `api/src/orchestrator.ts` | `compileScenario` | before each run, and to validate `05_scenario` edits and `edit_scenario` |
+| `api/src/routes/scenarios.ts` | `compileScenario` | `POST /scenarios/validate` → 200 `{ok:true}` or 422 `{ok:false, errors}` |
+| `api/src/cli/gen.ts` | `compileScenario`, `runScenario` | `pnpm gen` |
+| `cascade/src/gate.ts` | `generate` | story gate in the A5 loop |
+| `cascade/src/loop.ts` | `compileScenario` | repair-loop feedback |
+| `cascade/src/cascade.ts` | `checkStoryRefs` | checks the story before A5 exists |
+
+The orchestrator and the routes call `compileScenario` **directly**, not through the port. `API_FAKE=noiser` fakes only the run; compilation stays real.
+
+## Inside the API
+
+```ts
+Ports["noiser"] = { run(scenario: Scenario, seed: number): RunResult } // synchronous
+```
+
+- `approve`: the seed is `scenario.meta.seed`.
+- `what_if` / `edit_scenario`: the new dataset reuses the **parent's** seed, so the comparison shows only the effect of the change.
+- The API passes no `scale`, so `meta.scale ?? 1` applies.
+- The result goes straight to `dataer.store`. The scenario is saved as `runs/<sessionId>/datasets/dN/scenario.json`.
+- The run blocks the Node event loop (about 150 ms for `supplier_delay`). If it gets much slower, make the port async and run it in a worker, following the README's port-change rule.
+- An `EngineError` during a job reaches the UI as an `error` event with `message` only (no `errors[]`, so the `path` is lost). The session returns to its last stable state.
+
+## What downstream relies on
+
+Changing any of these is a cross-service change, even if all noiser tests pass.
+
+| Output | Who depends on it |
+|---|---|
+| Table and column names | `expectations[].sql` in scenarios and LLM output |
+| `id` on referenced tables; a column ends in `_id` **only** if it is a foreign key | `storeRun` infers and checks FKs by value and rejects the run otherwise; series and compare never sum `id` / `*_id` |
+| Dates as ISO `YYYY-MM-DD` strings, `ts` from `hourJitter` | DuckDB types them DATE / TIMESTAMP; daily series are built only from those |
+| `visibility: "observed"` / `"ground_truth"` | `main` vs `truth` schema; the detective and expectations see only `main`. One table name cannot be both |
+| `columns` on a table with no rows | DuckDB needs it to create the empty table |
+| `storyPoints` with `phase >= 1` and `entity.ids` | the detective's answer key; other points are not scored |
+| `meta` (`scenarioId`, `seed`, `scenarioHash`, `engineVersion`) | stored in `truth.run_meta` |
+
+Several processes may write the same table; `writeRun` concatenates them.
+
+## When you change the engine
+
+1. Contract changes start in `packages/schema` (owner's approval), then compiler, then engine.
+2. If output changes on purpose: bump `ENGINE_VERSION`, regenerate golden hashes (`UPDATE_GOLDEN=1 pnpm vitest run services/noiser/tests/golden`) and say why in the commit.
+3. If FK columns change, update the list in `services/api/tests/integration/dataer.real.test.ts` too.
+4. Changed data can invalidate the recorded LLM cache: the detective's prompts contain query results, and A5 retry prompts contain gate measurements. Check the offline demo; re-recording costs money, so ask first.
+5. New compiler errors must say what is wrong **and** what is valid: agent A5 reads them.
 
 ## How to check
 
-First without the API: `pnpm gen scenarios/supplier_delay.json --seed 42`.
-
-Then through the API: a fake cascade (no LLM) with the real noiser and dataer:
-
-```powershell
-$env:API_FAKE="cascade"; pnpm dev
 ```
+pnpm vitest run services/noiser services/api
+pnpm gen scenarios/supplier_delay.json --seed 42      # writes out/supplier_delay_seed42.duckdb, prints expectations
 ```
-POST :4000/sessions {"story":"…","company":"…"}       → awaiting_refinement (the fake cascade writes artifacts from supplier_delay)
-POST :4000/sessions/:id/commands {"type":"approve"}   → your runScenario → GET /sessions/:id/datasets/d1/evidence
+
+Through the API without an LLM (PowerShell: `$env:API_FAKE="cascade"; pnpm dev`; bash: `API_FAKE=cascade pnpm dev`):
+
+```
+POST :4000/sessions {"story":"…","company":"…"}       → 201 {sessionId}; wait for awaiting_refinement
+POST :4000/sessions/:id/commands {"type":"approve"}   → dataset d1; GET :4000/sessions/:id/datasets/d1/evidence
 POST :4000/sessions/:id/commands {"type":"edit_scenario","from":"d1","scenario":{…changed…}}  → d2, same seed
 ```
 
-## Watch out for
+## Rules
 
-- The engine must not import `fs`, the network, or the LLM.
-- `RunResult.storyPoints` goes to `truth.story_points`, which the detective is scored against.
-- Several processes may write to the same table; `writeRun` concatenates them.
+- `src/engine/` stays pure: no `Math.random`, wall clock, `fs`, network, LLM or global faker (lint-enforced).
+- Randomness only through `rng.ts` streams, one per entity, flow and process, so editing one never reshuffles another.

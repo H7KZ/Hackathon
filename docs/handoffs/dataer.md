@@ -2,39 +2,115 @@
 
 Shared rules and the API overview: [README.md](README.md). Contract: SPEC §3.D–F. Isolation: AGENTS.md rule 5.
 
-## Goal
+## Status
 
-Everything that happens **after** the engine: storage, proof in the data, comparing two runs, and the blind detective. You own the detective's tool loop (D3). The API only starts it and forwards its events.
+Everything that happens **after** the engine (storage, proof in the data, comparing two runs, the blind detective) is implemented and wired into the API and the cascade.
 
-## What the API calls (`Ports["dataer"]`)
+Open:
 
-```ts
-store(run: RunResult, dbPath: string): Promise<void>                              // + FK integrity
-evidence(dbPath: string, expectations: Expectation[]): Promise<DatasetEvidence>    // automatically after store
-compare(dbPathA: string, dbPathB: string): Promise<MetricDiff[]>                   // automatically for a counterfactual (parent vs. new)
-detective(dbPath: string, opts: { onEvent; signal }): Promise<DetectiveResult>     // only on demand (`detect` command)
+- **Table preview** for the frontend "Data" page: no port or route returns rows yet. Add `preview(dbPath, table, limit)` to `Ports["dataer"]` and `GET /sessions/:id/datasets/:d/tables/:t?limit=` in `services/api/src/routes/sessions.ts`. Agree the shape with the frontend team.
+- **CLI:** `pnpm evidence`, `pnpm detective` and `pnpm compare` print "not implemented yet" and exit 2. Only `pnpm gen` (store + evidence) works.
+
+## Where it sits
+
+```
+noiser ──RunResult──► storeRun ──► db.duckdb ─┬─► withSandbox → runExpectations + dailySeries ──► evidence
+                                              ├─► compareRuns (with the parent's db) ──► metric diffs
+                                              └─► detective (LLM on a sandbox) ──► report + score
 ```
 
-The adapter is [`services/api/src/adapters/dataer.ts`](../../services/api/src/adapters/dataer.ts). All four ports are real:
-- `store` → `storeRun` = `writeRun` + FK integrity check (see "FK inference" below).
-- `evidence` → `withSandbox` + `runExpectations` + `dailySeries`.
-- `compare` → `compareRuns` (both DBs opened read-only).
-- `detective` → `detective()` (tool loop on a sandbox, scored against `truth.story_points` of the full DB).
+Dataer imports only `@s2d/schema` and `@s2d/llm`. It never imports noiser or reads the scenario: the only things it receives are a `RunResult`, a database path and the `Expectation[]`.
 
-Types `DatasetEvidence` and `DetectiveResult` are in `services/api/src/contract.draft.ts`:
+## How to plug in
+
+Add `"@s2d/dataer": "workspace:*"` to your `package.json`. Only `api` and `cascade` may import it; the frontend goes over REST.
 
 ```ts
-DatasetEvidence = { expectations: ExpectationResult[]; series: { table; dateColumn; metric: "rows" | "<col>.sum"; points: { day: "YYYY-MM-DD"; value: number }[] }[] }
-DetectiveResult = { report: DetectiveReport; score: DetectiveScore }
+import { compareRuns, dailySeries, detective, runExpectations, storeRun, withSandbox } from "@s2d/dataer";
+import { createLlm } from "@s2d/llm";
+
+await storeRun(dbPath, run); // replaces an existing file; throws on a dangling FK
+
+const evidence = await withSandbox(dbPath, async (sandbox) => ({
+  expectations: await runExpectations(sandbox, expectations),
+  series: await dailySeries(sandbox),
+}));
+
+const diff = await compareRuns(parentDbPath, newDbPath); // a = parent, b = new; both read-only
+
+const { report, score } = await detective(dbPath, { llm: createLlm(), onEvent, signal });
 ```
 
-## Tasks
+- `runExpectations` never throws for a bad query: that result has `pass: false` and `error`. Its SQL must return rows `period` = `'before'` / `'after'` with a numeric `value`.
+- Expectation and detective SQL is LLM-written. Run it **only** on the sandbox from `withSandbox`, never on the full database, which holds the `truth` schema.
+- `detective` scores against `truth.story_points` read from the full database, outside the LLM's reach. Only points with `phase >= 1` and an entity count; a finding matches the nearest point for a shared entity, within ±14 days.
 
-1. ~~Integrity check in `store`~~ — done (`src/store/integrity.ts`).
-2. ~~`series`~~ — done (`src/evidence/series.ts`).
-3. ~~`compare(dbA, dbB)`~~ — done (`src/compare/metrics.ts`).
-4. ~~`detective(db, { onEvent, signal })`~~ — done (`src/detective/loop.ts`, `src/detective/index.ts`).
-5. **(Frontend "Data" page) table preview:** add the port `preview(dbPath, table, limit)` and the route `GET /sessions/:id/datasets/:d/tables/:t?limit=` in `services/api/src/routes/sessions.ts`. Agree the shape with the frontend team. Still open.
+## Who calls what
+
+| Caller | Uses | Purpose |
+|---|---|---|
+| `api/src/adapters/dataer.ts` | `storeRun`, `withSandbox`, `runExpectations`, `dailySeries`, `compareRuns`, `detective` | `Ports["dataer"]` |
+| `api/src/cli/gen.ts` | the same adapter | `pnpm gen` |
+| `cascade/src/gate.ts` | `storeRun`, `withSandbox`, `runExpectations`, `dailySeries` | story gate in the A5 loop |
+| `cascade/tests/evals/gates.ts` | `writeRun`, `exportSandbox`, `openSandbox`, `runExpectations` | evals |
+
+Changing one of these signatures affects the cascade as well as the API.
+
+## What it expects from the input
+
+- Observed tables go to schema `main`, ground truth to `truth`. A table name cannot be both.
+- Every `*_id` column must be a real foreign key (see "FK inference").
+- Dates must be ISO strings so DuckDB types them DATE / TIMESTAMP; otherwise there is no series for them.
+- An empty table needs `columns`.
+
+## Inside the API
+
+```ts
+Ports["dataer"] = {
+  store(run: RunResult, dbPath: string): Promise<void>;
+  evidence(dbPath: string, expectations: Expectation[]): Promise<DatasetEvidence>;
+  compare(dbPathA: string, dbPathB: string): Promise<MetricDiff[]>;
+  detective(dbPath: string, opts: { onEvent; signal }): Promise<DetectiveResult>;
+}
+```
+
+Files per dataset, in `runs/<sessionId>/datasets/dN/`:
+
+| File | Written by | When |
+|---|---|---|
+| `db.duckdb` | `store` | `approve`, `what_if`, `edit_scenario` |
+| `evidence.json` | `evidence` | right after `store` |
+| `compare_<parent>.json` | `compare(parent, new)` | counterfactuals only |
+| `detective.json` | `detective` | only on `{"type":"detect","datasetId":"dN"}` |
+
+The API validates `evidence` and `detective` results with zod before saving them.
+
+### What a client (frontend) reads
+
+| Request | Response |
+|---|---|
+| `GET /sessions/:id/datasets/:d/evidence` | `DatasetEvidence` = `{ expectations: ExpectationResult[], series: [{ table, dateColumn, metric, points: [{ day, value }] }] }` |
+| `GET /sessions/:id/datasets/:d/compare/:other` | `{ diff: MetricDiff[] }`, each `{ metric, a, b, delta, relChange }`; `a` is `:other` (the baseline), `b` is `:d` |
+| `GET /sessions/:id/datasets/:d/detective` | `{ result: null }` until a `detect` has finished, then `{ result: { report, score } }` |
+
+`DatasetEvidence` and `DetectiveResult` are exported as types from `@s2d/api` (use `import type`); `ExpectationResult` and `MetricDiff` are in `@s2d/schema/evidence`. They are defined in `services/api/src/contract.draft.ts` until the schema owner approves them.
+
+Events on `GET /sessions/:id/events`:
+
+- After generation: `dataset.ready { datasetId }`. Evidence is stored by then.
+- During `detect`: status `detecting`, then `cascade` events with `event: { type: "log", message: "SQL: …" }`, then `detective.done { datasetId }` and status `ready`. Fetch the result with GET; events carry no data.
+
+Failures and cancel:
+
+- A throw from any port becomes an `error` event and the session returns to its last stable state. If `store`, `evidence` or `compare` throws, the dataset is not added to the session.
+- Only `detective` receives the `AbortSignal`. A cancel during `store`, `evidence` or `compare` lets them finish, and the dataset can still appear.
+
+### Detective and the LLM
+
+- Needs `ANTHROPIC_API_KEY` (or the key for the provider in `LLM_MODEL`). Per-call overrides: `LLM_MODEL_DETECTIVE_STEP`, `LLM_MODEL_DETECTIVE_REPORT`.
+- Up to 15 steps, plus one forced report: at most 16 LLM calls.
+- `LLM_OFFLINE=1` works only if the cache holds this exact investigation. The prompts contain query results, so different data or a different model is a cache miss (`LlmCacheMiss`). The recorded demo is described in [run #2](../runs/2026-11-27-live-e2e-2.md).
+- The adapter creates the LLM client on first use; pass your own with `dataerPort({ llm })` in tests.
 
 ## How it works
 
@@ -44,17 +120,28 @@ DetectiveResult = { report: DetectiveReport; score: DetectiveScore }
 
 **Compare.** `<table>.rows` and `<table>.<col>.sum` (same column rule as series) for every `main` table → `diffMetrics`.
 
-**Sandbox.** `withSandbox(dbPath, fn)` exports `main` into a unique temp dir, opens it read-only, runs `fn` and removes the copy (and its `.wal`) even when `fn` throws. Use it for every piece of LLM-written SQL; concurrent evidence and detective runs on one DB don't collide.
+**Sandbox.** `withSandbox(dbPath, fn)` exports `main` into a unique temp dir, opens it read-only, runs `fn` and removes the copy (and its `.wal`) even when `fn` throws. Concurrent evidence and detective runs on one DB don't collide.
 
-**Detective action protocol (dataer-internal, not a contract type).** `@s2d/llm` has no tool calling, so each turn is one `llm.object()` with schema `DetectiveStep` = `{ action: { tool: "list_tables" } | { tool: "describe_table", table } | { tool: "run_sql", sql } | { tool: "report", report: DetectiveReport } }` (schemaName `detective_step`). The transcript of earlier actions and results (each capped at 4000 chars) is in the prompt, so the disk cache replays the whole investigation offline. Tool errors (SQL errors, guard rejections, unknown tables) go back to the model as data. One `log` event `SQL: …` per `run_sql`. `signal.throwIfAborted()` before every LLM call. After `maxSteps` (15) actions without a report, one more call with schema `DetectiveReport` (schemaName `detective_report`) forces the report. Scoring reads `truth.story_points` from the full DB via `readTruthPoints` (in `src/store/`), never through the sandbox.
+**Detective action protocol (dataer-internal, not a contract type).** `@s2d/llm` has no tool calling, so each turn is one `llm.object()` with schema `DetectiveStep` = `{ action: { tool: "list_tables" } | { tool: "describe_table", table } | { tool: "run_sql", sql } | { tool: "report", report: DetectiveReport } }` (schemaName `detective_step`). The transcript of earlier actions and results (each capped at 4000 chars) is in the prompt, so the disk cache replays the whole investigation offline. Tool errors (SQL errors, guard rejections, unknown tables) go back to the model as data. One `log` event `SQL: …` per `run_sql`. `signal.throwIfAborted()` before every LLM call. After 15 actions without a report, one more call with schema `DetectiveReport` (schemaName `detective_report`) forces the report.
 
-## Done = these pass
+## How to check
 
-- Unit and integration tests in `services/dataer/tests` (real DuckDB in a temp dir).
-- `pnpm vitest run services/api` green.
-- Through the API: `approve` → `GET …/datasets/d1/evidence` has non-empty `series`. `edit_scenario` → `GET …/datasets/d2/compare/d1` returns metrics. `detect` → `GET …/datasets/d1/detective` returns `score.recall`.
+```
+pnpm vitest run services/dataer services/api
+```
 
-## Watch out for
+Through the API without agent calls (PowerShell: `$env:API_FAKE="cascade"; pnpm dev`; bash: `API_FAKE=cascade pnpm dev`):
+
+```
+POST :4000/sessions {"story":"…","company":"…"}       → 201 {sessionId}; wait for awaiting_refinement
+POST :4000/sessions/:id/commands {"type":"approve"}   → GET …/datasets/d1/evidence has non-empty series
+POST :4000/sessions/:id/commands {"type":"edit_scenario","from":"d1","scenario":{…changed…}}  → GET …/datasets/d2/compare/d1 returns diff
+POST :4000/sessions/:id/commands {"type":"detect","datasetId":"d1"}  → GET …/datasets/d1/detective returns score.recall
+```
+
+`API_FAKE=cascade` does not fake the detective: `detect` still calls the LLM (paid) or needs a cache hit.
+
+## Rules
 
 - `dataer/src/evidence` and `dataer/src/detective` must never import the `@s2d/schema` barrel or the scenario (eslint + dependency-cruiser).
 - LLM-written SQL runs **only** on the sandbox. A keyword filter is not a security boundary.
