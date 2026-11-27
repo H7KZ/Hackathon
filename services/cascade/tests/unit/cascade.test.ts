@@ -75,7 +75,9 @@ describe("runCascade", () => {
       { llm, runsDir, runId: "r5", until: "01_company", onEvent: (e) => events.push(e) },
     );
     expect(res.company).toEqual(company);
-    expect(fake.calls[1]?.prompt).toMatch(/failed schema validation[\s\S]*keyProcesses/);
+    expect(fake.calls[1]?.prompt).toMatch(
+      /failed schema validation[\s\S]*Previous answer\n\{"industry":"x"\}[\s\S]*keyProcesses/,
+    );
     expect(events).toEqual([
       { type: "step.started", step: "01_company" },
       { type: "loop.iteration", step: "01_company", n: 1, ok: false, feedback: [expect.any(String)] },

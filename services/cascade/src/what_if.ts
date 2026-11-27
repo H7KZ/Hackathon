@@ -85,7 +85,7 @@ export async function whatIf(
           "Base scenario": base,
           ...(feedback.length > 0 && {
             [`Previous attempt (this is attempt ${n})`]: previous ?? "(did not match the schema)",
-            "Errors (fix all of them)": formatFeedback(feedback),
+            "Errors (fix all of them, keep everything else unchanged)": formatFeedback(feedback),
           }),
         }),
       }),

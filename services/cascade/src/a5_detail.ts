@@ -78,7 +78,7 @@ export function a5Detail(
           "04_story": a.story,
           ...(feedback.length > 0 && {
             [`Previous attempt (this is attempt ${n})`]: previous ?? "(did not match the schema)",
-            "Compiler errors (fix all of them)": formatFeedback(feedback),
+            "Compiler errors (fix all of them, keep everything else unchanged)": formatFeedback(feedback),
           }),
         }),
       }),

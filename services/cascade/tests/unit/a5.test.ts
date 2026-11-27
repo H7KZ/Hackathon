@@ -113,6 +113,7 @@ describe("runCascade A1–A5", () => {
     const loops = r.events.filter((e) => e.type === "loop.iteration");
     expect(loops.map((e) => e.ok)).toEqual([false, true]);
     expect(typeof loops[0]?.feedback[0]).toBe("string");
+    expect(r.fake.calls[5]?.prompt).toContain('"name": "x"'); // the rejected answer is shown back
   });
 
   it("stops A5 after 3 iterations, logs it and writes no 05_scenario", async () => {

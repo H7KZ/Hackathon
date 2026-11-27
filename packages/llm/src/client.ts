@@ -39,6 +39,8 @@ export class LlmOutputInvalid extends Error {
   constructor(
     schemaName: string,
     readonly issues: string,
+    /** The rejected output, so a caller can show the model its own answer when asking for a fix. */
+    readonly raw?: unknown,
   ) {
     super(`LLM output for ${schemaName} failed validation:\n${issues}`);
     this.name = "LlmOutputInvalid";
@@ -134,7 +136,7 @@ export function createLlm(opts: LlmOptions = {}): Llm {
       if (hit) {
         const parsed = req.schema.safeParse(hit.output);
         if (parsed.success) return parsed.data;
-        if (offline) throw new LlmOutputInvalid(req.schemaName, z.prettifyError(parsed.error));
+        if (offline) throw new LlmOutputInvalid(req.schemaName, z.prettifyError(parsed.error), hit.output);
         // online: a stale/invalid entry is treated as a miss and re-recorded below
       } else if (offline) {
         throw new LlmCacheMiss(req.schemaName, key);
@@ -156,6 +158,6 @@ export function createLlm(opts: LlmOptions = {}): Llm {
 
 function parseOrThrow<T>(req: ObjectRequest<T>, raw: unknown): T {
   const parsed = req.schema.safeParse(raw);
-  if (!parsed.success) throw new LlmOutputInvalid(req.schemaName, z.prettifyError(parsed.error));
+  if (!parsed.success) throw new LlmOutputInvalid(req.schemaName, z.prettifyError(parsed.error), raw);
   return parsed.data;
 }

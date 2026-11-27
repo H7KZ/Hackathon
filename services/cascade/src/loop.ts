@@ -19,7 +19,7 @@ export interface RepairLoopOptions<T> {
    * One agent call. `feedback` is empty on the first iteration; `previous` is the last agent output.
    * Put `n` into the prompt on retries: an identical prompt would replay the same cached answer.
    */
-  ask: (feedback: Feedback, previous: T | undefined, n: number) => Promise<T>;
+  ask: (feedback: Feedback, previous: unknown, n: number) => Promise<T>;
   /** Deterministic code: agent output -> candidate scenario, or errors (e.g. a patch on a non-Param). */
   assemble: (output: T) => { ok: true; scenario: unknown } | { ok: false; errors: CompileError[] };
   onEvent?: OnEvent | undefined;
@@ -34,7 +34,7 @@ export type RepairResult<T> =
 export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairResult<T>> {
   const max = opts.maxIterations ?? MAX_ITERATIONS;
   let feedback: Feedback = [];
-  let previous: T | undefined;
+  let previous: unknown;
   for (let n = 1; n <= max; n++) {
     opts.signal?.throwIfAborted();
     let output: T;
@@ -44,6 +44,7 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
       // Schema-invalid agent output is a repairable mistake, not a crash.
       if (!(err instanceof LlmOutputInvalid)) throw err;
       feedback = [err.issues];
+      if (err.raw !== undefined) previous = err.raw;
       opts.onEvent?.({ type: "loop.iteration", step: opts.step, n, ok: false, feedback });
       continue;
     }
@@ -75,13 +76,10 @@ export function withSchemaRetry(
   const max = opts.maxIterations ?? MAX_ITERATIONS;
   return {
     async object<T>(req: ObjectRequest<T>): Promise<T> {
-      let issues: string | undefined;
+      let failed: LlmOutputInvalid | undefined;
       for (let n = 1; ; n++) {
         opts.signal?.throwIfAborted();
-        const prompt =
-          issues === undefined
-            ? req.prompt
-            : `${req.prompt}\n\n## Your previous answer (attempt ${n - 1}) failed schema validation, fix every issue\n${issues}`;
+        const prompt = failed === undefined ? req.prompt : `${req.prompt}\n\n${fixRequest(n - 1, failed)}`;
         try {
           const value = await llm.object({ ...req, prompt });
           if (n > 1) opts.onEvent?.({ type: "loop.iteration", step, n, ok: true, feedback: [] });
@@ -90,11 +88,23 @@ export function withSchemaRetry(
           if (!(err instanceof LlmOutputInvalid)) throw err;
           opts.onEvent?.({ type: "loop.iteration", step, n, ok: false, feedback: [err.issues] });
           if (n >= max) throw err;
-          issues = err.issues;
+          failed = err;
         }
       }
     },
   };
+}
+
+/** Retry section: the model's own rejected answer + the issues, so it edits instead of starting over. */
+function fixRequest(attempt: number, err: LlmOutputInvalid): string {
+  return [
+    `## Your previous answer (attempt ${attempt}) failed schema validation`,
+    "Return the same object with ONLY the listed paths fixed; keep everything else unchanged.",
+    err.raw === undefined ? "" : `### Previous answer\n${JSON.stringify(err.raw)}`,
+    `### Issues\n${err.issues}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function formatFeedback(feedback: Feedback): string {
