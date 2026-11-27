@@ -12,6 +12,13 @@ Template:
 - **Affects:** <workspaces / files>
 ```
 
+## 2026-11-27 — Causal cascade (D1–D4) built behind `design: "causal"`, v1 stays default
+
+- **Decision:** the typed causal map design is implemented next to the A1–A5 cascade, not instead of it. `CascadeOptions.design` (`CASCADE_DESIGN` in the API, `--design` in the CLI) picks `"v1"` (default) or `"causal"`: 4a `03a_causal_map`, 4b `03b_processes` with `trace`, `04a_overlay` (lever × story point matrix, curves built by code), `04b_expectations` (hypotheses derived by code, LLM writes only SQL), `04_story` and `05_scenario` assembled by code. v1 also gets two code checks: `03_influences` endpoints must name parts of `02_model`, and A5 curves may drive only map roots. `ArtifactName` gains `03a_causal_map`, `03b_processes`, `04a_overlay`, `04b_expectations`; `ArtifactSchemas` in `@s2d/schema/artifacts` is the one artifact → schema map.
+- **Why:** the demo must keep working from the recorded v1 cache until the causal path is recorded and proven; the causal path keeps curve placement, test directions and the rule "curves only on levers" in deterministic code.
+- **Who:** `packages/schema` owner (approved the schema change), cascade agent.
+- **Affects:** `packages/schema/src/artifacts.ts`, `services/cascade`, `services/api` (`config.ts`, `adapters/`, `orchestrator.ts`, CLI). Details and what is not built: `docs/cascade-design.md`. The causal path has no LLM cache yet (`EVAL_LIVE=1 pnpm evals` records it).
+
 ## 2026-11-27 — Landing screen is the prompt box; frontend uses plain fetch
 
 - **Decision:** `/` is a landing screen (FIS logo + JOJO, company + story, text-file attachments) that calls `POST /sessions`. The global navigation and API status are not shown for now. The frontend uses plain `fetch` with `import type` from `@s2d/api` instead of the `hc` client (supersedes the `hc` part of the entry below and of D9; SSE is unchanged).

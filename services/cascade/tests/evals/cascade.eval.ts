@@ -18,24 +18,27 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createLlm, findRepoRoot, LlmCacheMiss } from "@s2d/llm";
 import { compileScenario } from "@s2d/noiser";
-import { runCascade } from "../../src/cascade";
+import { runCascade, type CascadeDesign } from "../../src/cascade";
 import { expectationGate } from "./gates";
 
 const LIVE = process.env.EVAL_LIVE === "1";
 const ROOT = findRepoRoot();
 
-const CASES = [
-  {
-    id: "supplier_delay",
-    company: "Síť 5 prodejen s domácími potřebami v ČR. Zboží od 3 dodavatelů, zásobování týdně.",
-    story:
-      "Síti prodejen klesají tržby. Poptávka ale neklesla: jeden dodavatel začal od března dodávat pozdě, což způsobilo výpadky zásob, neuskutečněné nákupy a více stížností.",
-  },
+const SUPPLIER_DELAY = {
+  company: "Síť 5 prodejen s domácími potřebami v ČR. Zboží od 3 dodavatelů, zásobování týdně.",
+  story:
+    "Síti prodejen klesají tržby. Poptávka ale neklesla: jeden dodavatel začal od března dodávat pozdě, což způsobilo výpadky zásob, neuskutečněné nákupy a více stížností.",
+};
+
+const CASES: { id: string; company: string; story: string; design: CascadeDesign }[] = [
+  { id: "supplier_delay", ...SUPPLIER_DELAY, design: "v1" },
+  // docs/cascade-design.md D1–D4; not recorded yet (EVAL_LIVE=1 records it)
+  { id: "supplier_delay_causal", ...SUPPLIER_DELAY, design: "causal" },
 ];
 
 describe("cascade evals", () => {
   for (const c of CASES) {
-    it(`${c.id}: A1–A5 produce valid artifacts, 05 compiles, expectations pass on the data`, async (ctx) => {
+    it(`${c.id}: ${c.design} cascade produces valid artifacts, 05 compiles, expectations pass on the data`, async (ctx) => {
       const llm = createLlm({ offline: !LIVE });
       const resultsDir = join(ROOT, "runs", "evals");
       const runsDir = mkdtempSync(join(tmpdir(), `s2d-eval-${c.id}-`));
@@ -43,7 +46,7 @@ describe("cascade evals", () => {
       try {
         const res = await runCascade(
           { story: c.story, company: c.company },
-          { llm, runsDir, runId: `${c.id}-${LIVE ? "live" : "replay"}` },
+          { llm, runsDir, runId: `${c.id}-${LIVE ? "live" : "replay"}`, design: c.design },
         );
         expect(res.story?.expectations.length ?? 0).toBeGreaterThan(0);
         const compiled = compileScenario(res.scenario);
