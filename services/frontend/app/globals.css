@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+/* FIS identity is light only: `dark:` classes apply under .dark, which nothing sets. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+/* the landing glow reaches past the edges; never add a sideways scrollbar for it */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* Palette of fis.vse.cz. */
+@theme {
+  --color-fis-dark: #00201b;
+}
+
+/* light gray page with a dot grid */
+@utility bg-dots {
+  background-color: #f5f5f5;
+  background-image: radial-gradient(#d2d2d2 1.4px, transparent 1.4px);
+  background-size: 27px 27px;
 }

@@ -20,7 +20,7 @@ One backend service. `services/api` imports the other services as **plain functi
 | `services/dataer`     | DuckDB store, evidence, detective, compare                                                                | `schema`, `llm`                     |
 | `services/cascade`    | agents A1–A5 + orchestrator, evals                                                                        | `schema`, `llm`, `noiser`, `dataer` |
 | `services/api`        | Hono REST app + CLI (`src/cli`)                                                                           | everything                          |
-| `services/frontend`   | Next.js UI, talks to the API over REST (`lib/api.ts`, typed hono client)                                  | **type-only** from `api`            |
+| `services/frontend`   | Next.js UI, talks to the API over REST (`lib/api.ts`, plain `fetch`)                                      | **type-only** from `api`            |
 
 Boundaries are enforced by `eslint.config.js` and `.dependency-cruiser.cjs` — if they fire, fix the design, don't silence the rule.
 

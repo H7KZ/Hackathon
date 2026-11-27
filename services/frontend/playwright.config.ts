@@ -7,6 +7,7 @@ export default defineConfig({
   webServer: [
     {
       command: "pnpm --filter @s2d/api start",
+      env: { API_FAKE: process.env.API_FAKE ?? "all" }, // no LLM, no DuckDB
       url: "http://localhost:4000/health",
       reuseExistingServer: !process.env.CI,
       cwd: "../..",

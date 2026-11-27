@@ -68,7 +68,7 @@ module.exports = {
     },
     {
       name: "frontend-rest-only",
-      comment: "Frontend may only import types from the API (hono client); everything else over REST.",
+      comment: "Frontend may only import types from the API; everything else over REST.",
       severity: "error",
       from: { path: "^services/frontend" },
       to: {

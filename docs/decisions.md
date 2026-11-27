@@ -12,6 +12,13 @@ Template:
 - **Affects:** <workspaces / files>
 ```
 
+## 2026-11-27 — Landing screen is the prompt box; frontend uses plain fetch
+
+- **Decision:** `/` is a landing screen (FIS logo + JOJO, company + story, text-file attachments) that calls `POST /sessions`. The global navigation and API status are not shown for now. The frontend uses plain `fetch` with `import type` from `@s2d/api` instead of the `hc` client (supersedes the `hc` part of the entry below and of D9; SSE is unchanged).
+- **Why:** the frontend owner asked for a focused first screen and no Hono code in the frontend.
+- **Who:** frontend owner.
+- **Affects:** `services/frontend`. Not built yet: loading state and everything after the session is created. The API has no upload route, so only text files are appended to `story`.
+
 ## 2026-11-27 — API = session orchestrator over ports, SSE + POST
 
 - **Decision:** `services/api` orchestrates sessions (prompt → timeline → refine ⟲ → dataset → what-if ⟲) through injected ports (`services/api/src/ports.ts`). Each service owns its own loops (cascade A5/whatIf, dataer detective). REST: `POST /sessions/:id/commands` (zod union) + SSE `GET /sessions/:id/events`. State on disk in `runs/<sessionId>/`. No A2UI, no WebSocket. Details: `docs/api-orchestrator.md`.

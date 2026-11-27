@@ -1,16 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { getHealth } from "../lib/api";
 
 export function ApiStatus() {
   const health = useQuery({
     queryKey: ["health"],
-    queryFn: async () => {
-      const res = await api.health.$get();
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    },
+    queryFn: getHealth,
     retry: false,
   });
 

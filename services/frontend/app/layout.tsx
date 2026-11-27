@@ -1,25 +1,24 @@
 import type { Metadata } from "next";
+import { Titillium_Web } from "next/font/google";
 import type { ReactNode } from "react";
-import { ApiStatus } from "../components/ApiStatus";
-import { Nav } from "../components/Nav";
+import { Footer } from "../components/Footer";
 import { Providers } from "./providers";
 import "./globals.css";
 
+const titillium = Titillium_Web({ weight: ["400", "600"], subsets: ["latin", "latin-ext"] });
+
 export const metadata: Metadata = {
-  title: "Story2Data",
+  title: "JOJO",
   description: "Generátor propojených datasetů s příběhem zapsaným v datech",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="cs">
-      <body className="min-h-screen bg-white text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+      <body className={`${titillium.className} flex min-h-screen flex-col bg-dots text-fis-dark antialiased`}>
         <Providers>
-          <header className="flex items-center justify-between border-b border-black/10 px-6 py-3 dark:border-white/10">
-            <Nav />
-            <ApiStatus />
-          </header>
-          <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+          <main className="flex flex-1 flex-col px-4">{children}</main>
+          <Footer />
         </Providers>
       </body>
     </html>
