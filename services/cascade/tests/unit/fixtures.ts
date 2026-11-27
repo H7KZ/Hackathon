@@ -15,7 +15,23 @@ export const company = {
 export const model = { entities: base.entities, flows: base.flows, processes: base.processes };
 export const influences = {
   edges: [
-    { from: "late_prob", to: "stockout", direction: "positive", weight: 0.8, delayDays: 7, rationale: "r" },
+    {
+      from: "delivery.is_late",
+      to: "stock",
+      direction: "negative",
+      weight: 0.8,
+      delayDays: 7,
+      rationale: "r",
+    },
+    { from: "stock", to: "fulfil", direction: "positive", weight: 0.9, delayDays: 0, rationale: "r" },
+    {
+      from: "lost_sale",
+      to: "complaint_oos",
+      direction: "positive",
+      weight: 0.5,
+      delayDays: 1,
+      rationale: "r",
+    },
   ],
 };
 export const story = { storyPoints: base.storyPoints, curves: base.curves, expectations: base.expectations };

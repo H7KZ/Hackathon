@@ -12,7 +12,12 @@ import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
-import { checkExpectationTables, checkModelShape, checkStoryPlan } from "./checks";
+import {
+  checkExpectationTables,
+  checkInfluenceRefs,
+  checkModelShape,
+  checkStoryPlan,
+} from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
@@ -98,7 +103,12 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   );
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>
-    a3Influences(llm("03_influences"), input, company, model),
+    a3Influences(
+      llm("03_influences", (v) => checkInfluenceRefs(Influences.parse(v), model)),
+      input,
+      company,
+      model,
+    ),
   );
   if (!shouldRun("04_story")) return { dir, company, model, influences };
   const story = await step("04_story", StoryPlan, () =>

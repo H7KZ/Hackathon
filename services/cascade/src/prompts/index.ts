@@ -36,7 +36,11 @@ Task A2: design the data model: entities (with field generators), stateful flows
 ${MODEL_SYNTAX}`;
 
 export const A3_INFLUENCES = `${SHARED_RULES}
-Task A3: build the causal influence graph between process parameters and outcomes: edges from -> to, direction, weight 0-1, delay in days, short rationale.`;
+Task A3: build the causal influence graph between process parameters and outcomes: edges from -> to, direction, weight 0-1, delay in days, short rationale.
+Edge endpoints (from, to) must name parts of 02_model exactly (checked by code):
+- "<process_id>" (a whole process), "<process_id>.<param>" (rate, p, cond, or a field of its records / branch outcomes, e.g. "delivery.is_late"),
+- "<table>" (a table the model writes, e.g. "lost_sale"), "<entity>.<field>" (e.g. "product.supplier_id"), "<flow_id>" (e.g. "stock").
+- The story's lever (the parameter a curve will move) must be a ROOT: it has outgoing edges and no incoming edge. Everything downstream has an incoming edge and is never driven by a curve.`;
 
 /** Rule 3 (AGENTS.md): a real A4 run ramped complaint_prob directly instead of letting it emerge. */
 export const LEVERS_ONLY = `Curves only on ROOT CAUSES (levers):

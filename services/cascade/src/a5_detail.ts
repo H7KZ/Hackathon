@@ -8,7 +8,13 @@ import type { Llm } from "@s2d/llm";
 import type { DataModel, Influences, StoryPlan } from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import { A5_DETAIL, userPrompt } from "./prompts/index";
-import { checkCurveCoverage, checkEntityIds, checkExpectationTables, checkModelShape } from "./checks";
+import {
+  checkCurveCoverage,
+  checkCurvesOnRoots,
+  checkEntityIds,
+  checkExpectationTables,
+  checkModelShape,
+} from "./checks";
 import { formatFeedback, repairLoop, type RepairLoopOptions } from "./loop";
 import type { CascadeInput } from "./steps";
 
@@ -87,6 +93,8 @@ export function a5Detail(
     check: (s) => [
       ...checkModelShape(s),
       ...checkCurveCoverage(s, a.story),
+      // AGENTS.md rule 3 in code: a curve may drive only a root of 03_influences
+      ...checkCurvesOnRoots(s, a.influences),
       // expectations come from 04_story; A5 must keep the table names and visibility they rely on
       ...checkExpectationTables(s.expectations, s),
       // curve scopes / story point entities from 04_story must still name existing rows

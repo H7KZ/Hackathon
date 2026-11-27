@@ -11,6 +11,10 @@ export {
   checkStoryPlan,
   checkExpectationTables,
   checkModelShape,
+  checkCurvesOnRoots,
+  checkInfluenceRefs,
+  curveParamRefs,
+  influenceNames,
   observedTables,
   sqlTables,
 } from "./checks";

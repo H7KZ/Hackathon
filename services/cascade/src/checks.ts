@@ -5,7 +5,7 @@
  */
 import type { CompileError } from "@s2d/schema/api";
 import type { DataModel, StoryPlan } from "@s2d/schema/artifacts";
-import type { EntityDef } from "@s2d/schema/scenario";
+import type { EntityDef, Scenario } from "@s2d/schema/scenario";
 
 /** A2's task asks for at least this many linked tables (entities + process tables + snapshots). */
 export const MIN_TABLES = 5;
@@ -264,4 +264,116 @@ function fromList(sql: string, pos: number): string[] {
     if (!comma.test(sql)) return out;
     pos = comma.lastIndex;
   }
+}
+
+// ---------- 03_influences: endpoint names and roots (docs/cascade-design.md, variant C) ----------
+
+/** Top-level process keys an influence edge may target: `<process_id>.<key>`. */
+const PROCESS_PARAMS = ["rate", "p", "cond", "lag", "effects", "schedule"] as const;
+
+/**
+ * Every name an influence edge endpoint may use (A3 prompt): `<process_id>`, `<process_id>.<param>`
+ * (rate, p, cond, a field of the record or of a branch outcome), `<table>`, `<entity>.<field>`,
+ * `<flow_id>`.
+ */
+export function influenceNames(model: ModelTables): Set<string> {
+  const names = new Set<string>(modelTables(model).keys());
+  for (const e of model.entities) for (const f of Object.keys(e.fields)) names.add(`${e.name}.${f}`);
+  for (const f of model.flows) names.add(f.id);
+  for (const p of model.processes) {
+    names.add(p.id);
+    for (const k of PROCESS_PARAMS) if (k in p) names.add(`${p.id}.${k}`);
+    const fields =
+      p.type === "branch" ? { ...p.then?.fields, ...p.else?.fields } : (p.fields as Record<string, unknown>);
+    for (const f of Object.keys(fields)) names.add(`${p.id}.${f}`);
+  }
+  return names;
+}
+
+type InfluenceEdges = { edges: { from: string; to: string }[] };
+
+/** A3 edges must name existing parts of 02_model, otherwise the map is decoration nobody can check. */
+export function checkInfluenceRefs(influences: InfluenceEdges, model: ModelTables): CompileError[] {
+  const names = influenceNames(model);
+  const valid = [...names].sort().join(", ");
+  const errors: CompileError[] = [];
+  influences.edges.forEach((e, i) => {
+    for (const end of ["from", "to"] as const) {
+      if (names.has(e[end])) continue;
+      errors.push({
+        path: `edges.${i}.${end}`,
+        message: `"${e[end]}" is not part of 02_model. Use <process_id>, <process_id>.<param or field>, <table>, <entity>.<field> or <flow_id>. Valid names: ${valid}.`,
+      });
+    }
+  });
+  return errors;
+}
+
+/** Where a `{curve}` Param sits, as an influence name (`<process_id>.<field|param>`, `<entity>.<field>`). */
+export function curveParamRefs(scenario: unknown): { curve: string; ref: string; path: string }[] {
+  const out: { curve: string; ref: string; path: string }[] = [];
+  // `ref` = owner.<param or field>, fixed by the first key below the owner (or below its "fields")
+  const walk = (node: unknown, path: string[], ref: string): void => {
+    if (Array.isArray(node)) {
+      node.forEach((n, i) => {
+        walk(n, [...path, String(i)], ref);
+      });
+      return;
+    }
+    if (typeof node !== "object" || node === null) return;
+    const rec = node as Record<string, unknown>;
+    if (typeof rec.curve === "string") {
+      out.push({ curve: rec.curve, ref, path: path.join(".") });
+      return;
+    }
+    for (const [k, v] of Object.entries(rec)) walk(v, [...path, k], ref);
+  };
+  const fields = (owner: string, f: unknown, path: string[]) => {
+    for (const [k, v] of Object.entries((f ?? {}) as Record<string, unknown>))
+      walk(v, [...path, k], `${owner}.${k}`);
+  };
+  const s = scenario as Record<string, Record<string, unknown>[] | undefined>;
+  (s.entities ?? []).forEach((e, i) => {
+    fields(String(e.name), e.fields, ["entities", String(i), "fields"]);
+  });
+  (s.flows ?? []).forEach((f, i) => {
+    walk(f.initial, ["flows", String(i), "initial"], `${String(f.id)}.initial`);
+  });
+  (s.processes ?? []).forEach((p, i) => {
+    const id = String(p.id);
+    const at = ["processes", String(i)];
+    for (const [k, v] of Object.entries(p)) {
+      if (k === "fields") fields(id, v, [...at, k]);
+      else if (k === "then" || k === "else") {
+        const o = (v ?? {}) as Record<string, unknown>;
+        fields(id, o.fields, [...at, k, "fields"]);
+        walk(o.effects, [...at, k, "effects"], `${id}.effects`);
+      } else walk(v, [...at, k], `${id}.${k}`);
+    }
+  });
+  return out;
+}
+
+/**
+ * AGENTS.md hard rule 3 in code: a curve may drive only a root of the influence map. A Param with an
+ * incoming edge (or a derive/branch whose whole process has one) must emerge from the chain instead.
+ */
+export function checkCurvesOnRoots(
+  scenario: Pick<Scenario, "processes">,
+  influences: InfluenceEdges,
+): CompileError[] {
+  const incoming = new Map<string, string[]>();
+  for (const e of influences.edges) incoming.set(e.to, [...(incoming.get(e.to) ?? []), e.from]);
+  const chained = new Set(scenario.processes.filter((p) => p.type !== "arrival").map((p) => p.id));
+  const errors: CompileError[] = [];
+  for (const { curve, ref, path } of curveParamRefs(scenario)) {
+    const owner = ref.split(".")[0] ?? "";
+    const from = [...(incoming.get(ref) ?? []), ...(chained.has(owner) ? (incoming.get(owner) ?? []) : [])];
+    if (from.length === 0) continue;
+    errors.push({
+      path,
+      message: `Curve "${curve}" drives ${ref}, which 03_influences explains by ${from.join(", ")}. Curves may drive only root parameters (no incoming edge); make ${ref} a constant so the effect emerges through the chain.`,
+    });
+  }
+  return errors;
 }
