@@ -10,18 +10,35 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000
 const OVERRIDE_KEY = "jojo.api";
 
 /**
- * API base URL. Dev override without a rebuild: open any page with `?api=http://localhost:4100`
- * (remembered in localStorage; `?api=` with an empty value clears it).
+ * Only a local http(s) API may be chosen at runtime: a crafted `?api=` link must never be able to
+ * send a user's stories to someone else's server. Returns the normalized origin or null.
+ */
+export function localOrigin(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+    return local && (u.protocol === "http:" || u.protocol === "https:") ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * API base URL. Dev-only override without a rebuild: `?api=http://localhost:4100` (localhost only,
+ * remembered in localStorage; `?api=` clears it). Production builds always use NEXT_PUBLIC_API_URL.
  */
 export function apiUrl(): string {
-  if (typeof window === "undefined") return API_URL;
+  if (typeof window === "undefined" || process.env.NODE_ENV === "production") return API_URL;
   try {
     const param = new URLSearchParams(window.location.search).get("api");
     if (param !== null) {
-      if (param) localStorage.setItem(OVERRIDE_KEY, param);
+      const origin = localOrigin(param);
+      if (origin) localStorage.setItem(OVERRIDE_KEY, origin);
       else localStorage.removeItem(OVERRIDE_KEY);
     }
-    return localStorage.getItem(OVERRIDE_KEY) ?? API_URL;
+    // re-validated on every read, so a value planted in storage some other way is ignored too
+    return localOrigin(localStorage.getItem(OVERRIDE_KEY)) ?? API_URL;
   } catch {
     return API_URL;
   }

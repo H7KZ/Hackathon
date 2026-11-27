@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { API_URL, createSession, getHealth } from "../../lib/api";
+import { API_URL, apiUrl, createSession, getHealth, localOrigin } from "../../lib/api";
 
 describe("getHealth", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -57,5 +57,35 @@ describe("createSession", () => {
       ok: false,
       message: expect.stringContaining("nedostupné"),
     });
+  });
+});
+
+describe("API URL override (dev only, localhost only)", () => {
+  afterEach(() => {
+    localStorage.clear();
+    window.history.pushState(null, "", "/");
+  });
+
+  it("accepts a local origin from ?api= and remembers it", () => {
+    window.history.pushState(null, "", "/?api=http://localhost:4100/x");
+    expect(apiUrl()).toBe("http://localhost:4100");
+    window.history.pushState(null, "", "/");
+    expect(apiUrl()).toBe("http://localhost:4100");
+  });
+
+  it("rejects remote or odd origins and ignores planted storage values", () => {
+    for (const bad of [
+      "https://evil.example",
+      "javascript:alert(1)",
+      "http://localhost.evil.com",
+      "nonsense",
+    ]) {
+      window.history.pushState(null, "", `/?api=${encodeURIComponent(bad)}`);
+      expect(apiUrl()).toBe(API_URL);
+    }
+    window.history.pushState(null, "", "/");
+    localStorage.setItem("jojo.api", "https://evil.example");
+    expect(apiUrl()).toBe(API_URL);
+    expect(localOrigin("http://127.0.0.1:4000/")).toBe("http://127.0.0.1:4000");
   });
 });
