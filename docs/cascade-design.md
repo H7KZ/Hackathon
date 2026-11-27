@@ -68,9 +68,18 @@ Mapování mapy na scénář:
 - Uvnitř kaskády běží jen čistý kód: zod, kontroly pokrytí mapy (4a/4b), stavba křivek z matice, odvození hypotéz pro expectations.
 - Žádná zkušební generace dat ani smyčka nad expectations. Chyby v SQL nebo slabý efekt se ukážou až v evidence.
 
-## Otevřené otázky
+### D6. Složený scénář validuje `compileScenario`
 
-- Validace složeného scénáře: použít `compileScenario` (čistá funkce, leží ve workspace `noiser`), nebo jen zod + vlastní kontroly kaskády?
+- Na konci kaskády se zavolá `compileScenario` z `@s2d/noiser` (čistá funkce: reference, DAG, rozsah datumů). Engine se nespouští.
+- Spouštění noiseru a dataeru řeší API (`POST /runs` na větvi `feat/api-runs`).
+
+### D7. Kaskáda se volá přes přístupové funkce
+
+- `services/cascade/src/access.ts`: `cascade()`, `getRun()`, `listRuns()`, `saveArtifact()`, `newRunId()`.
+- Stejný vzor jako noiser `generate()`: špatný vstup a chyba agenta vrací `{ ok: false, errors: {path, message}[] }`, nevyhazují výjimku.
+- `saveArtifact()` ověří ruční úpravu schématem a smaže pozdější artefakty (SPEC §2 pravidlo 9).
+
+## Otevřené otázky
 
 - Agent 4a/4b: přesný zod tvar artefaktů, pravidla kompatibility druhů uzlů a typů hran.
 - Agent 6: běží subagenti per úsek paralelně? Jak se určí hranice úseků (z overlaye)?
