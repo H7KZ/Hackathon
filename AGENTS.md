@@ -24,6 +24,34 @@ One backend service. `services/api` imports the other services as **plain functi
 
 Boundaries are enforced by `eslint.config.js` and `.dependency-cruiser.cjs` — if they fire, fix the design, don't silence the rule.
 
+## Team, ownership and git workflow
+
+Four people work on this repo, humans and agents alike.
+
+- **Owners** (who reviews PRs in an area): see `.github/CODEOWNERS`. Changes to `packages/schema` are announced in the PR and approved by the owner before the compiler/engine change lands.
+- **One person, one workspace at a time** when possible. Shared files are conflict hotspots: `packages/schema/src/*`, `services/api/src/app.ts`, `pnpm-lock.yaml`, `scenarios/*.json`, `.cache/llm/`.
+- **Branches:** `feat/<area>-<name>` or `fix/<area>-<name>`, short-lived. Never push to `main` directly; it is protected and every change goes through a PR with green CI (`verify`).
+- **Before pushing:** `git fetch && git log HEAD..origin/main` and rebase on `main` if it moved. Do not force push.
+- **Lockfile conflicts:** do not merge by hand. Take `main`'s `pnpm-lock.yaml`, run `pnpm install`, commit the result.
+- **LLM cache conflicts:** `.cache/llm/` is regenerated, not hand-merged. Only one person records (`EVAL_LIVE=1 pnpm evals`) at a time; announce it in the team chat.
+- **PR:** fill in the template (`.github/pull_request_template.md`); squash merge.
+- **Decisions** that affect the whole team go to `docs/decisions.md` (one short entry each), not only into personal notes.
+
+## Agent autonomy
+
+Agents may, without asking:
+
+- edit code and tests in their own branch, run `pnpm verify:fast` / targeted tests,
+- commit to their own feature branch.
+
+Agents must ask first before:
+
+- changing `packages/schema` (the contract) or adding a dependency,
+- pushing, opening or merging a PR, or touching `main`,
+- running `EVAL_LIVE=1 pnpm evals` or anything that calls a paid API,
+- deleting or rewriting entries in `.cache/llm/`, `scenarios/`, or `runs/`,
+- reading `.env*` files (secrets stay with their owner).
+
 ## Commands
 
 ```
@@ -109,6 +137,14 @@ Gates per eval case (`services/cascade/tests/evals/`):
 - **Stream isolation:** changing one curve's parameter leaves tables of unrelated processes identical.
 - **Integrity:** every FK resolves; no negative flow if `min: 0`.
 - **Story:** all `expectations` of `supplier_delay` pass at `--seed 42` and at least 4/5 seeds of 1..5.
+
+## Known gotchas
+
+Short list of mistakes that already happened or are easy to make. Full list: `docs/gotchas.md`. Add an entry there when something bites twice.
+
+- Importing the `@s2d/schema` barrel from `dataer/src/evidence` or `dataer/src/detective` breaks the isolation rule; import the subpath instead.
+- `pnpm test:watch` runs all workspaces; for a single file use `pnpm vitest run <path>`.
+- The Stop hook runs `pnpm verify:fast` after code changes; a red run blocks the agent from finishing.
 
 ## Priorities when time is short
 
