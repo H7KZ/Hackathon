@@ -34,7 +34,7 @@ Mapping (checked by code):
 - Keep entity names, counts and idPrefixes of 02_model where possible; use at least 5 linked tables.
 - Make the effect visible (a live run produced a valid model where the lever changed nothing):
   - The lever must reach every record in its scope: use {"curve": "<lever id>"} directly, do not hide it behind another condition (e.g. an "if" on a role or category the scoped ids may not have). The curve's scope (e.g. self.supplier_id) filters the records.
-  - Keep levels tight so a disruption bites: replenish with topUp (order-up-to target about 1-2 weeks of demand), not fixed quantities, so a late delivery empties the shelf and turns purchases into lost sales.
+  - Replenish with topUp (order-up-to), not fixed quantities. Size it so the BASELINE is calm and the lever bites: the target covers about 2 weeks of demand (stock-outs on fewer than 2% of days before the story; live runs with ~1.5 weeks of cover had weekly waves of lost sales that look like a fake event), and a disruption the lever causes (e.g. a late delivery) lasts clearly longer than that cover, so the shelf empties and purchases turn into lost sales.
   - Start in steady state: initial flow levels about the level the chain settles at, inflow about equal to outflow, so nothing drifts before the story starts.
   - Background rates high enough that the outcome tables have several rows per day.
 - If errors are given, return the corrected full object; fix every listed path. Errors from the story gate (expectations measured on generated data, baseline drift) are fixed by changing parameters (rates, counts, initial values, quantities, topUp targets, lags), never by renaming tables or columns: the SQL reads them.

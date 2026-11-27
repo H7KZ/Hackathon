@@ -120,10 +120,14 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
   const metrics = map.nodes.filter(
     (n) => (n.kind === "event" || n.kind === "state") && n.table !== undefined && observed.has(n.table),
   );
-  // no stable control for rare events or states: small counts / a stock-out share near 0 are too noisy
+  // no stable control for rare events, states or branch failures: too noisy for a +-15% band
   const rare = new Set([
     ...map.edges.filter((e) => e.type === "probabilistic").map((e) => e.to),
     ...map.nodes.filter((n) => n.kind === "state").map((n) => n.id),
+    // the failure outcome of a branch (lost sale on an empty shelf) comes in multi-day bursts
+    ...map.edges
+      .filter((e) => e.sign === "negative" && map.nodes.find((n) => n.id === e.from)?.kind === "branch")
+      .map((e) => e.to),
   ]);
   const byPeak = new Map<string, Episode[]>();
   for (const e of episodes(map, overlay, plan.entities))
