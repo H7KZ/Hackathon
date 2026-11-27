@@ -8,6 +8,8 @@ Format: **symptom** → **rule** (guard, if any).
 
 - **Scenario leaks into evidence/detective.** Importing the `@s2d/schema` barrel in `services/dataer/src/evidence` or `src/detective` pulls scenario types in. → Import `@s2d/schema/evidence`, `/detective` or `/run` only (AGENTS.md rule 5).
 - **LLM SQL touches the real DB.** Running expectations or detective SQL against the main DuckDB. → Always go through `exportSandbox()` + `openSandbox()`. Keyword filters are not a security boundary.
+- **A non-FK column named `*_id`.** dataer infers FKs by value: every `*_id` column must point at a table with an `id` column, or `store` fails the run. → Name external codes differently (e.g. `order_code`). (`services/dataer/tests/integration/integrity.test.ts`)
+- **Sandbox copies left behind or colliding.** A fixed `<db>.sandbox` path breaks when evidence and detective run on the same db at once. → Always use `withSandbox(dbPath, fn)` from `@s2d/dataer`.
 - **New types defined twice.** A hand-written interface in `api` or `frontend` drifts from zod. → Use `z.infer` from `packages/schema`.
 
 ## Engine determinism
