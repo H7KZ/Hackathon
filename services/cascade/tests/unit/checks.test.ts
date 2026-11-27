@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { runCascade } from "../../src/cascade";
-import { checkCurveCoverage, checkModelShape } from "../../src/checks";
+import { checkCurveCoverage, checkEntityIds, checkModelShape, checkStoryPlan } from "../../src/checks";
 import type { CascadeEvent } from "../../src/events";
 import { base, company, detail, influences, model, setup, story } from "./fixtures";
 
@@ -37,6 +37,8 @@ describe("checks in the cascade", () => {
     );
     expect(t.fake.calls.map((c) => c.schemaName)).toEqual(["01_company", "02_model", "02_model"]);
     expect(t.fake.calls[2]?.prompt).toContain("no causal chain");
+    expect(t.fake.calls[2]?.prompt).toContain("fails the story checks");
+    expect(t.fake.calls[2]?.prompt).not.toContain("failed schema validation");
   });
 
   it("A5 with an unused story curve is sent back even though it compiles", async () => {
@@ -74,6 +76,24 @@ describe("expectation tables", () => {
     ).toEqual(["sale", "complaint"]);
   });
 
+  it("finds every table of a comma FROM list and skips table functions and subqueries", async () => {
+    const { sqlTables } = await import("../../src/checks");
+    expect(sqlTables('SELECT 1 FROM sale s, main.lost_sale AS l, "complaint" WHERE 1')).toEqual([
+      "sale",
+      "lost_sale",
+      "complaint",
+    ]);
+    expect(
+      sqlTables(
+        "SELECT * FROM generate_series(DATE '2025-01-01', DATE '2025-02-01', INTERVAL 1 DAY) g(d), (SELECT 1 FROM delivery) x",
+      ),
+    ).toEqual(["delivery"]);
+    expect(sqlTables("SELECT * FROM sale WHERE x IN (SELECT y FROM complaint)")).toEqual([
+      "sale",
+      "complaint",
+    ]);
+  });
+
   it("flags ground_truth and unknown tables, passes supplier_delay's own expectations", async () => {
     const { checkExpectationTables } = await import("../../src/checks");
     expect(checkExpectationTables(base.expectations, base)).toEqual([]);
@@ -89,5 +109,76 @@ describe("expectation tables", () => {
       expect.stringMatching(/"purchase_attempt", a ground_truth table/),
       expect.stringMatching(/unknown table "nope"/),
     ]);
+  });
+});
+
+describe("04_story coherence", () => {
+  let cleanup = () => {};
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("supplier_delay's story plan and entity ids pass", () => {
+    expect(checkStoryPlan(story)).toEqual([]);
+    expect(checkEntityIds(story, base.entities)).toEqual([]);
+  });
+
+  it("flags unknown story point ids, a SQL without period/value and duplicate ids", () => {
+    const bad = {
+      ...story,
+      curves: story.curves.map((c) => ({
+        ...c,
+        segments: c.segments.map((g) => ({ ...g, storyPointId: "nope" })),
+      })),
+      expectations: [
+        { ...story.expectations[0]!, storyPointId: "nope", sql: "SELECT 1 FROM sale" },
+        story.expectations[0]!,
+        story.expectations[0]!,
+      ],
+    };
+    const paths = checkStoryPlan(bad).map((e) => e.path);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        "curves.0.segments.0.storyPointId",
+        "expectations.0.storyPointId",
+        "expectations.0.sql",
+        "expectations.2.id",
+      ]),
+    );
+  });
+
+  it("flags curve scopes and story point entities that name rows A5 no longer generates", () => {
+    const scoped = story.curves.find((c) => c.scope)!;
+    const id = scoped.scope!.ids[0]!;
+    const prefix = id.split("-")[0]!;
+    const entities = base.entities.map((e) => (e.idPrefix === prefix ? { ...e, count: 1 } : e));
+    const paths = checkEntityIds(story, entities).map((e) => e.path);
+    expect(id).not.toBe(`${prefix}-001`); // supplier_delay scopes SUP-002
+    expect(paths).toContain(`curves.${story.curves.indexOf(scoped)}.scope.ids.0`);
+    const renamed = base.entities.map((e) => (e.idPrefix === prefix ? { ...e, idPrefix: "XYZ" } : e));
+    expect(checkEntityIds(story, renamed).some((e) => e.message.includes("no entity has idPrefix"))).toBe(
+      true,
+    );
+  });
+
+  it("A4 with an unknown story point id is sent back before A5 runs", async () => {
+    const broken = {
+      ...story,
+      expectations: story.expectations.map((e) => ({ ...e, storyPointId: "nope" })),
+    };
+    const t = setup([company, model, influences, broken, story]);
+    cleanup = t.cleanup;
+    await runCascade(
+      { story: "s", company: "c" },
+      { llm: t.llm, runsDir: t.runsDir, runId: "r3", until: "04_story" },
+    );
+    expect(t.fake.calls.map((c) => c.schemaName)).toEqual([
+      "01_company",
+      "02_model",
+      "03_influences",
+      "04_story",
+      "04_story",
+    ]);
+    expect(t.fake.calls[4]?.prompt).toContain('Unknown story point "nope"');
   });
 });

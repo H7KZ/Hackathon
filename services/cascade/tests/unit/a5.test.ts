@@ -114,9 +114,9 @@ describe("runCascade A1–A5", () => {
     expect(loops.map((e) => e.ok)).toEqual([false, true]);
     expect(typeof loops[0]?.feedback[0]).toBe("string");
     expect(r.fake.calls[5]?.prompt).toContain('"name": "x"'); // the rejected answer is shown back
-    expect(loops[0]?.feedback[0]).toBe(
-      "Your answer had top-level keys [name]; put the fields directly at the top level.",
-    );
+    // the keys are right, only fields are missing: the zod issues alone, no "top level" hint
+    expect(loops[0]?.feedback).toHaveLength(1);
+    expect(JSON.stringify(loops[0]?.feedback)).toContain("entities");
   });
 
   it("stops A5 after 3 iterations, logs it and writes no 05_scenario", async () => {

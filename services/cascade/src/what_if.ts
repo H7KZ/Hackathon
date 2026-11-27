@@ -25,8 +25,53 @@ export const WhatIfEdit = z.object({
 });
 export type WhatIfEdit = z.infer<typeof WhatIfEdit>;
 
-/** Parts of the scenario a what-if may never touch through a Param patch. */
-const FROZEN = new Set(["meta", "curves", "storyPoints", "expectations", "noise"]);
+/** Parts of the scenario that hold Params a what-if may patch. */
+const PATCHABLE = ["entities", "flows", "processes"] as const;
+
+/** RFC 6901 escaping of one pointer token. */
+const escapeToken = (token: string) => token.replace(/~/g, "~0").replace(/\//g, "~1");
+
+/** Param slots per FieldGen `gen` (categorical weights are handled as an array). */
+const GEN_PARAMS: Record<string, string[]> = {
+  normal: ["mean", "sd"],
+  poisson: ["lambda"],
+  uniformInt: ["min", "max"],
+  bernoulli: ["p"],
+  topUp: ["target"],
+};
+
+/**
+ * JSON pointers of every Param slot in entities/flows/processes, derived from the contract's shape.
+ * A number elsewhere (entity count, lag, schedule, array length, const value) is structure, not a Param.
+ */
+export function paramPointers(scenario: Scenario): Set<string> {
+  const out = new Set<string>();
+  const visit = (node: unknown, ptr: string): void => {
+    if (Array.isArray(node)) {
+      node.forEach((v, i) => {
+        visit(v, `${ptr}/${i}`);
+      });
+      return;
+    }
+    if (!isRecord(node)) return;
+    const slot = (key: string) => {
+      if (Param.safeParse(node[key]).success) out.add(`${ptr}/${escapeToken(key)}`);
+    };
+    if (node.type === "arrival") slot("rate");
+    if (node.type === "derive") slot("p");
+    if (node.kind === "bernoulli") slot("p");
+    if (typeof node.gen === "string") {
+      for (const k of GEN_PARAMS[node.gen] ?? []) slot(k);
+      if (node.gen === "categorical" && Array.isArray(node.weights))
+        node.weights.forEach((w, i) => {
+          if (Param.safeParse(w).success) out.add(`${ptr}/weights/${i}`);
+        });
+    }
+    for (const [k, v] of Object.entries(node)) visit(v, `${ptr}/${escapeToken(k)}`);
+  };
+  for (const part of PATCHABLE) visit(scenario[part], `/${part}`);
+  return out;
+}
 
 export function applyWhatIf(
   base: Scenario,
@@ -35,26 +80,19 @@ export function applyWhatIf(
   const scenario = structuredClone(base);
   scenario.curves = edit.curves;
   const errors: CompileError[] = [];
+  const allowed = paramPointers(base);
   for (const [i, patch] of edit.params.entries()) {
     const at = `params.${i}.pointer`;
     const tokens = parsePointer(patch.pointer);
-    if (!tokens || tokens.length < 2 || FROZEN.has(tokens[0] ?? "")) {
+    const parent = tokens && allowed.has(patch.pointer) ? resolve(scenario, tokens.slice(0, -1)) : undefined;
+    if (!tokens || !isRecord(parent)) {
       errors.push({
         path: at,
-        message: `"${patch.pointer}" is not allowed. Use a JSON pointer into /entities, /flows or /processes that points at an existing Param (number or {curve}).`,
+        message: `"${patch.pointer}" is not a Param slot. Only rate (arrival), p (derive, bernoulli), lambda, mean, sd, uniformInt min/max, categorical weights/<i> and topUp target inside /entities, /flows or /processes can change; counts, lags, schedules, ids and structure stay as they are.`,
       });
       continue;
     }
-    const parent = resolve(scenario, tokens.slice(0, -1));
-    const key = tokens[tokens.length - 1] ?? "";
-    if (!isRecord(parent) || !Param.safeParse(parent[key]).success) {
-      errors.push({
-        path: at,
-        message: `"${patch.pointer}" does not point at an existing Param. Only change values that are already a number or {curve, scale?}; do not add or remove fields.`,
-      });
-      continue;
-    }
-    parent[key] = patch.value;
+    parent[tokens[tokens.length - 1] ?? ""] = patch.value;
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, scenario };
 }
