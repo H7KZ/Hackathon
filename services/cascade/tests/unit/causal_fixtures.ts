@@ -1,5 +1,5 @@
 /** supplier_delay expressed in the causal design (03a map + 03b processes with trace). */
-import type { CausalMap, ProcessesPlan } from "@s2d/schema/artifacts";
+import type { CausalMap, ProcessesPlan, StoryOverlay } from "@s2d/schema/artifacts";
 import { base } from "./fixtures";
 
 export const causalMap: CausalMap = {
@@ -80,4 +80,28 @@ export const processesPlan: ProcessesPlan = {
     e_lost_complaint: "/processes/3",
     e_sale_complaint: "/processes/4/p",
   },
+};
+
+/** sp1: SUP-002 starts delivering late on 1 March and stays late (open period). */
+export const overlay: StoryOverlay = {
+  name: "Pozdní dodávky dodavatele SUP-002",
+  start: base.meta.start,
+  end: base.meta.end,
+  storyPoints: [
+    {
+      id: "sp1",
+      phase: 1,
+      title: "Dodavatel SUP-002 začíná dodávat pozdě",
+      description: "Od 1. 3. chodí většina dodávek SUP-002 pozdě.",
+      entity: { name: "supplier", ids: ["SUP-002"] },
+      start: "2025-03-01",
+    },
+  ],
+  levers: [
+    {
+      lever: "late_prob",
+      scope: { field: "self.supplier_id", ids: ["SUP-002"] },
+      values: [{ storyPointId: "sp1", value: 0.8 }],
+    },
+  ],
 };

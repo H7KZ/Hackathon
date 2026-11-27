@@ -14,6 +14,7 @@ import {
   DataModel,
   Influences,
   ProcessesPlan,
+  StoryOverlay,
   StoryPlan,
   type ArtifactName,
 } from "@s2d/schema/artifacts";
@@ -21,7 +22,8 @@ import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
 import { checkCausalMap } from "./causal/map";
-import { a4aCausalMap, a4bProcesses } from "./causal/steps";
+import { checkOverlayScenario } from "./causal/overlay";
+import { a4aCausalMap, a4bProcesses, a4Overlay } from "./causal/steps";
 import {
   checkExpectationTables,
   checkInfluenceRefs,
@@ -56,7 +58,7 @@ export type CascadeDesign = "v1" | "causal";
 /** Artifacts each design writes, in order. `until` must name one of them. */
 export const DESIGN_STEPS: Record<CascadeDesign, readonly ArtifactName[]> = {
   v1: ["01_company", "02_model", "03_influences", "04_story", "05_scenario"],
-  causal: ["01_company", "02_model", "03a_causal_map", "03b_processes"],
+  causal: ["01_company", "02_model", "03a_causal_map", "03b_processes", "04a_overlay"],
 };
 
 /** An agent step could not produce its artifact (invalid LLM output, or no cache entry offline). */
@@ -155,7 +157,16 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         new Error(`Processes do not realize the map:\n${formatFeedback(res.feedback)}`),
       );
     });
-    return { dir, company, model, causalMap, processes };
+    if (!shouldRun("04a_overlay")) return { dir, company, model, causalMap, processes };
+    const overlay = await step("04a_overlay", StoryOverlay, () =>
+      a4Overlay(
+        llm("04a_overlay", (v) =>
+          checkOverlayScenario(input, opts.runId, causalMap, processes, StoryOverlay.parse(v)),
+        ),
+        { input, map: causalMap, plan: processes },
+      ),
+    );
+    return { dir, company, model, causalMap, processes, overlay };
   }
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>

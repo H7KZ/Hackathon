@@ -35,3 +35,14 @@ Mapping (checked by code):
 - Make the effect visible: background rates high enough that moving a lever moves the outcome tables.
 - If errors are given, return the corrected full object; fix every listed path.
 ${MODEL_SYNTAX}`;
+
+export const OVERLAY = `${SHARED_RULES}
+Task 5: lay the story over the causal map as dated story points and lever values per period. Code builds the curves from your values; you never write curve dates or shapes.
+- name: short Czech title of the dataset. start, end: ISO dates of the whole dataset (both days included); leave at least 8 weeks before the first story point so "before" is visible, and a few weeks after the last one.
+- storyPoints: {id, phase, title, description (Czech), entity?: {name, ids}, start, end?}. Entity ids are <idPrefix>-001 .. <idPrefix>-<count> of 03b_processes.
+- levers: one row per lever you move: {lever: <lever id of 03a_causal_map>, scope?: {field: Path, ids: [...]}, values: [{storyPointId, value}]}.
+  - A value holds from its story point's start until its end. After an end the lever returns to its baseline; a last story point without end keeps the value to the end of the dataset.
+  - The periods of one lever must be contiguous: the end of one story point = the start of the next one in that row.
+  - scope limits the lever to records whose field has one of the ids (e.g. {"field": "self.supplier_id", "ids": ["SUP-002"]}); the field must exist on the record where the lever's curve is used.
+- ONLY levers get values. Outcomes (sales, complaints, lost sales) are never in the matrix: they must emerge from the chain.
+- If errors are given, return the corrected full object.`;

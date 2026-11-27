@@ -3,11 +3,17 @@
  * compileScenario on a placeholder scenario (flat lever curves, no story yet) + the trace checks.
  */
 import type { Llm } from "@s2d/llm";
-import { CausalMap, ProcessesPlan, type CompanySpec, type DataModel } from "@s2d/schema/artifacts";
+import {
+  CausalMap,
+  ProcessesPlan,
+  StoryOverlay,
+  type CompanySpec,
+  type DataModel,
+} from "@s2d/schema/artifacts";
 import type { CurveDef, Scenario } from "@s2d/schema/scenario";
 import { checkModelShape } from "../checks";
 import { formatFeedback, repairLoop, type RepairLoopOptions } from "../loop";
-import { CAUSAL_MAP, PROCESSES } from "../prompts/causal";
+import { CAUSAL_MAP, OVERLAY, PROCESSES } from "../prompts/causal";
 import { userPrompt } from "../prompts/index";
 import type { CascadeInput } from "../steps";
 import { checkTrace } from "./trace";
@@ -85,5 +91,27 @@ export function a4bProcesses(
       return { ok: true, scenario: processesScenario(plan, a.map) };
     },
     check: (s) => [...checkModelShape(s), ...(current ? checkTrace(current, a.map) : [])],
+  });
+}
+
+/** 04a_overlay (agents 5–6, D2): story points + lever x period values; curves come from code. */
+export function a4Overlay(
+  llm: Llm,
+  a: { input: CascadeInput; map: CausalMap; plan: ProcessesPlan },
+): Promise<StoryOverlay> {
+  return llm.object({
+    schemaName: "04a_overlay",
+    schema: StoryOverlay,
+    instructions: OVERLAY,
+    prompt: userPrompt({
+      Story: a.input.story,
+      "03a_causal_map": a.map,
+      "Entities of 03b_processes (name, idPrefix, count, fields)": a.plan.entities.map((e) => ({
+        name: e.name,
+        idPrefix: e.idPrefix,
+        count: e.count,
+        fields: Object.keys(e.fields),
+      })),
+    }),
   });
 }

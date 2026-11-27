@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import { Expectation } from "./evidence";
-import { CurveDef, EntityDef, FlowDef, Ident, ProcessDef, Scenario, StoryPoint } from "./scenario";
+import { CurveDef, EntityDef, FlowDef, Ident, IsoDate, ProcessDef, Scenario, StoryPoint } from "./scenario";
 
 export const CompanySpec = z.object({
   industry: z.string(),
@@ -93,6 +93,29 @@ export const ProcessesPlan = z.object({
 });
 export type ProcessesPlan = z.infer<typeof ProcessesPlan>;
 
+/** One lever's value during one period; the period's dates are its story point's start..end. */
+export const LeverValue = z.object({ storyPointId: z.string(), value: z.number() });
+
+/** One row of the lever x period matrix (D2). Code turns it into a CurveDef with id = lever. */
+export const LeverRow = z.object({
+  lever: Ident,
+  /** Limits the lever to records whose field has one of the ids (e.g. self.supplier_id in [SUP-002]). */
+  scope: CurveDef.shape.scope,
+  values: z.array(LeverValue).min(1),
+});
+export type LeverRow = z.infer<typeof LeverRow>;
+
+/** 04a_overlay (agents 5–6): story points and lever values per period. No curve dates or shapes. */
+export const StoryOverlay = z.object({
+  name: z.string(),
+  /** Scenario date range, both days included. */
+  start: IsoDate,
+  end: IsoDate,
+  storyPoints: z.array(StoryPoint).min(1),
+  levers: z.array(LeverRow).min(1),
+});
+export type StoryOverlay = z.infer<typeof StoryOverlay>;
+
 /** Order matters: saving an artifact invalidates every later one (SPEC §2 rule 9). */
 export const ArtifactName = z.enum([
   "01_company",
@@ -100,6 +123,7 @@ export const ArtifactName = z.enum([
   "03_influences",
   "03a_causal_map",
   "03b_processes",
+  "04a_overlay",
   "04_story",
   "05_scenario",
 ]);
@@ -112,6 +136,7 @@ export const ArtifactSchemas: Record<ArtifactName, z.ZodType> = {
   "03_influences": Influences,
   "03a_causal_map": CausalMap,
   "03b_processes": ProcessesPlan,
+  "04a_overlay": StoryOverlay,
   "04_story": StoryPlan,
   "05_scenario": Scenario,
 };

@@ -61,7 +61,7 @@ export function assembleScenario(a: A5Input, d: ScenarioDetail): Scenario {
 }
 
 /** meta.id must match ^[a-z0-9_-]+$; run ids may contain upper case or other characters. */
-function scenarioId(runId: string): string {
+export function scenarioId(runId: string): string {
   return runId.toLowerCase().replace(/[^a-z0-9_-]/g, "-") || "scenario";
 }
 

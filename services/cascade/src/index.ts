@@ -22,4 +22,7 @@ export { storyGate, baselineDrift, formatExpectationFailure } from "./gate";
 export { DESIGN_STEPS, type CascadeDesign } from "./cascade";
 export { checkCausalMap, findCycle } from "./causal/map";
 export { checkTrace, realizationsAt, resolvePointer, REALIZES } from "./causal/trace";
-export { a4aCausalMap, a4bProcesses, flatLeverCurves } from "./causal/steps";
+export { a4aCausalMap, a4bProcesses, a4Overlay, flatLeverCurves } from "./causal/steps";
+export { buildCurves, checkOverlay, leverPeriods } from "./causal/curves";
+export { checkOverlayScenario } from "./causal/overlay";
+export { assembleCausal } from "./causal/assemble";
