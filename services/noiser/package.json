@@ -1,0 +1,22 @@
+{
+  "name": "@s2d/noiser",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^10.6.0",
+    "@s2d/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@s2d/test-utils": "workspace:*"
+  }
+}

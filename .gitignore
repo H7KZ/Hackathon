@@ -1,0 +1,27 @@
+node_modules/
+.turbo/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+playwright-report/
+test-results/
+
+# generated data
+out/
+runs/*
+!runs/.gitkeep
+!runs/demo-*/
+.cache/*
+!.cache/llm/
+
+# env
+.env
+.env.*
+!.env.example
+
+# tooling scratch
+.playwright-mcp/
+.claude/settings.local.json
+.DS_Store

@@ -1,0 +1,56 @@
+{
+  "name": "story2data",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@s2d/api --filter=@s2d/frontend",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:watch": "vitest",
+    "test:e2e": "pnpm --filter @s2d/frontend test:e2e",
+    "evals": "pnpm --filter @s2d/cascade evals",
+    "deps:check": "depcruise packages services --config .dependency-cruiser.cjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify:fast": "pnpm deps:check && turbo run typecheck lint test:unit --output-logs=errors-only",
+    "verify": "pnpm format:check && pnpm deps:check && pnpm lint:root && turbo run typecheck lint test build --output-logs=errors-only",
+    "gen": "pnpm --filter @s2d/api cli gen",
+    "cascade": "pnpm --filter @s2d/api cli cascade",
+    "evidence": "pnpm --filter @s2d/api cli evidence",
+    "detective": "pnpm --filter @s2d/api cli detective",
+    "compare": "pnpm --filter @s2d/api cli compare",
+    "prepare": "husky",
+    "lint:root": "eslint \"*.{js,ts,cjs}\" scripts --max-warnings=0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix --no-warn-ignored"
+    ],
+    "*.{json,md,yml,yaml,css}": "prettier --write"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.7",
+    "dependency-cruiser": "^18.9.0",
+    "eslint": "^10.16.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "fast-check": "^4.11.0",
+    "globals": "^17.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.2",
+    "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.13",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.74.0",
+    "vitest": "^5.1.2"
+  }
+}

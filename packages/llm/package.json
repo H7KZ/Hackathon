@@ -1,0 +1,24 @@
+{
+  "name": "@s2d/llm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.110",
+    "@ai-sdk/openai": "^4.0.125",
+    "ai": "^7.0.183",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@s2d/test-utils": "workspace:*"
+  }
+}

@@ -1,0 +1,480 @@
+{
+  "meta": {
+    "id": "supplier_delay",
+    "name": "Pozdní dodávky dodavatele",
+    "company": "Síť 5 prodejen s domácími potřebami v ČR. Zboží od 3 dodavatelů, zásobování týdně.",
+    "story": "Síti prodejen klesají tržby. Poptávka ale neklesla: dodavatel SUP-002 začal od března dodávat pozdě, což postupně způsobilo výpadky zásob, neuskutečněné nákupy a více stížností zákazníků.",
+    "seed": 42,
+    "start": "2025-01-01",
+    "end": "2025-08-31",
+    "locale": "cs-CZ"
+  },
+  "entities": [
+    {
+      "name": "supplier",
+      "count": 3,
+      "idPrefix": "SUP",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "companyName"
+        }
+      }
+    },
+    {
+      "name": "product",
+      "count": 24,
+      "idPrefix": "PRD",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "productName"
+        },
+        "supplier_id": {
+          "gen": "pick",
+          "entity": "supplier"
+        },
+        "category": {
+          "gen": "categorical",
+          "values": ["kuchyň", "koupelna", "zahrada", "úklid"]
+        },
+        "price": {
+          "gen": "normal",
+          "mean": 250,
+          "sd": 80,
+          "min": 30,
+          "round": true
+        }
+      }
+    },
+    {
+      "name": "store",
+      "count": 5,
+      "idPrefix": "STO",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "city": {
+          "gen": "fake",
+          "kind": "city"
+        }
+      }
+    },
+    {
+      "name": "customer",
+      "count": 600,
+      "idPrefix": "CUS",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "personName"
+        },
+        "home_store_id": {
+          "gen": "pick",
+          "entity": "store"
+        }
+      }
+    }
+  ],
+  "curves": [
+    {
+      "id": "late_prob",
+      "baseline": 0.05,
+      "scope": {
+        "field": "self.supplier_id",
+        "ids": ["SUP-002"]
+      },
+      "segments": [
+        {
+          "kind": "ramp",
+          "start": "2025-03-01",
+          "end": "2025-04-15",
+          "to": 0.6,
+          "storyPointId": "sp1"
+        }
+      ],
+      "clamp": [0, 1]
+    },
+    {
+      "id": "demand",
+      "baseline": 1,
+      "segments": []
+    }
+  ],
+  "flows": [
+    {
+      "id": "stock",
+      "keys": ["store", "product"],
+      "initial": {
+        "gen": "normal",
+        "mean": 7,
+        "sd": 1.5,
+        "min": 0,
+        "round": true
+      },
+      "min": 0,
+      "snapshot": {
+        "table": "stock_daily"
+      }
+    }
+  ],
+  "processes": [
+    {
+      "type": "arrival",
+      "id": "delivery",
+      "table": "delivery",
+      "per": ["store", "product"],
+      "schedule": {
+        "everyDays": 7,
+        "phase": "random"
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "store_id": {
+          "gen": "ref",
+          "path": "key.store"
+        },
+        "product_id": {
+          "gen": "ref",
+          "path": "key.product"
+        },
+        "supplier_id": {
+          "gen": "lookup",
+          "entity": "product",
+          "key": "key.product",
+          "field": "supplier_id"
+        },
+        "planned_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "quantity": {
+          "gen": "topUp",
+          "flow": "stock",
+          "keys": {
+            "store": "key.store",
+            "product": "key.product"
+          },
+          "target": 7
+        },
+        "is_late": {
+          "gen": "bernoulli",
+          "p": {
+            "curve": "late_prob"
+          }
+        },
+        "delay_days": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.is_late",
+            "value": true
+          },
+          "then": {
+            "gen": "uniformInt",
+            "min": 3,
+            "max": 10
+          },
+          "else": {
+            "gen": "const",
+            "value": 0
+          }
+        },
+        "actual_date": {
+          "gen": "dateOffset",
+          "base": "self.planned_date",
+          "days": "self.delay_days"
+        }
+      },
+      "effects": [
+        {
+          "flow": "stock",
+          "keys": {
+            "store": "self.store_id",
+            "product": "self.product_id"
+          },
+          "delta": "self.quantity",
+          "sign": 1,
+          "on": "self.actual_date"
+        }
+      ]
+    },
+    {
+      "type": "arrival",
+      "id": "purchase_attempt",
+      "table": "purchase_attempt",
+      "per": ["customer"],
+      "rate": {
+        "curve": "demand",
+        "scale": 0.06
+      },
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "key.customer"
+        },
+        "store_id": {
+          "gen": "lookup",
+          "entity": "customer",
+          "key": "key.customer",
+          "field": "home_store_id"
+        },
+        "product_id": {
+          "gen": "pick",
+          "entity": "product"
+        },
+        "quantity": {
+          "gen": "uniformInt",
+          "min": 1,
+          "max": 3
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "fulfil",
+      "source": "purchase_attempt",
+      "cond": {
+        "kind": "flowGte",
+        "flow": "stock",
+        "keys": {
+          "store": "source.store_id",
+          "product": "source.product_id"
+        },
+        "value": "source.quantity"
+      },
+      "then": {
+        "table": "sale",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "quantity": {
+            "gen": "ref",
+            "path": "source.quantity"
+          },
+          "unit_price": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "source.product_id",
+            "field": "price"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "store": "self.store_id",
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": -1
+          }
+        ]
+      },
+      "else": {
+        "table": "lost_sale",
+        "visibility": "ground_truth",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "attempt_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "complaint_oos",
+      "table": "complaint",
+      "source": "fulfil:else",
+      "p": 0.25,
+      "lag": {
+        "min": 0,
+        "max": 3
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "store_id": {
+          "gen": "ref",
+          "path": "source.store_id"
+        },
+        "product_id": {
+          "gen": "ref",
+          "path": "source.product_id"
+        },
+        "type": {
+          "gen": "const",
+          "value": "nedostupnost"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "complaint_quality",
+      "table": "complaint",
+      "source": "fulfil:then",
+      "p": 0.01,
+      "lag": {
+        "min": 1,
+        "max": 10
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "store_id": {
+          "gen": "ref",
+          "path": "source.store_id"
+        },
+        "product_id": {
+          "gen": "ref",
+          "path": "source.product_id"
+        },
+        "type": {
+          "gen": "const",
+          "value": "kvalita"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        }
+      }
+    }
+  ],
+  "storyPoints": [
+    {
+      "id": "sp1",
+      "phase": 1,
+      "title": "Dodavatel SUP-002 začíná dodávat pozdě",
+      "description": "Pravděpodobnost zpožděné dodávky SUP-002 roste z 5 % na 60 % mezi 1. 3. a 15. 4.",
+      "entity": {
+        "name": "supplier",
+        "ids": ["SUP-002"]
+      },
+      "start": "2025-03-01",
+      "end": "2025-04-15"
+    }
+  ],
+  "expectations": [
+    {
+      "id": "e1",
+      "storyPointId": "sp1",
+      "description": "Průměrné zpoždění dodávek SUP-002 vzroste o ≥ 100 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, AVG(delay_days) AS value FROM (SELECT planned_date AS d, delay_days FROM main.delivery WHERE supplier_id = 'SUP-002') WHERE (d BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' OR d BETWEEN DATE '2025-04-15' AND DATE '2025-06-12') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 1
+      }
+    },
+    {
+      "id": "e2",
+      "storyPointId": "sp1",
+      "description": "Podíl dní s nulovou zásobou u produktů SUP-002 vzroste o ≥ 50 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN value <= 0 THEN 1 ELSE 0 END) AS value FROM (SELECT s.date AS d, s.value FROM main.stock_daily s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id = 'SUP-002') WHERE (d BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' OR d BETWEEN DATE '2025-04-15' AND DATE '2025-06-12') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 0.5
+      }
+    },
+    {
+      "id": "e3",
+      "storyPointId": "sp1",
+      "description": "Tržby z produktů SUP-002 klesnou o ≥ 20 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, SUM(quantity * unit_price) AS value FROM (SELECT s.date AS d, s.quantity, s.unit_price FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id = 'SUP-002') WHERE (d BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' OR d BETWEEN DATE '2025-04-15' AND DATE '2025-06-12') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "decrease",
+        "minRelChange": 0.2
+      }
+    },
+    {
+      "id": "e4",
+      "storyPointId": "sp1",
+      "description": "Tržby ostatních dodavatelů se změní o < 10 % (poptávka neklesla)",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, SUM(quantity * unit_price) AS value FROM (SELECT s.date AS d, s.quantity, s.unit_price FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id <> 'SUP-002') WHERE (d BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' OR d BETWEEN DATE '2025-04-15' AND DATE '2025-06-12') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "stable",
+        "minRelChange": 0.1
+      }
+    },
+    {
+      "id": "e5",
+      "storyPointId": "sp1",
+      "description": "Stížnosti typu „nedostupnost“ vzrostou o ≥ 50 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, COUNT(*) AS value FROM (SELECT date AS d FROM main.complaint WHERE type = 'nedostupnost') WHERE (d BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' OR d BETWEEN DATE '2025-04-15' AND DATE '2025-06-12') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 0.5
+      }
+    }
+  ]
+}

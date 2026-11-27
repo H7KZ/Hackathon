@@ -1,0 +1,32 @@
+{
+  "name": "@s2d/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/server.ts",
+    "cli": "tsx --env-file-if-exists=../../.env src/cli/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.11",
+    "@hono/zod-validator": "^0.9.1",
+    "@s2d/cascade": "workspace:*",
+    "@s2d/dataer": "workspace:*",
+    "@s2d/llm": "workspace:*",
+    "@s2d/noiser": "workspace:*",
+    "@s2d/schema": "workspace:*",
+    "hono": "^4.13.23",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@s2d/test-utils": "workspace:*"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@s2d/dataer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "2.0.1-r.1",
+    "@s2d/llm": "workspace:*",
+    "@s2d/schema": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@s2d/test-utils": "workspace:*"
+  }
+}

@@ -1,0 +1,12 @@
+pnpm-lock.yaml
+.cache/
+out/
+runs/
+.next/
+.turbo/
+coverage/
+**/next-env.d.ts
+.playwright-mcp/
+SPEC.md
+docs/
+RESENI.md
