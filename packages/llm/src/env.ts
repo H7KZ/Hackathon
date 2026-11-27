@@ -5,7 +5,10 @@ import { z } from "zod";
 const Env = z.object({
   LLM_MODEL: z
     .string()
-    .regex(/^(anthropic|openai):.+$/, 'LLM_MODEL must be "anthropic:<model>" or "openai:<model>"')
+    .regex(
+      /^(anthropic|openai|groq):.+$/,
+      'LLM_MODEL must be "anthropic:<model>", "openai:<model>" or "groq:<model>"',
+    )
     .default("anthropic:claude-sonnet-5-5"),
   LLM_OFFLINE: z
     .enum(["0", "1", "true", "false"])

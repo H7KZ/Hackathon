@@ -3,7 +3,7 @@ import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { fakeGenerate, makeTempDir } from "@s2d/test-utils";
-import { createLlm, LlmCacheMiss, LlmOutputInvalid } from "../../src/client";
+import { createLlm, LlmCacheMiss, LlmOutputInvalid, resolveModel } from "../../src/client";
 import { readLlmEnv } from "../../src/env";
 
 const Person = z.object({ name: z.string(), age: z.number().int() });
@@ -63,6 +63,24 @@ describe("readLlmEnv", () => {
 
   it("rejects a malformed model id with a readable message", () => {
     expect(() => readLlmEnv({ LLM_MODEL: "gpt" })).toThrow(/anthropic:<model>/);
+  });
+
+  it("accepts a groq model id (model names may contain a slash)", () => {
+    expect(readLlmEnv({ LLM_MODEL: "groq:openai/gpt-oss-120b" }).model).toBe("groq:openai/gpt-oss-120b");
+  });
+});
+
+describe("resolveModel", () => {
+  it("maps groq:<model> to Groq's OpenAI-compatible chat endpoint", () => {
+    const model = resolveModel("groq:openai/gpt-oss-120b");
+    expect(typeof model).toBe("object");
+    if (typeof model === "string") return;
+    expect(model.modelId).toBe("openai/gpt-oss-120b");
+    expect(model.provider).toMatch(/^groq/);
+  });
+
+  it("rejects an unknown provider", () => {
+    expect(() => resolveModel("mistral:x")).toThrow(/Unknown LLM provider/);
   });
 });
 

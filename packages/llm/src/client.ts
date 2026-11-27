@@ -3,7 +3,7 @@
  * Structured output, validated by zod at the boundary, cached on disk so the demo runs offline.
  */
 import { anthropic } from "@ai-sdk/anthropic";
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI, openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 import { DiskCache, cacheKey } from "./cache";
@@ -45,12 +45,19 @@ export class LlmOutputInvalid extends Error {
   }
 }
 
-/** "anthropic:claude-sonnet-5-5" -> provider model instance. */
+/** Groq speaks the OpenAI Chat Completions API (its Responses API is partial), key in GROQ_API_KEY. */
+export const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+
+/** "anthropic:claude-sonnet-5-5" / "groq:openai/gpt-oss-120b" -> provider model instance. */
 export function resolveModel(id: string): LanguageModel {
   const [provider, ...rest] = id.split(":");
   const name = rest.join(":");
   if (provider === "anthropic") return anthropic(name);
   if (provider === "openai") return openai(name);
+  if (provider === "groq")
+    return createOpenAI({ name: "groq", baseURL: GROQ_BASE_URL, apiKey: process.env.GROQ_API_KEY }).chat(
+      name,
+    );
   throw new Error(`Unknown LLM provider in "${id}"`);
 }
 
@@ -61,6 +68,8 @@ export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, mo
     instructions: instructions || undefined,
     prompt,
     output: Output.object({ schema }),
+    // Groq strict mode needs every field required; our schemas have optional fields, zod validates anyway
+    ...(model.startsWith("groq:") && { providerOptions: { openai: { strictJsonSchema: false } } }),
   });
   return result.output;
 };
