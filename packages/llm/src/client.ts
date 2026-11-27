@@ -4,7 +4,7 @@
  */
 import { anthropic } from "@ai-sdk/anthropic";
 import { createOpenAI, openai } from "@ai-sdk/openai";
-import { generateText, NoObjectGeneratedError, Output, type LanguageModel } from "ai";
+import { generateText, jsonSchema, NoObjectGeneratedError, Output, zodSchema, type LanguageModel } from "ai";
 import { z } from "zod";
 import { DiskCache, cacheKey } from "./cache";
 import { readLlmEnv } from "./env";
@@ -70,7 +70,7 @@ export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, mo
       // an empty system block is rejected by some providers
       instructions: instructions || undefined,
       prompt,
-      output: Output.object({ schema }),
+      output: Output.object({ schema: providerSafeSchema(schema) }),
       // Groq: strict mode needs every field required (ours has optional ones; zod validates anyway),
       // and gpt-oss spends most of the output budget on reasoning unless told otherwise.
       ...(model.startsWith("groq:") && {
@@ -91,6 +91,37 @@ export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, mo
     return raw;
   }
 };
+
+/**
+ * The zod schema as JSON Schema, rewritten where providers reject valid JSON Schema. Tuples
+ * (`items: [...]`, e.g. CurveDef.clamp) are refused by Anthropic structured output ("Array types must
+ * be specified with a single object schema for 'items'"), so they become plain arrays with the shape
+ * in the description. Validation still runs the original zod schema, so the tuple is enforced.
+ */
+export function providerSafeSchema<T>(schema: z.ZodType<T>) {
+  const zs = zodSchema(schema);
+  return jsonSchema<T>(() => untuple(zs.jsonSchema) as typeof zs.jsonSchema, {
+    ...(zs.validate && { validate: zs.validate }),
+  });
+}
+
+function untuple(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(untuple);
+  if (typeof node !== "object" || node === null) return node;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(node)) out[k] = untuple(v);
+  const items = out.items;
+  if (Array.isArray(items)) {
+    const unique = [...new Map(items.map((i) => [JSON.stringify(i), i])).values()];
+    out.items = unique.length === 1 ? unique[0] : { anyOf: unique };
+    delete out.additionalItems;
+    delete out.minItems;
+    delete out.maxItems;
+    const shape = `exactly ${items.length} items`;
+    out.description = typeof out.description === "string" ? `${out.description} (${shape})` : shape;
+  }
+  return out;
+}
 
 function parseJson(text: string | undefined): unknown {
   if (text === undefined) return undefined;

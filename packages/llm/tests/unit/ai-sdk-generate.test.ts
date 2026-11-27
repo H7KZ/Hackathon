@@ -35,3 +35,17 @@ describe("aiSdkGenerate", () => {
     });
   });
 });
+
+describe("providerSafeSchema", () => {
+  it("turns tuples into single-schema arrays but still validates the tuple", async () => {
+    const { providerSafeSchema } = await import("../../src/client");
+    const s = providerSafeSchema(z.object({ clamp: z.tuple([z.number(), z.number()]).optional() }));
+    const js = JSON.stringify(s.jsonSchema);
+    expect(js).not.toContain('"items":[');
+    expect(js).not.toContain("additionalItems");
+    expect(js).toContain('"items":{"type":"number"}');
+    expect(js).toContain("exactly 2 items");
+    expect((await s.validate?.({ clamp: [0, 1] }))?.success).toBe(true);
+    expect((await s.validate?.({ clamp: [0, 1, 2] }))?.success).toBe(false);
+  });
+});
