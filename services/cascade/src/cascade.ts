@@ -12,7 +12,7 @@ import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
-import { checkEntityIds, checkExpectationTables, checkModelShape, checkStoryPlan } from "./checks";
+import { checkExpectationTables, checkModelShape, checkStoryPlan } from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
