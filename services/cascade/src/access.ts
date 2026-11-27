@@ -5,10 +5,8 @@
  */
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { z } from "zod";
 import type { CompileError } from "@s2d/schema/api";
-import { ArtifactName, CompanySpec, DataModel, Influences, StoryPlan } from "@s2d/schema/artifacts";
-import { Scenario } from "@s2d/schema/scenario";
+import { ArtifactName, ArtifactSchemas } from "@s2d/schema/artifacts";
 import { CascadeRunMismatch, CascadeStepError, runCascade, type CascadeOptions } from "./cascade";
 import type { CascadeInput } from "./steps";
 
@@ -23,13 +21,7 @@ export interface RunView {
 
 const RUN_ID = /^[A-Za-z0-9_-]+$/;
 const INPUT_FILE = "00_input.json";
-const SCHEMAS: Record<ArtifactName, z.ZodType> = {
-  "01_company": CompanySpec,
-  "02_model": DataModel,
-  "03_influences": Influences,
-  "04_story": StoryPlan,
-  "05_scenario": Scenario,
-};
+const SCHEMAS = ArtifactSchemas;
 
 const fail = (path: string, message: string) => ({ ok: false as const, errors: [{ path, message }] });
 

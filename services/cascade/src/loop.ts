@@ -30,6 +30,8 @@ export interface RepairLoopOptions<T> {
   check?: ((scenario: Scenario) => CompileError[]) | undefined;
   /** Slow checks on a scenario that compiled and passed `check` (e.g. the story gate, gate.ts). */
   verify?: ((scenario: Scenario) => Promise<CompileError[]>) | undefined;
+  /** Start as a repair: errors found later (e.g. the story gate on 05) and the output they refer to. */
+  initial?: { feedback: Feedback; previous: unknown } | undefined;
   /** A rejected attempt (raw agent output or assembled scenario), e.g. to keep it for debugging. */
   onRejected?: ((n: number, value: unknown) => void) | undefined;
 }
@@ -40,8 +42,8 @@ export type RepairResult<T> =
 
 export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairResult<T>> {
   const max = opts.maxIterations ?? MAX_ITERATIONS;
-  let feedback: Feedback = [];
-  let previous: unknown;
+  let feedback: Feedback = opts.initial?.feedback ?? [];
+  let previous: unknown = opts.initial?.previous;
   for (let n = 1; n <= max; n++) {
     opts.signal?.throwIfAborted();
     let output: T;

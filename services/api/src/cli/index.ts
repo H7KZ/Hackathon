@@ -36,10 +36,12 @@ async function main(): Promise<number> {
       const { positionals, values } = parseArgs({
         args: rest,
         allowPositionals: true,
-        options: { run: { type: "string" } },
+        options: { run: { type: "string" }, design: { type: "string" } },
       });
       const [story, company] = positionals;
-      if (!story || !company) return usage('cascade "<story>" "<company>" [--run <runId>]');
+      const design = values.design ?? process.env.CASCADE_DESIGN ?? "v1";
+      if (!story || !company || (design !== "v1" && design !== "causal"))
+        return usage('cascade "<story>" "<company>" [--run <runId>] [--design v1|causal]');
       // --run <id> resumes an existing run: hand-edited artifacts are kept, later steps recomputed
       const runId = values.run ?? `run-${new Date().toISOString().replace(/[:.]/g, "-")}`;
       const res = await runCascade(
@@ -49,6 +51,7 @@ async function main(): Promise<number> {
           runsDir: cfg.runsDir,
           runId,
           verify: storyGate,
+          design,
           onEvent: (e) => {
             if (e.type === "step.done") console.log(`${e.step}: ${e.cached ? "cached" : "done"}`);
             else if (e.type === "loop.iteration")

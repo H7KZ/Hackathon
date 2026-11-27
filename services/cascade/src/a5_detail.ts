@@ -8,7 +8,13 @@ import type { Llm } from "@s2d/llm";
 import type { DataModel, Influences, StoryPlan } from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import { A5_DETAIL, userPrompt } from "./prompts/index";
-import { checkCurveCoverage, checkEntityIds, checkExpectationTables, checkModelShape } from "./checks";
+import {
+  checkCurveCoverage,
+  checkCurvesOnRoots,
+  checkEntityIds,
+  checkExpectationTables,
+  checkModelShape,
+} from "./checks";
 import { formatFeedback, repairLoop, type RepairLoopOptions } from "./loop";
 import type { CascadeInput } from "./steps";
 
@@ -24,6 +30,12 @@ export const ScenarioDetail = z.object({
 export type ScenarioDetail = z.infer<typeof ScenarioDetail>;
 
 export const DEFAULT_SEED = 42;
+
+/**
+ * A5 gets more attempts than the other loops: with the story gate it converges slowly (live runs:
+ * revenue -6.6% -> -8.7% for a -10% target within 3 attempts, one attempt lost to a non-JSON answer).
+ */
+export const A5_MAX_ITERATIONS = 5;
 
 export interface A5Input {
   input: CascadeInput;
@@ -55,7 +67,7 @@ export function assembleScenario(a: A5Input, d: ScenarioDetail): Scenario {
 }
 
 /** meta.id must match ^[a-z0-9_-]+$; run ids may contain upper case or other characters. */
-function scenarioId(runId: string): string {
+export function scenarioId(runId: string): string {
   return runId.toLowerCase().replace(/[^a-z0-9_-]/g, "-") || "scenario";
 }
 
@@ -66,6 +78,7 @@ export function a5Detail(
 ) {
   return repairLoop<ScenarioDetail>({
     step: "05_scenario",
+    maxIterations: A5_MAX_ITERATIONS,
     ...opts,
     ask: (feedback, previous, n) =>
       llm.object({
@@ -87,6 +100,8 @@ export function a5Detail(
     check: (s) => [
       ...checkModelShape(s),
       ...checkCurveCoverage(s, a.story),
+      // AGENTS.md rule 3 in code: a curve may drive only a root of 03_influences
+      ...checkCurvesOnRoots(s, a.influences),
       // expectations come from 04_story; A5 must keep the table names and visibility they rely on
       ...checkExpectationTables(s.expectations, s),
       // curve scopes / story point entities from 04_story must still name existing rows

@@ -1,0 +1,95 @@
+{
+  "key": "c21cac99b9f1669857a253569bf2bffd",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04a_overlay",
+  "output": {
+    "name": "Výpadky zásob kvůli pozdním dodávkám",
+    "start": "2024-01-01",
+    "end": "2024-08-31",
+    "storyPoints": [
+      {
+        "id": "sp_late_start",
+        "phase": 1,
+        "title": "Dodavatel A začíná zpožďovat",
+        "description": "Od března začíná hlavní dodavatel A dodávat zboží pozdě. Pozdní dodávky jsou zatím občasné, ale první zásoby už se na prodejnách ztenčují.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "start": "2024-03-04",
+        "end": "2024-04-15"
+      },
+      {
+        "id": "sp_late_growth",
+        "phase": 2,
+        "title": "Zpoždění se prohlubují",
+        "description": "Více než polovina dodávek dodavatele A přichází s opožděním 5 až 14 dní. Zásoby produktů tohoto dodavatele vysychají, přibývá neuskutečněných nákupů a stížností.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "start": "2024-04-15",
+        "end": "2024-06-17"
+      },
+      {
+        "id": "sp_late_peak",
+        "phase": 3,
+        "title": "Trvalé výpadky a pokles tržeb",
+        "description": "Dodavatel A zůstává nespolehlivý, výpadky zásob jsou běžné. Tržby sítě klesají, zákazníci odcházejí ke konkurenci, přestože poptávka zůstala stejná.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "start": "2024-06-17"
+      }
+    ],
+    "levers": [
+      {
+        "lever": "supplier_a_late_prob",
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "values": [
+          {
+            "storyPointId": "sp_late_start",
+            "value": 0.25
+          },
+          {
+            "storyPointId": "sp_late_growth",
+            "value": 0.55
+          },
+          {
+            "storyPointId": "sp_late_peak",
+            "value": 0.6
+          }
+        ]
+      },
+      {
+        "lever": "demand",
+        "values": [
+          {
+            "storyPointId": "sp_late_start",
+            "value": 1
+          },
+          {
+            "storyPointId": "sp_late_growth",
+            "value": 1
+          },
+          {
+            "storyPointId": "sp_late_peak",
+            "value": 1
+          }
+        ]
+      }
+    ]
+  }
+}

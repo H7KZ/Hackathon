@@ -1,0 +1,116 @@
+{
+  "key": "cb2e042f31ac82dfb3003720ceb33a11",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_baseline",
+        "phase": 0,
+        "title": "Běžný provoz bez výpadků",
+        "description": "V lednu a únoru dodává hlavní dodavatel včas s běžnou 5% pravděpodobností zpoždění, zásoby jsou dostatečné a poptávka je stabilní.",
+        "start": "2025-01-01",
+        "end": "2025-02-28"
+      },
+      {
+        "id": "sp_late_delivery",
+        "phase": 1,
+        "title": "Hlavní dodavatel začíná dodávat pozdě",
+        "description": "Od března výrazně roste pravděpodobnost pozdní dodávky u hlavního dodavatele. Zpožděné dodávky mají 5 až 14 dní zpoždění.",
+        "start": "2025-03-01",
+        "end": "2025-05-31"
+      },
+      {
+        "id": "sp_stockouts",
+        "phase": 2,
+        "title": "Výpadky zásob a neuskutečněné nákupy",
+        "description": "Zpožděné dodávky oddalují doplnění zásob. Zboží hlavního dodavatele není skladem, přibývá neuskutečněných nákupů a klesají tržby, i když poptávka zůstává stejná.",
+        "start": "2025-03-01",
+        "end": "2025-05-31"
+      },
+      {
+        "id": "sp_complaints",
+        "phase": 3,
+        "title": "Více stížností zákazníků",
+        "description": "Při konstantní pravděpodobnosti stížnosti na neuskutečněný nákup přibývá stížností, protože více zákazníků narazí na prázdný sklad.",
+        "start": "2025-03-01",
+        "end": "2025-05-31"
+      }
+    ],
+    "curves": [
+      {
+        "id": "late_prob",
+        "baseline": 0.05,
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-01",
+            "to": 0.7,
+            "storyPointId": "sp_late_delivery"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_late_share_main_supplier",
+        "storyPointId": "sp_late_delivery",
+        "description": "Podíl pozdních dodávek hlavního dodavatele po březnu výrazně vzroste.",
+        "sql": "SELECT CASE WHEN CAST(d.order_date AS DATE) < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN d.is_late THEN 1.0 ELSE 0.0 END) AS value FROM main.supplier_delivery d JOIN main.supplier s ON s.id = d.supplier_id WHERE s.role = 'hlavní' GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_lost_sales_main_supplier",
+        "storyPointId": "sp_stockouts",
+        "description": "Počet neuskutečněných nákupů za den u produktů hlavního dodavatele vzroste.",
+        "sql": "SELECT CASE WHEN CAST(l.\"date\" AS DATE) < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / COUNT(DISTINCT CAST(l.\"date\" AS DATE)) AS value FROM main.lost_sale l JOIN main.product p ON p.id = l.product_id JOIN main.supplier s ON s.id = p.supplier_id WHERE s.role = 'hlavní' GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_sales_main_supplier",
+        "storyPointId": "sp_stockouts",
+        "description": "Počet prodejů za den u produktů hlavního dodavatele klesne kvůli výpadkům zásob.",
+        "sql": "SELECT CASE WHEN CAST(sa.\"date\" AS DATE) < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / COUNT(DISTINCT CAST(sa.\"date\" AS DATE)) AS value FROM main.sale sa JOIN main.product p ON p.id = sa.product_id JOIN main.supplier s ON s.id = p.supplier_id WHERE s.role = 'hlavní' GROUP BY 1",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.05
+        }
+      },
+      {
+        "id": "exp_complaints_main_supplier",
+        "storyPointId": "sp_complaints",
+        "description": "Počet stížností za den na zboží hlavního dodavatele vzroste.",
+        "sql": "SELECT CASE WHEN CAST(c.\"date\" AS DATE) < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / COUNT(DISTINCT CAST(c.\"date\" AS DATE)) AS value FROM main.complaint c JOIN main.product p ON p.id = c.product_id JOIN main.supplier s ON s.id = p.supplier_id WHERE s.role = 'hlavní' GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_control_sales_other_suppliers",
+        "storyPointId": "sp_baseline",
+        "description": "Kontrola: počet prodejů za den u produktů ostatních dodavatelů zůstává stabilní, poptávka neklesla.",
+        "sql": "SELECT CASE WHEN CAST(sa.\"date\" AS DATE) < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / COUNT(DISTINCT CAST(sa.\"date\" AS DATE)) AS value FROM main.sale sa JOIN main.product p ON p.id = sa.product_id JOIN main.supplier s ON s.id = p.supplier_id WHERE s.role <> 'hlavní' GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.25
+        }
+      }
+    ]
+  }
+}

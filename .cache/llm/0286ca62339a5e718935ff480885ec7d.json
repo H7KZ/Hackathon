@@ -1,0 +1,484 @@
+{
+  "key": "0286ca62339a5e718935ff480885ec7d",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03b_processes",
+  "output": {
+    "entities": [
+      {
+        "name": "supplier",
+        "count": 3,
+        "idPrefix": "SUP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          },
+          "role": {
+            "gen": "categorical",
+            "values": [
+              "hlavní",
+              "stabilní",
+              "doplňkový"
+            ],
+            "weights": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "name": "store",
+        "count": 5,
+        "idPrefix": "STO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "city": {
+            "gen": "fake",
+            "kind": "city"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          }
+        }
+      },
+      {
+        "name": "employee",
+        "count": 40,
+        "idPrefix": "EMP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "store_id": {
+            "gen": "pick",
+            "entity": "store"
+          },
+          "position": {
+            "gen": "categorical",
+            "values": [
+              "prodavač",
+              "vedoucí prodejny"
+            ],
+            "weights": [
+              0.85,
+              0.15
+            ]
+          }
+        }
+      },
+      {
+        "name": "product",
+        "count": 20,
+        "idPrefix": "PRO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "productName"
+          },
+          "category": {
+            "gen": "categorical",
+            "values": [
+              "kuchyňské potřeby",
+              "úklid",
+              "textil",
+              "nářadí",
+              "dekorace"
+            ]
+          },
+          "supplier_id": {
+            "gen": "pick",
+            "entity": "supplier"
+          },
+          "unit_price": {
+            "gen": "normal",
+            "mean": 250,
+            "sd": 120,
+            "min": 30,
+            "max": 1200,
+            "round": true
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 400,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "email": {
+            "gen": "fake",
+            "kind": "email"
+          },
+          "home_store_id": {
+            "gen": "pick",
+            "entity": "store"
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "stock",
+        "keys": [
+          "store",
+          "product"
+        ],
+        "initial": {
+          "gen": "normal",
+          "mean": 41,
+          "sd": 12,
+          "min": 15,
+          "round": true
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "stock_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "supplier_delivery",
+        "table": "supplier_delivery",
+        "per": [
+          "store",
+          "product"
+        ],
+        "schedule": {
+          "everyDays": 14,
+          "phase": "random"
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "key.store"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "key.product"
+          },
+          "supplier_id": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "key.product",
+            "field": "supplier_id"
+          },
+          "supplier_role": {
+            "gen": "lookup",
+            "entity": "supplier",
+            "key": "self.supplier_id",
+            "field": "role"
+          },
+          "quantity": {
+            "gen": "topUp",
+            "flow": "stock",
+            "keys": {
+              "store": "key.store",
+              "product": "key.product"
+            },
+            "target": 62
+          },
+          "order_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "is_late": {
+            "gen": "bernoulli",
+            "p": {
+              "curve": "supplier_a_late_prob"
+            }
+          },
+          "delay_days": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.is_late",
+              "value": true
+            },
+            "then": {
+              "gen": "uniformInt",
+              "min": 14,
+              "max": 28
+            },
+            "else": {
+              "gen": "uniformInt",
+              "min": 0,
+              "max": 2
+            }
+          },
+          "delivered_date": {
+            "gen": "dateOffset",
+            "base": "self.order_date",
+            "days": "self.delay_days"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "store": "key.store",
+              "product": "key.product"
+            },
+            "delta": "self.quantity",
+            "sign": 1,
+            "on": "self.delivered_date"
+          }
+        ]
+      },
+      {
+        "type": "arrival",
+        "id": "purchase_attempt",
+        "table": "purchase_attempt",
+        "per": [
+          "store",
+          "product"
+        ],
+        "rate": {
+          "curve": "demand",
+          "scale": 3
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "key.store"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "key.product"
+          },
+          "customer_id": {
+            "gen": "pick",
+            "entity": "customer"
+          },
+          "quantity": {
+            "gen": "uniformInt",
+            "min": 1,
+            "max": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "branch",
+        "id": "stock_check",
+        "source": "purchase_attempt",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "stock",
+          "keys": {
+            "store": "source.store_id",
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "attempt_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "unit_price": {
+              "gen": "lookup",
+              "entity": "product",
+              "key": "source.product_id",
+              "field": "unit_price"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "stock",
+              "keys": {
+                "store": "source.store_id",
+                "product": "source.product_id"
+              },
+              "delta": "self.quantity",
+              "sign": -1
+            }
+          ]
+        },
+        "else": {
+          "table": "lost_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "attempt_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "unit_price": {
+              "gen": "lookup",
+              "entity": "product",
+              "key": "source.product_id",
+              "field": "unit_price"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "complaint",
+        "table": "complaint",
+        "source": "stock_check:else",
+        "p": 0.25,
+        "lag": {
+          "min": 0,
+          "max": 3
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "lost_sale_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "reason": {
+            "gen": "const",
+            "value": "zboží nebylo skladem"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "competitor_switch",
+        "table": "competitor_switch",
+        "source": "stock_check:else",
+        "p": 0.1,
+        "lag": {
+          "min": 1,
+          "max": 7
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "lost_sale_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      }
+    ],
+    "trace": {
+      "e_lever_late": "/processes/0/fields/is_late",
+      "e_attr_delivery": "/processes/0/fields/supplier_id",
+      "e_delivery_late": "/processes/0/fields/is_late",
+      "e_delivery_stock": "/processes/0/effects/0",
+      "e_late_stock": "/processes/0/effects/0",
+      "e_demand_attempt": "/processes/1/rate",
+      "e_attempt_check": "/processes/2",
+      "e_stock_check": "/processes/2/cond",
+      "e_check_sale": "/processes/2/then",
+      "e_check_lost": "/processes/2",
+      "e_lost_complaint": "/processes/3/p",
+      "e_lost_switch": "/processes/4/p"
+    }
+  }
+}

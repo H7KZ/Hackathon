@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { Llm } from "@s2d/llm";
 import type { CompileError } from "@s2d/schema/api";
 import { CurveDef, Param, type Scenario } from "@s2d/schema/scenario";
+import { checkCurveCoverage } from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, repairLoop } from "./loop";
 import { userPrompt, WHAT_IF } from "./prompts/index";
@@ -128,6 +129,8 @@ export async function whatIf(
         }),
       }),
     assemble: (edit) => applyWhatIf(base, edit),
+    // a curve the edit no longer references would silently drop its story point
+    check: (s) => checkCurveCoverage(s, s),
   });
   if (!res.ok) throw new WhatIfFailed(res.feedback);
   opts.onEvent?.({

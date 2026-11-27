@@ -59,4 +59,16 @@ describe("syntax the story depends on", () => {
     expect(A5_DETAIL).not.toContain("[start, end)");
     expect(A5_DETAIL).toContain("both days included");
   });
+
+  it("v1 A5 and causal 4b share the calibration rules from the live runs", async () => {
+    const { CALIBRATION } = await import("../../src/prompts/index");
+    const { PROCESSES } = await import("../../src/prompts/causal");
+    for (const p of [A5_DETAIL, PROCESSES]) expect(p).toContain(CALIBRATION);
+    expect(CALIBRATION).toMatch(/topUp/);
+  });
+
+  it("A4 asks for volume controls, not stable controls on rare events (live run lost 2 A5 attempts)", () => {
+    expect(A4_STORY).toMatch(/Controls must be VOLUME metrics/);
+    expect(A4_STORY).toMatch(/Never a stable control on a rare event/);
+  });
 });

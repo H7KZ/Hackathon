@@ -11,7 +11,21 @@ export {
   checkStoryPlan,
   checkExpectationTables,
   checkModelShape,
+  checkCurvesOnRoots,
+  checkInfluenceRefs,
+  curveParamRefs,
+  influenceNames,
   observedTables,
   sqlTables,
 } from "./checks";
 export { storyGate, baselineDrift, formatExpectationFailure } from "./gate";
+export { DESIGN_STEPS, type CascadeDesign } from "./cascade";
+export { checkCausalMap, findCycle } from "./causal/map";
+export { checkTrace, realizationsAt, resolvePointer, REALIZES } from "./causal/trace";
+export { a4aCausalMap, a4bProcesses, a4Overlay, flatLeverCurves } from "./causal/steps";
+export { buildCurves, checkOverlay, leverPeriods } from "./causal/curves";
+export { checkOverlayScenario } from "./causal/overlay";
+export { assembleCausal } from "./causal/assemble";
+export { deriveHypotheses, netSign, pathsFrom } from "./causal/hypotheses";
+export { a4bExpectations, causalStory, checkQueries, observedColumns } from "./causal/sql";
+export { finishCausal } from "./causal/assemble";

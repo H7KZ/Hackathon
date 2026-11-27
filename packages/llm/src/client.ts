@@ -123,13 +123,27 @@ function untuple(node: unknown): unknown {
   return out;
 }
 
+/**
+ * The JSON in a model's text answer: the whole text, else a fenced ```json block, else the span from
+ * the first "{" to the last "}". Models without forced tool choice (Sonnet 5.5: toolChoice "required"
+ * falls back to "auto") sometimes explain their fix in prose and put the object in a code block; a
+ * live cascade run crashed on that instead of validating the object.
+ */
 function parseJson(text: string | undefined): unknown {
   if (text === undefined) return undefined;
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return undefined;
+  const fenced = /```(?:json)?\s*\n([\s\S]*?)\n?```/i.exec(text)?.[1];
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  const span = first >= 0 && last > first ? text.slice(first, last + 1) : undefined;
+  for (const candidate of [text, fenced, span]) {
+    if (candidate === undefined) continue;
+    try {
+      return JSON.parse(candidate) as unknown;
+    } catch {
+      // try the next candidate
+    }
   }
+  return undefined;
 }
 
 export interface LlmOptions {

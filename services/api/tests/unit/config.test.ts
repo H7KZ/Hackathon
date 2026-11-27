@@ -13,6 +13,9 @@ describe("loadConfig", () => {
     expect(loadConfig({ API_FAKE: "cascade, dataer" }, "/repo").fake).toEqual(["cascade", "dataer"]);
     expect(loadConfig({ API_FAKE: "all" }, "/repo").fake).toEqual(["cascade", "noiser", "dataer"]);
     expect(() => loadConfig({ API_FAKE: "llm" }, "/repo")).toThrow(/API_FAKE/);
+    expect(loadConfig({}, "/repo").cascadeDesign).toBe("v1");
+    expect(loadConfig({ CASCADE_DESIGN: "causal" }, "/repo").cascadeDesign).toBe("causal");
+    expect(() => loadConfig({ CASCADE_DESIGN: "v2" }, "/repo")).toThrow(/CASCADE_DESIGN/);
   });
 
   it("fails fast on an invalid port", () => {

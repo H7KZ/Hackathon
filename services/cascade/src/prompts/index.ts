@@ -28,6 +28,19 @@ export const MODEL_SYNTAX = `Model JSON syntax (follow exactly, the output is va
 Example (different domain, syntax only):
 ${JSON.stringify(MODEL_EXAMPLE)}`;
 
+/**
+ * How to size background numbers so the story shows in the data (story gate, gate.ts). Learned from
+ * live runs on 2026-11-27: a lever hidden behind an "if", fixed delivery quantities with large stock,
+ * too little cover (weekly waves of lost sales before the story), and a chain-wide revenue target that
+ * one of three suppliers cannot move by 10 %. Shared by v1 A5 and causal 4b.
+ */
+export const CALIBRATION = `- Make the effect visible (the story gate measures it on generated data):
+  - The lever must reach every record in its scope: use {"curve": "<id>"} directly, do not hide it behind another condition (e.g. an "if" on a role or category the scoped ids may not have). The curve's scope (e.g. self.supplier_id) filters the records.
+  - Replenish with topUp (order-up-to), not fixed quantities. Size it so the BASELINE is calm and the lever bites: the target covers about 2 weeks of demand (stock-outs on fewer than 2% of days before the story; ~1.5 weeks of cover gave weekly waves of lost sales that look like a fake event), and a disruption the lever causes (e.g. a late delivery) lasts clearly longer than that cover, so the shelf empties and purchases turn into lost sales.
+  - Start in steady state: initial flow levels about the level the chain settles at, inflow about equal to outflow, so nothing drifts before the story starts.
+  - A whole-company outcome moves only by the affected share: if one of three suppliers is late, chain revenue falls by at most about a third of that supplier's lost sales. Give the affected part enough weight (e.g. more of the products, or the best-selling ones, from that supplier) so whole-company expectations reach their threshold.
+  - Background rates high enough that the outcome tables have several rows per day.`;
+
 export const A1_COMPANY = `${SHARED_RULES}
 Task A1: describe the company and its environment: industry, size, actors around it (suppliers, customers, competitors, ...) and the key business processes relevant to the story.`;
 
@@ -36,7 +49,11 @@ Task A2: design the data model: entities (with field generators), stateful flows
 ${MODEL_SYNTAX}`;
 
 export const A3_INFLUENCES = `${SHARED_RULES}
-Task A3: build the causal influence graph between process parameters and outcomes: edges from -> to, direction, weight 0-1, delay in days, short rationale.`;
+Task A3: build the causal influence graph between process parameters and outcomes: edges from -> to, direction, weight 0-1, delay in days, short rationale.
+Edge endpoints (from, to) must name parts of 02_model exactly (checked by code):
+- "<process_id>" (a whole process), "<process_id>.<param>" (rate, p, cond, or a field of its records / branch outcomes, e.g. "delivery.is_late"),
+- "<table>" (a table the model writes, e.g. "lost_sale"), "<entity>.<field>" (e.g. "product.supplier_id"), "<flow_id>" (e.g. "stock").
+- The story's lever (the parameter a curve will move) must be a ROOT: it has outgoing edges and no incoming edge. Everything downstream has an incoming edge and is never driven by a curve.`;
 
 /** Rule 3 (AGENTS.md): a real A4 run ramped complaint_prob directly instead of letting it emerge. */
 export const LEVERS_ONLY = `Curves only on ROOT CAUSES (levers):
@@ -54,7 +71,9 @@ Expectations:
 - Each expectation SQL must return columns period ('before'|'after') and value DOUBLE, reading only schema main.
 - The SQL may read ONLY the listed observed tables. ground_truth tables (hidden causes, e.g. purchase attempts) are not in the evidence database; build day lists from observed tables (e.g. sales, deliveries).
 - Test consequences through the chain with COUNTS or LEVELS (e.g. complaints per week, lost sales per day, revenue per day), not a ratio whose probability is constant (complaints per lost sale stays flat by design).
-- Add at least one control that must stay stable (e.g. demand / visits).
+- Thresholds (minRelChange) a real effect can reach: direct consequences of the lever (late-delivery share, lost sales, complaints, stock-outs) 0.3 or more; volume and money totals (sales, revenue), which are diluted by the normal business, 0.05. A live run asked for -10 % revenue of the affected supplier and every model reached only -7..-9 %.
+- Add at least one control that must stay stable (e.g. demand / visits). Controls must be VOLUME metrics with many rows per day (demand, sales of unaffected products). Never a stable control on a rare event or a small share (late-delivery share of ~5 %, complaints): its noise alone exceeds the band, and no model change can fix it (a live run lost 2 of 3 A5 attempts on such a control).
+- Measure the effect where it happens: if a story point is about specific entities (e.g. supplier SUP-002), scope its curve to them and restrict the expectation SQL to the affected records (e.g. sales of products whose supplier is SUP-002, via product.supplier_id), with a stable control on the unaffected rest. A whole-company total moves only by the affected share (one of three suppliers moves chain revenue by a few percent); use one only with a threshold that share can reach.
 Curves: {id, baseline, segments: [{kind: step|ramp|spike|decay, start, end?, to, storyPointId}], scope?: {field: Path, ids: [...]}, clamp?: [min, max]}. scope limits the curve to records whose field has one of the ids (e.g. {"field": "self.supplier_id", "ids": ["SUP-002"]}); entity ids are <idPrefix>-001 .. <idPrefix>-<count> of 02_model.`;
 
 export const A5_DETAIL = `${SHARED_RULES}
@@ -65,8 +84,8 @@ Task A5: turn the model skeleton (02_model) into a complete, runnable model: fin
 - Realize each influence edge of 03_influences as a probability, rate or condition in some process.
 - Pick start/end (ISO dates, both days included) so that every story point and curve segment date lies within start..end.
 - Keep the count and idPrefix of entities named by 04_story (story point entities, curve scope ids like SUP-002), so those ids exist.
-- Make the expected effect visible: background rates high enough that the story points move the outcome tables.
-- If compiler errors are given, return the corrected full object; fix every listed path.
+${CALIBRATION}
+- If compiler or story gate errors are given, return the corrected full object; fix every listed path. Story gate errors (an expectation measured on generated data, baseline drift) are fixed by changing parameters (counts, rates, initial values, quantities, topUp targets, lags, product-supplier mix), never by renaming tables or columns: the expectations read them.
 ${MODEL_SYNTAX}`;
 
 export const WHAT_IF = `${SHARED_RULES}

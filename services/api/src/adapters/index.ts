@@ -9,8 +9,8 @@ import { dataerPort } from "./dataer";
 import { fakePorts } from "./fake";
 import { noiserPort } from "./noiser";
 
-export function realPorts(): Ports {
-  return { cascade: cascadePort(), noiser: noiserPort(), dataer: dataerPort() };
+export function realPorts(cfg?: Pick<ApiConfig, "cascadeDesign">): Ports {
+  return { cascade: cascadePort(cfg?.cascadeDesign), noiser: noiserPort(), dataer: dataerPort() };
 }
 
 /**
@@ -18,7 +18,7 @@ export function realPorts(): Ports {
  * scenarios/supplier_delay.json (400 ms per step so a UI can show progress).
  */
 export function portsFor(cfg: ApiConfig): Ports {
-  const real = realPorts();
+  const real = realPorts(cfg);
   if (!cfg.fake.length) return real;
   const raw: unknown = JSON.parse(readFileSync(join(cfg.scenariosDir, "supplier_delay.json"), "utf8"));
   const fake = fakePorts({ scenario: Scenario.parse(raw), delayMs: 400 }).ports;

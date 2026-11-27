@@ -8,11 +8,34 @@ import { join } from "node:path";
 import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
 import { checkStoryRefs } from "@s2d/noiser";
-import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from "@s2d/schema/artifacts";
+import {
+  CausalMap,
+  CompanySpec,
+  DataModel,
+  ExpectationQueries,
+  ExpectationsPlan,
+  Influences,
+  ProcessesPlan,
+  StoryOverlay,
+  StoryPlan,
+  type ArtifactName,
+} from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
-import { checkExpectationTables, checkModelShape, checkStoryPlan } from "./checks";
+import { checkCausalMap } from "./causal/map";
+import { finishCausal } from "./causal/assemble";
+import { deriveHypotheses } from "./causal/hypotheses";
+import { checkOverlayScenario } from "./causal/overlay";
+import { a4bExpectations, causalStory, checkQueries } from "./causal/sql";
+import { a4aCausalMap, a4bProcesses, a4Overlay } from "./causal/steps";
+import {
+  checkCurveScopes,
+  checkExpectationTables,
+  checkInfluenceRefs,
+  checkModelShape,
+  checkStoryPlan,
+} from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
@@ -28,9 +51,33 @@ export interface CascadeOptions {
   signal?: AbortSignal;
   /** Story gate for A5 (gate.ts `storyGate`): engine + expectations; failures go back to the agent. */
   verify?: (scenario: Scenario) => Promise<CompileError[]>;
+  /**
+   * "v1" (default): A1 company -> A2 model -> A3 influences -> A4 story -> A5 detail.
+   * "causal": docs/cascade-design.md D1–D4 (typed causal map, 4a/4b with trace, curves and
+   * expectations built by code). Both designs have a passing eval recording (docs/handoffs/cascade.md).
+   */
+  design?: CascadeDesign;
 }
 
-const ORDER = ["01_company", "02_model", "03_influences", "04_story", "05_scenario"] as const;
+export type CascadeDesign = "v1" | "causal";
+
+/** Causal design: how many times a failed story gate on 05 goes back to 4b. */
+export const GATE_REPAIRS = 2;
+
+/** Artifacts each design writes, in order. `until` must name one of them. */
+export const DESIGN_STEPS: Record<CascadeDesign, readonly ArtifactName[]> = {
+  v1: ["01_company", "02_model", "03_influences", "04_story", "05_scenario"],
+  causal: [
+    "01_company",
+    "02_model",
+    "03a_causal_map",
+    "03b_processes",
+    "04a_overlay",
+    "04b_expectations",
+    "04_story",
+    "05_scenario",
+  ],
+};
 
 /** An agent step could not produce its artifact (invalid LLM output, or no cache entry offline). */
 export class CascadeStepError extends Error {
@@ -54,8 +101,14 @@ export class CascadeRunMismatch extends Error {
 export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   const dir = join(opts.runsDir, opts.runId);
   mkdirSync(dir, { recursive: true });
-  const until = opts.until ?? "05_scenario";
-  const shouldRun = (name: ArtifactName) => ORDER.indexOf(name) <= ORDER.indexOf(until);
+  const order = DESIGN_STEPS[opts.design ?? "v1"];
+  const until = opts.until ?? order[order.length - 1] ?? "05_scenario";
+  if (!order.includes(until))
+    throw new CascadeStepError(
+      until,
+      new Error(`Design "${opts.design ?? "v1"}" has no step ${until}. Steps: ${order.join(", ")}.`),
+    );
+  const shouldRun = (name: ArtifactName) => order.indexOf(name) <= order.indexOf(until);
 
   async function step<T>(name: ArtifactName, schema: z.ZodType<T>, produce: () => Promise<T>): Promise<T> {
     opts.signal?.throwIfAborted();
@@ -85,6 +138,9 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
+  const rejected = (name: ArtifactName) => (n: number, value: unknown) => {
+    writeFileSync(join(dir, `${name}.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
+  };
   const llm = (name: ArtifactName, check?: (value: unknown) => CompileError[]) =>
     withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal, check });
   const company = await step("01_company", CompanySpec, () => a1Company(llm("01_company"), input));
@@ -96,9 +152,127 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       company,
     ),
   );
+  if (opts.design === "causal") {
+    if (!shouldRun("03a_causal_map")) return { dir, company, model };
+    const causalMap = await step("03a_causal_map", CausalMap, () =>
+      a4aCausalMap(
+        llm("03a_causal_map", (v) => checkCausalMap(CausalMap.parse(v))),
+        input,
+        company,
+        model,
+      ),
+    );
+    if (!shouldRun("03b_processes")) return { dir, company, model, causalMap };
+    const processes = await step("03b_processes", ProcessesPlan, async () => {
+      const res = await a4bProcesses(
+        opts.llm,
+        { input, model, map: causalMap },
+        { onEvent: opts.onEvent, signal: opts.signal, onRejected: rejected("03b_processes") },
+      );
+      if (res.ok) return res.output;
+      throw new CascadeStepError(
+        "03b_processes",
+        new Error(`Processes do not realize the map:\n${formatFeedback(res.feedback)}`),
+      );
+    });
+    if (!shouldRun("04a_overlay")) return { dir, company, model, causalMap, processes };
+    const overlay = await step("04a_overlay", StoryOverlay, () =>
+      a4Overlay(
+        llm("04a_overlay", (v) =>
+          checkOverlayScenario(input, opts.runId, causalMap, processes, StoryOverlay.parse(v)),
+        ),
+        { input, map: causalMap, plan: processes },
+      ),
+    );
+    if (!shouldRun("04b_expectations")) return { dir, company, model, causalMap, processes, overlay };
+    const expectations = await step("04b_expectations", ExpectationsPlan, async () => {
+      const hypotheses = deriveHypotheses(causalMap, overlay, processes);
+      if (hypotheses.length === 0)
+        throw new CascadeStepError(
+          "04b_expectations",
+          new Error(
+            "No hypothesis follows from 04a_overlay: no lever moves, or no observed event/state table lies on a path. Edit 03a_causal_map or 04a_overlay.",
+          ),
+        );
+      const sql = await a4bExpectations(
+        llm("04b_expectations", (v) =>
+          checkQueries(hypotheses, ExpectationQueries.parse(v).queries, processes),
+        ),
+        { hypotheses, plan: processes, overlay },
+      );
+      return { hypotheses, queries: sql.queries };
+    });
+    if (!shouldRun("04_story")) return { dir, company, model, causalMap, processes, overlay, expectations };
+    // code only: the UI timeline edits 04_story, and 05 is rebuilt from it
+    const story = await step("04_story", StoryPlan, () =>
+      Promise.resolve(causalStory(causalMap, overlay, expectations)),
+    );
+    if (!shouldRun("05_scenario"))
+      return { dir, company, model, causalMap, processes, overlay, expectations, story };
+    let plan = processes;
+    const scenario = await step("05_scenario", Scenario, async () => {
+      // Story gate failures (weak effect, drift) go back to 4b, which owns rates, counts and initial
+      // values; map, overlay, curves and SQL stay fixed. Same idea as v1, where A5 gets them.
+      for (let round = 0; ; round++) {
+        const res = finishCausal({ input, runId: opts.runId, plan, overlay, story });
+        const errors = res.ok ? ((await opts.verify?.(res.scenario)) ?? []) : res.errors;
+        if (res.ok && errors.length === 0) return res.scenario;
+        const repairable = res.ok && round < GATE_REPAIRS;
+        if (repairable) {
+          opts.onEvent?.({
+            type: "log",
+            message: `Story gate neprošel, krok 4b opravuje parametry (${round + 1}/${GATE_REPAIRS}).`,
+          });
+          const fixed = await a4bProcesses(
+            opts.llm,
+            { input, model, map: causalMap },
+            {
+              onEvent: opts.onEvent,
+              signal: opts.signal,
+              onRejected: rejected("03b_processes"),
+              initial: {
+                // the round keeps each repair prompt distinct (an identical prompt replays the cache)
+                feedback: [
+                  {
+                    path: "story_gate",
+                    message: `Story gate round ${round + 1}/${GATE_REPAIRS}: the generated data does not show the story. Fix the parameters below.`,
+                  },
+                  ...errors,
+                ],
+                previous: plan,
+              },
+            },
+          );
+          // the SQL reads the tables and columns of the old plan; a fix must keep them
+          const sqlErrors = fixed.ok
+            ? checkQueries(expectations.hypotheses, expectations.queries, fixed.output)
+            : [];
+          if (fixed.ok && sqlErrors.length === 0) {
+            plan = fixed.output;
+            writeFileSync(join(dir, "03b_processes.json"), `${JSON.stringify(plan, null, 2)}\n`);
+            continue;
+          }
+        }
+        opts.onEvent?.({
+          type: "log",
+          message: "Složený scénář neprošel kontrolami. Uprav 04_story (nebo 03b_processes) a spusť znovu.",
+        });
+        throw new CascadeStepError(
+          "05_scenario",
+          new Error(`Causal scenario fails the checks:\n${formatFeedback(errors)}`),
+        );
+      }
+    });
+    return { dir, company, model, causalMap, processes: plan, overlay, expectations, story, scenario };
+  }
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>
-    a3Influences(llm("03_influences"), input, company, model),
+    a3Influences(
+      llm("03_influences", (v) => checkInfluenceRefs(Influences.parse(v), model)),
+      input,
+      company,
+      model,
+    ),
   );
   if (!shouldRun("04_story")) return { dir, company, model, influences };
   const story = await step("04_story", StoryPlan, () =>
@@ -108,6 +282,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         // curves and story points go into 05 verbatim, so A5 cannot repair them: check them here
         return [
           ...checkStoryPlan(plan),
+          ...checkCurveScopes(plan, model.entities),
           ...checkExpectationTables(plan.expectations, model),
           ...checkStoryRefs({ entities: model.entities, curves: plan.curves, storyPoints: plan.storyPoints }),
         ];
@@ -127,9 +302,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         signal: opts.signal,
         verify: opts.verify,
         // kept next to the artifacts so a failed A5 can be inspected or fixed by hand
-        onRejected: (n, value) => {
-          writeFileSync(join(dir, `05_scenario.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
-        },
+        onRejected: rejected("05_scenario"),
       },
     );
     if (res.ok) return res.scenario;

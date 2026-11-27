@@ -8,7 +8,8 @@ import type { ArtifactName } from "@s2d/schema/artifacts";
 import type { Scenario } from "@s2d/schema/scenario";
 import type { Ports } from "../ports";
 
-const ORDER = ["01_company", "02_model", "03_influences", "04_story", "05_scenario"] as const;
+/** The v1 cascade (CascadeOptions.design "v1"); the fake does not model the causal path. */
+const ORDER: readonly ArtifactName[] = ["01_company", "02_model", "03_influences", "04_story", "05_scenario"];
 const DAY_MS = 86_400_000;
 
 export interface FakeCalls {
@@ -53,7 +54,7 @@ function fakeSeries(storyPoints: Scenario["storyPoints"], seed: number) {
 export function fakePorts(opts: FakeOptions) {
   const { scenario } = opts;
   const calls: FakeCalls = { produced: [], whatIf: [], noiserSeeds: [], detective: 0 };
-  const artifacts: Record<ArtifactName, unknown> = {
+  const artifacts: Partial<Record<ArtifactName, unknown>> = {
     "01_company": {
       industry: "maloobchod",
       size: "5 prodejen",

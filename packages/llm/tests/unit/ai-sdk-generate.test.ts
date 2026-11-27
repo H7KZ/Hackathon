@@ -22,6 +22,22 @@ describe("aiSdkGenerate", () => {
     await expect(aiSdkGenerate({ ...req, model: "groq:m" })).resolves.toEqual({ b: 1 });
   });
 
+  it("takes the JSON out of prose + a fenced block (Sonnet 5.5 with toolChoice auto, live run)", async () => {
+    const text = 'I changed only the delay.\n\n- **Cause:** {not json}\n\n```json\n{"a":1}\n```';
+    generateText.mockRejectedValueOnce(noObject(text, "stop"));
+    await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).resolves.toEqual({ a: 1 });
+  });
+
+  it("takes a bare object out of surrounding prose", async () => {
+    generateText.mockRejectedValueOnce(noObject('Here it is: {"a":2} (done)', "stop"));
+    await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).resolves.toEqual({ a: 2 });
+  });
+
+  it("still throws when there is no JSON at all", async () => {
+    generateText.mockRejectedValueOnce(noObject("Sorry, I cannot.", "stop"));
+    await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).rejects.toThrow();
+  });
+
   it("reports truncated output as a token-limit error", async () => {
     generateText.mockRejectedValueOnce(noObject('{"a":', "length"));
     await expect(aiSdkGenerate({ ...req, model: "groq:m" })).rejects.toThrow(/cut off/);

@@ -94,6 +94,19 @@ describe("whatIf", () => {
     expect(t.fake.calls[1]?.prompt).toContain("/meta/seed");
   });
 
+  it("sends back an edit that leaves a curve unused (story check), then accepts the fix", async () => {
+    const latePtr = [...paramPointers(base)].find((p) => p.endsWith("/is_late/p"));
+    expect(latePtr).toBeDefined();
+    const t = setup([
+      { curves: base.curves, params: [{ pointer: latePtr!, value: 0.05 }], rationale: "bez křivky" },
+      { curves: lateFromMay, params: [], rationale: "zpoždění od května" },
+    ]);
+    cleanup = t.cleanup;
+    const s = await whatIf(t.llm, "Co kdyby od května?", base);
+    expect(s.curves).toEqual(lateFromMay);
+    expect(t.fake.calls[1]?.prompt).toContain('Curve "late_prob"');
+  });
+
   it("gives up after 3 iterations with WhatIfFailed", async () => {
     const bad = { curves: base.curves, params: [{ pointer: "/meta/seed", value: 7 }], rationale: "x" };
     const t = setup([bad, bad, bad]);
