@@ -1,0 +1,181 @@
+{
+  "key": "768fa7b189f37bfb86d7f1cd506f1d17",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03a_causal_map",
+  "output": {
+    "nodes": [
+      {
+        "id": "supplier_a_late_prob",
+        "kind": "lever",
+        "description": "Pravděpodobnost pozdní dodávky hlavního dodavatele A (křivka late_prob); od března výrazně roste.",
+        "baseline": 0.05
+      },
+      {
+        "id": "demand",
+        "kind": "lever",
+        "description": "Poptávka zákazníků po zboží (křivka demand); zůstává stabilní jako kontrola, že pokles tržeb nezpůsobila poptávka.",
+        "baseline": 1
+      },
+      {
+        "id": "product_supplier",
+        "kind": "attribute",
+        "description": "Vazba produktu na dodavatele (product.supplier_id); určuje, kterých dodávek se pozdní chod dodavatele A týká."
+      },
+      {
+        "id": "supplier_delivery",
+        "kind": "event",
+        "description": "Týdenní dodávka zboží od dodavatele na prodejnu.",
+        "table": "supplier_delivery"
+      },
+      {
+        "id": "late_delivery",
+        "kind": "event",
+        "description": "Pozdní dodávka (is_late) s opožděním 5 až 14 dní, zejména u dodavatele A.",
+        "table": "supplier_delivery"
+      },
+      {
+        "id": "stock",
+        "kind": "state",
+        "description": "Zásoby produktu na prodejně; rostou dodávkami a klesají prodeji, pozdní dodávky je nechají vyschnout.",
+        "table": "stock_snapshot"
+      },
+      {
+        "id": "purchase_attempt",
+        "kind": "event",
+        "description": "Pokus zákazníka o nákup produktu na prodejně.",
+        "table": "purchase_attempt"
+      },
+      {
+        "id": "stock_check",
+        "kind": "branch",
+        "description": "Rozhodnutí, zda je na skladě dost kusů pro pokus o nákup: ano vede k prodeji, ne k neuskutečněnému nákupu."
+      },
+      {
+        "id": "sale",
+        "kind": "event",
+        "description": "Uskutečněný prodej, ze kterého se skládají tržby.",
+        "table": "sale"
+      },
+      {
+        "id": "lost_sale",
+        "kind": "event",
+        "description": "Neuskutečněný nákup kvůli chybějícímu zboží.",
+        "table": "lost_sale"
+      },
+      {
+        "id": "complaint",
+        "kind": "event",
+        "description": "Stížnost zákazníka, že zboží nebylo skladem.",
+        "table": "complaint"
+      },
+      {
+        "id": "competitor_switch",
+        "kind": "event",
+        "description": "Odchod zákazníka ke konkurenci po neuskutečněném nákupu.",
+        "table": "competitor_switch"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e_lever_late",
+        "from": "supplier_a_late_prob",
+        "to": "late_delivery",
+        "type": "probabilistic",
+        "sign": "positive",
+        "p": 0.05,
+        "rationale": "Vyšší pravděpodobnost zpoždění dodavatele A znamená více pozdních dodávek; základní hodnota je 5 % jako u ostatních dodavatelů."
+      },
+      {
+        "id": "e_attr_delivery",
+        "from": "product_supplier",
+        "to": "supplier_delivery",
+        "type": "attribute",
+        "sign": "positive",
+        "rationale": "Dodavatel produktu určuje, kdo dodávku vykoná a zda se na ni vztahuje zpoždění dodavatele A."
+      },
+      {
+        "id": "e_delivery_late",
+        "from": "supplier_delivery",
+        "to": "late_delivery",
+        "type": "probabilistic",
+        "sign": "positive",
+        "p": 0.05,
+        "rationale": "Každá dodávka může být pozdní; u dodavatelů B a C je základní pravděpodobnost 5 %."
+      },
+      {
+        "id": "e_delivery_stock",
+        "from": "supplier_delivery",
+        "to": "stock",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Doručené zboží zvyšuje zásoby v den doručení."
+      },
+      {
+        "id": "e_late_stock",
+        "from": "late_delivery",
+        "to": "stock",
+        "type": "mechanical",
+        "sign": "negative",
+        "rationale": "Pozdní dodávky posouvají přírůstek zásob o 5 až 14 dní, takže zásoby jsou nižší."
+      },
+      {
+        "id": "e_demand_attempt",
+        "from": "demand",
+        "to": "purchase_attempt",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Vyšší poptávka vytváří více pokusů o nákup; zůstává konstantní."
+      },
+      {
+        "id": "e_attempt_check",
+        "from": "purchase_attempt",
+        "to": "stock_check",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Každý pokus o nákup se vyhodnocuje podle stavu zásob."
+      },
+      {
+        "id": "e_stock_check",
+        "from": "stock",
+        "to": "stock_check",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Dostatečné zásoby rozhodují, zda se nákup uskuteční."
+      },
+      {
+        "id": "e_check_sale",
+        "from": "stock_check",
+        "to": "sale",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Při dostatku zásob vznikne prodej a tržba."
+      },
+      {
+        "id": "e_check_lost",
+        "from": "stock_check",
+        "to": "lost_sale",
+        "type": "mechanical",
+        "sign": "negative",
+        "rationale": "Čím více pokusů projde kontrolou zásob, tím méně neuskutečněných nákupů; při nedostatku zásob vzniká lost_sale."
+      },
+      {
+        "id": "e_lost_complaint",
+        "from": "lost_sale",
+        "to": "complaint",
+        "type": "probabilistic",
+        "sign": "positive",
+        "p": 0.25,
+        "rationale": "Čtvrtina neuskutečněných nákupů skončí stížností zákazníka."
+      },
+      {
+        "id": "e_lost_switch",
+        "from": "lost_sale",
+        "to": "competitor_switch",
+        "type": "probabilistic",
+        "sign": "positive",
+        "p": 0.1,
+        "rationale": "Desetina neuskutečněných nákupů vede k odchodu zákazníka ke konkurenci."
+      }
+    ]
+  }
+}

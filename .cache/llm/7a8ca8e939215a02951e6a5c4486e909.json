@@ -1,0 +1,54 @@
+{
+  "key": "7a8ca8e939215a02951e6a5c4486e909",
+  "model": "anthropic:claude-haiku-5-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Maloobchod s domácími potřebami",
+    "size": "5 prodejen, 40 zaměstnanců",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "Dodavatel A – včasný dodavatel",
+        "description": "Hlavní dodavatel zboží, který dodává týdně a v běžném režimu dodržuje termíny; od března začne dodávat pozdě."
+      },
+      {
+        "kind": "supplier",
+        "name": "Dodavatel B – stabilní dodavatel",
+        "description": "Druhý dodavatel s pravidelnými dodávkami a spolehlivými termíny, slouží jako kontrolní srovnání."
+      },
+      {
+        "kind": "supplier",
+        "name": "Dodavatel C – doplňkový dodavatel",
+        "description": "Třetí dodavatel pokrývající menší sortiment a výpomoc při výpadcích."
+      },
+      {
+        "kind": "customer",
+        "name": "Koncoví zákazníci",
+        "description": "Domácnosti v okolí pěti prodejen, jejichž poptávka zůstává stabilní, ale kteří reagují na výpadky dostupnosti odchodem ke konkurenci a stížnostmi."
+      },
+      {
+        "kind": "competitor",
+        "name": "Konkurenční prodejny a e-shopy",
+        "description": "Konkurenti v regionu s podobným sortimentem, ke kterým zákazníci přecházejí při chybějícím zboží."
+      },
+      {
+        "kind": "employee",
+        "name": "Prodavači a vedoucí prodejen",
+        "description": "Zaměstnanci, kteří řeší zákaznické stížnosti, hlásí výpadky zásob a objednávají doplnění zboží."
+      },
+      {
+        "kind": "partner",
+        "name": "Logistická přeprava",
+        "description": "Externí dopravce zajišťující týdenní rozvoz od dodavatelů do centrálního skladu a na jednotlivé prodejny."
+      }
+    ],
+    "keyProcesses": [
+      "Týdenní objednávání zboží u dodavatelů",
+      "Příjem zboží a kontrola dodacích termínů",
+      "Doplňování zásob na prodejnách",
+      "Evidence výpadků zásob a neuskutečněných nákupů",
+      "Řízení zákaznických stížností",
+      "Prodej na pokladně a sledování tržeb po prodejnách"
+    ]
+  }
+}
