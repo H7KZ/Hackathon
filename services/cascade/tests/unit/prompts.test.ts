@@ -66,4 +66,9 @@ describe("syntax the story depends on", () => {
     for (const p of [A5_DETAIL, PROCESSES]) expect(p).toContain(CALIBRATION);
     expect(CALIBRATION).toMatch(/topUp/);
   });
+
+  it("A4 asks for volume controls, not stable controls on rare events (live run lost 2 A5 attempts)", () => {
+    expect(A4_STORY).toMatch(/Controls must be VOLUME metrics/);
+    expect(A4_STORY).toMatch(/Never a stable control on a rare event/);
+  });
 });
