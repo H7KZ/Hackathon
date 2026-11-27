@@ -4,7 +4,7 @@
  */
 import { anthropic } from "@ai-sdk/anthropic";
 import { createOpenAI, openai } from "@ai-sdk/openai";
-import { generateText, Output, type LanguageModel } from "ai";
+import { generateText, NoObjectGeneratedError, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 import { DiskCache, cacheKey } from "./cache";
 import { readLlmEnv } from "./env";
@@ -62,17 +62,42 @@ export function resolveModel(id: string): LanguageModel {
 }
 
 export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, model }) => {
-  const result = await generateText({
-    model: resolveModel(model),
-    // an empty system block is rejected by some providers
-    instructions: instructions || undefined,
-    prompt,
-    output: Output.object({ schema }),
-    // Groq strict mode needs every field required; our schemas have optional fields, zod validates anyway
-    ...(model.startsWith("groq:") && { providerOptions: { openai: { strictJsonSchema: false } } }),
-  });
-  return result.output;
+  try {
+    const result = await generateText({
+      model: resolveModel(model),
+      // an empty system block is rejected by some providers
+      instructions: instructions || undefined,
+      prompt,
+      output: Output.object({ schema }),
+      // Groq: strict mode needs every field required (ours has optional ones; zod validates anyway),
+      // and gpt-oss spends most of the output budget on reasoning unless told otherwise.
+      ...(model.startsWith("groq:") && {
+        providerOptions: { openai: { strictJsonSchema: false, reasoningEffort: "low" } },
+      }),
+    });
+    return result.output;
+  } catch (err) {
+    if (!NoObjectGeneratedError.isInstance(err)) throw err;
+    if (err.finishReason === "length")
+      throw new Error(`LLM output was cut off (token limit) for ${model}; the JSON is incomplete.`, {
+        cause: err,
+      });
+    // Complete JSON that misses the schema: hand it back so the caller's zod parse reports
+    // LlmOutputInvalid, which the cascade repair loops turn into feedback for the agent.
+    const raw = parseJson(err.text);
+    if (raw === undefined) throw err;
+    return raw;
+  }
 };
+
+function parseJson(text: string | undefined): unknown {
+  if (text === undefined) return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface LlmOptions {
   generate?: Generate;
