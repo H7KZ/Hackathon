@@ -1,0 +1,100 @@
+/**
+ * Static checks that the story can actually reach the data and be scored (live run 2026-11-27: a curve
+ * scoped by `day` silently stayed at its baseline, and story points without an entity scored recall 0).
+ * Needs only entities, curves and story points, so cascade A4 runs it before A5 exists.
+ */
+import type { CompileError } from "@s2d/schema/api";
+import type { Scenario } from "@s2d/schema/scenario";
+
+type StoryRefs = Pick<Scenario, "entities" | "curves" | "storyPoints">;
+
+const ENTITY_ID = /^([A-Z][A-Z0-9]*)-(\d+)$/;
+
+/** Same format as the engine (`engine/entities.ts`): `<idPrefix>-001`. */
+export const entityId = (prefix: string, n: number) => `${prefix}-${String(n).padStart(3, "0")}`;
+
+function idRange(e: StoryRefs["entities"][number]): string {
+  return e.count === 1
+    ? `"${entityId(e.idPrefix, 1)}"`
+    : `"${entityId(e.idPrefix, 1)}".."${entityId(e.idPrefix, e.count)}"`;
+}
+
+/** `null` = valid entity id or not entity-shaped (e.g. a category value); otherwise what is wrong. */
+function badEntityId(entities: StoryRefs["entities"], id: string): string | null {
+  const m = ENTITY_ID.exec(id);
+  if (!m) return null;
+  const e = entities.find((x) => x.idPrefix === m[1]);
+  const prefixes = entities.map((x) => `${x.idPrefix} (${x.name}: ${idRange(x)})`).join(", ");
+  if (!e)
+    return `"${id}" looks like an entity id, but no entity has prefix "${m[1]}". Entities: ${prefixes}.`;
+  const n = Number(m[2]);
+  if (n < 1 || n > e.count || id !== entityId(e.idPrefix, n)) {
+    return `"${id}" is not an id of entity "${e.name}". Valid ids: ${idRange(e)}.`;
+  }
+  return null;
+}
+
+export function checkStoryRefs(s: StoryRefs): CompileError[] {
+  const errors: CompileError[] = [];
+  const err = (path: string, message: string) => errors.push({ path, message });
+
+  s.curves.forEach((c, i) => {
+    if (!c.scope) return;
+    if (c.scope.field === "day") {
+      err(
+        `curves[${i}].scope.field`,
+        `Curve "${c.id}" is scoped by "day", which never equals an id, so the curve would stay at its baseline. scope.field must be the record field holding the ids it targets: "self.<field>" (e.g. "self.supplier_id"), "source.<field>" or "key.<entity>".`,
+      );
+    }
+    c.scope.ids.forEach((id, j) => {
+      const bad = badEntityId(s.entities, id);
+      if (bad) err(`curves[${i}].scope.ids[${j}]`, `Curve "${c.id}": ${bad}`);
+    });
+  });
+
+  // a story point that drives a curve segment is a cause the detective must name: it needs an entity
+  const scopeOf = new Map<string, string[]>();
+  for (const c of s.curves)
+    for (const seg of c.segments) if (c.scope) scopeOf.set(seg.storyPointId, c.scope.ids);
+  const drivers = new Set(s.curves.flatMap((c) => c.segments.map((seg) => seg.storyPointId)));
+  const names = s.entities.map((e) => `"${e.name}"`).join(", ");
+
+  s.storyPoints.forEach((sp, i) => {
+    const at = `storyPoints[${i}].entity`;
+    if (!sp.entity) {
+      if (!drivers.has(sp.id)) return;
+      const ids = scopeOf.get(sp.id);
+      const owner = ids?.map((id) => ENTITY_ID.exec(id)?.[1]).find(Boolean);
+      const entity = s.entities.find((e) => e.idPrefix === owner);
+      const hint =
+        entity && ids
+          ? `e.g. {"name": "${entity.name}", "ids": ${JSON.stringify(ids)}} (the ids its curve is scoped to)`
+          : `{"name": <one of ${names}>, "ids": [the affected ids]}`;
+      err(
+        at,
+        `Story point "${sp.id}" drives a curve but names no entity, so a detective finding can never match it. Add "entity": ${hint}.`,
+      );
+      return;
+    }
+    const entity = s.entities.find((e) => e.name === sp.entity?.name);
+    if (!entity) {
+      err(`${at}.name`, `Unknown entity "${sp.entity.name}". Use one of ${names}.`);
+      return;
+    }
+    if (sp.entity.ids.length === 0) {
+      err(
+        `${at}.ids`,
+        `Story point "${sp.id}" needs at least one id of "${entity.name}" (${idRange(entity)}).`,
+      );
+    }
+    sp.entity.ids.forEach((id, j) => {
+      const bad =
+        badEntityId([entity], id) ??
+        (ENTITY_ID.test(id)
+          ? null
+          : `"${id}" is not an id of "${entity.name}". Valid ids: ${idRange(entity)}.`);
+      if (bad) err(`${at}.ids[${j}]`, bad);
+    });
+  });
+  return errors;
+}

@@ -3,7 +3,7 @@
  * Change freely; keep `Ports["cascade"]` in ../ports.ts and tests/support/fakePorts.ts in sync.
  */
 import { basename, dirname } from "node:path";
-import { runCascade, whatIf } from "@s2d/cascade";
+import { runCascade, storyGate, whatIf } from "@s2d/cascade";
 import { createLlm, type Llm } from "@s2d/llm";
 import type { Ports } from "../ports";
 
@@ -21,6 +21,8 @@ export function cascadePort(): Ports["cascade"] {
         until,
         onEvent,
         signal,
+        // A5 is accepted only when the story shows in the data (engine + expectations + flat baseline)
+        verify: storyGate,
       });
     },
     whatIf: (question, base, { onEvent, signal }) => whatIf(getLlm(), question, base, { onEvent, signal }),
