@@ -18,11 +18,14 @@ Format: **symptom** → **rule** (guard, if any).
 - **Changing one process changes unrelated tables.** A shared RNG instance instead of per-process streams. → Derive streams from `hash(seed, processId)`; the stream-isolation test catches it.
 - **Global faker output differs between runs.** → Use `new Faker({ locale })` seeded from the process RNG (lint enforced).
 - **Off-by-one in curves.** `end` is exclusive, `start` inclusive. → Check `engine/days.ts` before writing a segment.
+- **Curve silently stays at its baseline.** Records outside `curve.scope` get the baseline, so a scope that never matches (e.g. `field: "day"`) hides the whole story. → The compiler rejects it now; scope by the field holding the ids (`self.supplier_id`).
+- **Fake event before the story.** Initial stock too low or supply below demand drains flows during the baseline. → The A5 story gate (`services/cascade/src/gate.ts`) flags it; start flows near steady state.
 
 ## LLM and cache
 
 - **Demo fails without internet.** Cache entry missing for the current prompt, model or schema. → Run `pnpm evals` with `LLM_OFFLINE=1`; re-record with `EVAL_LIVE=1` only by the agreed person.
 - **Cache merge conflicts.** Two people recorded the cache on different branches. → Regenerate, do not hand-merge (AGENTS.md, Team section).
+- **A5 accepts a scenario that carries no story.** Compiling is not enough. → A5 runs `storyGate` (engine + expectations) via `verify`; keep it on in every real caller (API adapter, CLI).
 - **Compiler errors unusable for the agent.** Messages say what is wrong but not what is valid. → Compiler errors must say both; they are fed back to agent A5.
 
 ## Tooling
