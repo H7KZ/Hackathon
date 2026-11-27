@@ -13,9 +13,37 @@ body {
   overflow-x: clip;
 }
 
-/* Palette of fis.vse.cz. */
+/* Palette of fis.vse.cz + JOJO tokens. Canonical: docs/design/brand.md quotes these. */
 @theme {
   --color-fis-dark: #00201b;
+  --color-green: #00957d;
+  --color-green-dark: #006252;
+  --color-green-light: #33b39e;
+  --color-mint: #00d2b0;
+  --color-blue: #009ee0;
+  --color-amber: #c77700;
+  --color-violet: #7a5cc7;
+  --color-error: #b42800;
+  --color-muted: #5b6563;
+  --color-line: #e3eae8;
+  --color-wash: #f1f9f7;
+  --radius-shell: 28px;
+  --radius-card: 18px;
+  --radius-field: 16px;
+  --shadow-shell: 0 18px 45px rgb(0 32 27 / 9%);
+  --shadow-card: 0 8px 28px rgb(0 32 27 / 8%);
+  --shadow-pop: 0 6px 18px rgb(0 32 27 / 12%);
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* landing → chat morph: the prompt box and the chat frame share this name (docs/design/patterns.md) */
+::view-transition-group(jojo-shell) {
+  animation-duration: 0.6s;
+  animation-timing-function: var(--ease-out-soft);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
 }
 
 /* light gray page with a dot grid */

@@ -1,0 +1,80 @@
+.design {
+  display: grid;
+  gap: 40px;
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: 40px 0 64px;
+}
+.design h1 {
+  color: var(--color-green-dark);
+  font-size: 2rem;
+  font-weight: 700;
+}
+.design h2 {
+  margin-bottom: 14px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.design h3 {
+  margin: 18px 0 8px;
+  font-weight: 600;
+}
+.design code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #eef2f1;
+  font-size: 0.85em;
+}
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.swatches li {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: #fff;
+}
+.swatches span {
+  height: 52px;
+  margin-bottom: 6px;
+  border: 1px solid rgb(0 0 0 / 6%);
+  border-radius: 10px;
+}
+.swatches small {
+  color: var(--color-muted);
+}
+.type-display {
+  color: var(--color-green-dark);
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.design-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: 18px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-shell);
+  background: #fff;
+}
+.design-canvas {
+  padding: 22px 26px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-shell);
+  background: #fafcfb;
+}
+.phrases {
+  padding-left: 1.4em;
+  color: var(--color-muted);
+  list-style: decimal;
+}
+.design-action {
+  margin-top: 8px;
+  color: var(--color-muted);
+}

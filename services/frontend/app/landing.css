@@ -431,3 +431,15 @@
     transition: none !important;
   }
 }
+
+/* hamburger → history drawer (components/chat/HistoryMenu.tsx, styles in chat.css) */
+.landing-menu {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
+}
+/* the box grows into the chat frame (View Transition, globals.css) */
+.box {
+  view-transition-name: jojo-shell;
+}

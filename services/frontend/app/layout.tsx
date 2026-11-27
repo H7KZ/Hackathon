@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 import { Footer } from "../components/Footer";
 import { Providers } from "./providers";
 import "./globals.css";
+import "./a2ui.css";
+import "./chat.css";
 
-const titillium = Titillium_Web({ weight: ["400", "600"], subsets: ["latin", "latin-ext"] });
+const titillium = Titillium_Web({ weight: ["400", "600", "700"], subsets: ["latin", "latin-ext"] });
 
 export const metadata: Metadata = {
   title: "JOJO",
