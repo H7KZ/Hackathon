@@ -8,10 +8,20 @@ import { join } from "node:path";
 import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
 import { checkStoryRefs } from "@s2d/noiser";
-import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from "@s2d/schema/artifacts";
+import {
+  CausalMap,
+  CompanySpec,
+  DataModel,
+  Influences,
+  ProcessesPlan,
+  StoryPlan,
+  type ArtifactName,
+} from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
+import { checkCausalMap } from "./causal/map";
+import { a4aCausalMap, a4bProcesses } from "./causal/steps";
 import {
   checkExpectationTables,
   checkInfluenceRefs,
@@ -33,9 +43,21 @@ export interface CascadeOptions {
   signal?: AbortSignal;
   /** Story gate for A5 (gate.ts `storyGate`): engine + expectations; failures go back to the agent. */
   verify?: (scenario: Scenario) => Promise<CompileError[]>;
+  /**
+   * "v1" (default): A1 company -> A2 model -> A3 influences -> A4 story -> A5 detail.
+   * "causal": docs/cascade-design.md D1–D4 (typed causal map, 4a/4b with trace, curves and
+   * expectations built by code). Not recorded in the demo cache yet.
+   */
+  design?: CascadeDesign;
 }
 
-const ORDER = ["01_company", "02_model", "03_influences", "04_story", "05_scenario"] as const;
+export type CascadeDesign = "v1" | "causal";
+
+/** Artifacts each design writes, in order. `until` must name one of them. */
+export const DESIGN_STEPS: Record<CascadeDesign, readonly ArtifactName[]> = {
+  v1: ["01_company", "02_model", "03_influences", "04_story", "05_scenario"],
+  causal: ["01_company", "02_model", "03a_causal_map", "03b_processes"],
+};
 
 /** An agent step could not produce its artifact (invalid LLM output, or no cache entry offline). */
 export class CascadeStepError extends Error {
@@ -59,8 +81,14 @@ export class CascadeRunMismatch extends Error {
 export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   const dir = join(opts.runsDir, opts.runId);
   mkdirSync(dir, { recursive: true });
-  const until = opts.until ?? "05_scenario";
-  const shouldRun = (name: ArtifactName) => ORDER.indexOf(name) <= ORDER.indexOf(until);
+  const order = DESIGN_STEPS[opts.design ?? "v1"];
+  const until = opts.until ?? order[order.length - 1] ?? "05_scenario";
+  if (!order.includes(until))
+    throw new CascadeStepError(
+      until,
+      new Error(`Design "${opts.design ?? "v1"}" has no step ${until}. Steps: ${order.join(", ")}.`),
+    );
+  const shouldRun = (name: ArtifactName) => order.indexOf(name) <= order.indexOf(until);
 
   async function step<T>(name: ArtifactName, schema: z.ZodType<T>, produce: () => Promise<T>): Promise<T> {
     opts.signal?.throwIfAborted();
@@ -90,6 +118,9 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
+  const rejected = (name: ArtifactName) => (n: number, value: unknown) => {
+    writeFileSync(join(dir, `${name}.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
+  };
   const llm = (name: ArtifactName, check?: (value: unknown) => CompileError[]) =>
     withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal, check });
   const company = await step("01_company", CompanySpec, () => a1Company(llm("01_company"), input));
@@ -101,6 +132,31 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       company,
     ),
   );
+  if (opts.design === "causal") {
+    if (!shouldRun("03a_causal_map")) return { dir, company, model };
+    const causalMap = await step("03a_causal_map", CausalMap, () =>
+      a4aCausalMap(
+        llm("03a_causal_map", (v) => checkCausalMap(CausalMap.parse(v))),
+        input,
+        company,
+        model,
+      ),
+    );
+    if (!shouldRun("03b_processes")) return { dir, company, model, causalMap };
+    const processes = await step("03b_processes", ProcessesPlan, async () => {
+      const res = await a4bProcesses(
+        opts.llm,
+        { input, model, map: causalMap },
+        { onEvent: opts.onEvent, signal: opts.signal, onRejected: rejected("03b_processes") },
+      );
+      if (res.ok) return res.output;
+      throw new CascadeStepError(
+        "03b_processes",
+        new Error(`Processes do not realize the map:\n${formatFeedback(res.feedback)}`),
+      );
+    });
+    return { dir, company, model, causalMap, processes };
+  }
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>
     a3Influences(
@@ -137,9 +193,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         signal: opts.signal,
         verify: opts.verify,
         // kept next to the artifacts so a failed A5 can be inspected or fixed by hand
-        onRejected: (n, value) => {
-          writeFileSync(join(dir, `05_scenario.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
-        },
+        onRejected: rejected("05_scenario"),
       },
     );
     if (res.ok) return res.scenario;

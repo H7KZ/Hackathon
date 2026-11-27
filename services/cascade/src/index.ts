@@ -19,3 +19,7 @@ export {
   sqlTables,
 } from "./checks";
 export { storyGate, baselineDrift, formatExpectationFailure } from "./gate";
+export { DESIGN_STEPS, type CascadeDesign } from "./cascade";
+export { checkCausalMap, findCycle } from "./causal/map";
+export { checkTrace, realizationsAt, resolvePointer, REALIZES } from "./causal/trace";
+export { a4aCausalMap, a4bProcesses, flatLeverCurves } from "./causal/steps";

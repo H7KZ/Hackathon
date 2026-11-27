@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
-import { ArtifactName, CompanySpec, DataModel, Influences, StoryPlan } from "@s2d/schema/artifacts";
+import { ArtifactName, ArtifactSchemas } from "@s2d/schema/artifacts";
 import { MetricDiff } from "@s2d/schema/evidence";
 import type { Scenario } from "@s2d/schema/scenario";
 import {
@@ -61,12 +61,7 @@ type NewEvent = SessionEvent extends infer E ? (E extends SessionEvent ? Omit<E,
 
 const ORDER = ArtifactName.options;
 const BUSY: SessionStatus[] = ["drafting", "refining", "generating", "detecting"];
-const ARTIFACT_SCHEMAS = {
-  "01_company": CompanySpec,
-  "02_model": DataModel,
-  "03_influences": Influences,
-  "04_story": StoryPlan,
-} as const;
+const ARTIFACT_SCHEMAS = ArtifactSchemas;
 
 const zodErrors = (issues: { path: PropertyKey[]; message: string }[]): CompileError[] =>
   issues.map((i) => ({ path: i.path.map(String).join("."), message: i.message }));
