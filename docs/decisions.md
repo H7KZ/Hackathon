@@ -33,6 +33,13 @@ Template:
 - **Who:** cascade owner (design session).
 - **Affects:** `services/cascade`, `packages/schema/src/artifacts.ts` (future change, will be announced).
 
+## 2026-11-27 — Cascade repair loop runs compileScenario only
+
+- **Decision:** the A5 and whatIf loops feed back only `compileScenario` (and zod) errors, max 3 iterations. They do not run the engine at `scale: 0.2` or the expectations, which differs from SPEC §3.A and `docs/handoffs/cascade.md`. Details: `docs/cascade-design.md` D8.
+- **Why:** design D5: the cascade ends with a composed scenario, and evidence shows weak effects.
+- **Who:** cascade owner.
+- **Affects:** `services/cascade`, `services/api/src/adapters/cascade.ts`. The API team should confirm that "expectations ≥ 4/5 seeds" is checked outside the cascade.
+
 ## 2026-11-27 — Team workflow (by convention, no branch protection)
 
 - **Decision:** changes reach `main` through PRs after local verification (`pnpm verify`), by team convention. No CI workflow. Branch protection is not enabled. Agents work in worktrees on feature branches and ask before contract, push or paid-API actions (see AGENTS.md).

@@ -79,6 +79,14 @@ Mapování mapy na scénář:
 - Stejný vzor jako noiser `generate()`: špatný vstup a chyba agenta vrací `{ ok: false, errors: {path, message}[] }`, nevyhazují výjimku.
 - `saveArtifact()` ověří ruční úpravu schématem a smaže pozdější artefakty (SPEC §2 pravidlo 9).
 
+### D8. Smyčka oprav = jen `compileScenario` (A5 i whatIf)
+
+- A5 vrací jen `name`, `start`, `end`, `entities`, `flows`, `processes`. Meta (seed 42, id z runId), `curves`, `storyPoints` a `expectations` doplní kód z `00_input` a `04_story`.
+- Smyčka: agent → složení kódem → `compileScenario` → chyby zpět agentovi, max 3 iterace. Zod-neplatná odpověď je taky feedback. Každá iterace emituje `loop.iteration`.
+- Po 3 neúspěších se `05_scenario` nezapíše, přijde `log` a `CascadeStepError` (nekompilující scénář nejde dát noiseru).
+- whatIf: agent vrátí celé `curves` + záplaty existujících `Param` přes JSON pointer (mimo `meta`, `curves`, `storyPoints`, `expectations`). Kód je aplikuje na kopii, seed a struktura zůstanou. Po 3 neúspěších `WhatIfFailed`.
+- Engine na vzorku a expectations ve smyčce **nejsou** (D5). Handoff API (`docs/handoffs/cascade.md`) s tím počítal; gate „expectations ≥ 4/5 seedů" se ověřuje až v evidence.
+
 ## Otevřené otázky
 
 - Agent 4a/4b: přesný zod tvar artefaktů, pravidla kompatibility druhů uzlů a typů hran.

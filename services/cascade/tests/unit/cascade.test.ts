@@ -48,14 +48,14 @@ describe("runCascade", () => {
     const { mkdirSync } = await import("node:fs");
     mkdirSync(join(runsDir, "r2"), { recursive: true });
     writeFileSync(join(runsDir, "r2", "01_company.json"), JSON.stringify({ ...company, size: "upraveno" }));
-    const steps: string[] = [];
+    const events: unknown[] = [];
     const res = await runCascade(
       { story: "s", company: "c" },
-      { llm, runsDir, runId: "r2", until: "01_company", onStep: (n, s) => steps.push(`${n}:${s}`) },
+      { llm, runsDir, runId: "r2", until: "01_company", onEvent: (e) => events.push(e) },
     );
     expect(res.company.size).toBe("upraveno");
     expect(fake.calls).toHaveLength(0);
-    expect(steps).toEqual(["01_company:cached"]);
+    expect(events).toEqual([{ type: "step.done", step: "01_company", cached: true }]);
   });
 
   it("fails loudly when the agent output does not match the artifact schema", async () => {
@@ -74,5 +74,4 @@ describe("runCascade", () => {
   });
 
   it.todo("A2–A4 chain passes previous artifacts into the prompt");
-  it.todo("A5 loop: compile errors are fed back to the agent (max 3 iterations)");
 });

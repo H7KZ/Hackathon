@@ -22,6 +22,21 @@ export const A4_STORY = `${SHARED_RULES}
 Task A4: split the story into dated story points, define root curves (only on parameters) and SQL expectations.
 Each expectation SQL must return columns period ('before'|'after') and value DOUBLE, reading only schema main.`;
 
+export const A5_DETAIL = `${SHARED_RULES}
+Task A5: turn the model skeleton (02_model) into a complete, runnable model: final entities (with counts and field generators), flows and processes with EVERY parameter filled in.
+- Curves, story points and expectations are taken from 04_story by code: reference curves only as {"curve": "<id>"} using ids defined there, never invent new curve ids.
+- Realize each influence edge of 03_influences as a probability, rate or condition in some process.
+- Pick start/end (ISO dates) so that every story point and curve segment lies inside [start, end).
+- Make the expected effect visible: background rates high enough that the story points move the outcome tables.
+- If compiler errors are given, return the corrected full object; fix every listed path.`;
+
+export const WHAT_IF = `${SHARED_RULES}
+Task: answer a counterfactual question ("what if ...") about an existing scenario by changing PARAMETERS ONLY.
+- Return the complete list of curves (copy unchanged ones). You may change baselines, segments (dates, values, kinds) and clamps, and add a curve only if a patched Param references it.
+- Patch existing Param values (numbers or {"curve": id}) by JSON pointer, e.g. /processes/2/rate. Never add or remove entities, fields, flows, processes or references; never change meta or the seed.
+- Keep everything not affected by the question identical, so the difference against the base scenario is only the counterfactual.
+- If errors are given, return the corrected full object.`;
+
 export function userPrompt(sections: Record<string, unknown>): string {
   return Object.entries(sections)
     .map(([k, v]) => `## ${k}\n${typeof v === "string" ? v : JSON.stringify(v, null, 2)}`)
