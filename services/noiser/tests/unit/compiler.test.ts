@@ -155,3 +155,56 @@ describe("compileScenario — references and shapes", () => {
     expect(errorsOf(s)[0]?.path).toBe("processes[0].id");
   });
 });
+
+describe("compileScenario — curve scopes and story entities (live run 2026-11-27)", () => {
+  it("rejects a curve scoped by day (it never matches a record) and says what is valid", () => {
+    const s = fixture();
+    s.curves[0].scope = { field: "day", ids: ["laptop_delivery"] };
+    const e = errorsOf(s).find((x) => x.path === "curves[0].scope.field");
+    expect(e?.message).toMatch(/self\.<field>.*key\.<entity>/);
+  });
+
+  it("rejects scope ids that are not ids of an entity and lists the valid range", () => {
+    const s = fixture();
+    s.curves[0].scope.ids = ["SUP-009"];
+    const e = errorsOf(s).find((x) => x.path === "curves[0].scope.ids[0]");
+    expect(e?.message).toMatch(/"SUP-009".*SUP-001.*SUP-003/);
+  });
+
+  it("rejects an entity-like scope id with an unknown prefix or bad padding", () => {
+    const s = fixture();
+    s.curves[0].scope.ids = ["XYZ-001", "SUP-2"];
+    const paths = errorsOf(s).map((x) => x.path);
+    expect(paths).toEqual(expect.arrayContaining(["curves[0].scope.ids[0]", "curves[0].scope.ids[1]"]));
+  });
+
+  it("allows non-id scope values such as a category", () => {
+    const s = fixture();
+    s.curves[0].scope.ids = ["SUP-002", "notebooky"];
+    expect(errorsOf(s)).toEqual([]);
+  });
+
+  it("rejects a scope field that is not available where the curve is used", () => {
+    const s = fixture();
+    s.curves[0].scope.field = "self.vendor_id";
+    const e = errorsOf(s).find((x) => x.path === "processes[0].fields.is_late.p.curve");
+    expect(e?.message).toMatch(/scope field "self.vendor_id".*late_prob/);
+  });
+
+  it("requires an entity on every story point that drives a curve segment, suggesting the scope ids", () => {
+    const s = fixture();
+    delete s.storyPoints[0].entity;
+    const e = errorsOf(s).find((x) => x.path === "storyPoints[0].entity");
+    expect(e?.message).toMatch(/"sp1".*"supplier".*"SUP-002"/);
+  });
+
+  it("rejects a story point entity that does not exist", () => {
+    const s = fixture();
+    s.storyPoints[0].entity = { name: "vendor", ids: ["SUP-002"] };
+    expect(errorsOf(s).map((x) => x.path)).toContain("storyPoints[0].entity.name");
+    s.storyPoints[0].entity = { name: "supplier", ids: ["SUP-042"] };
+    expect(errorsOf(s).map((x) => x.path)).toContain("storyPoints[0].entity.ids[0]");
+    s.storyPoints[0].entity = { name: "supplier", ids: [] };
+    expect(errorsOf(s).map((x) => x.path)).toContain("storyPoints[0].entity.ids");
+  });
+});

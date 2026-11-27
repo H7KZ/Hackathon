@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
+import { checkStoryRefs } from "@s2d/noiser";
 import { CompanySpec, DataModel, Influences, StoryPlan, type ArtifactName } from "@s2d/schema/artifacts";
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
@@ -25,6 +26,8 @@ export interface CascadeOptions {
   onEvent?: OnEvent;
   /** Checked between steps and between A5 iterations (a running LLM call is not interrupted). */
   signal?: AbortSignal;
+  /** Story gate for A5 (gate.ts `storyGate`): engine + expectations; failures go back to the agent. */
+  verify?: (scenario: Scenario) => Promise<CompileError[]>;
 }
 
 const ORDER = ["01_company", "02_model", "03_influences", "04_story", "05_scenario"] as const;
@@ -102,10 +105,11 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     a4Story(
       llm("04_story", (v) => {
         const plan = StoryPlan.parse(v);
+        // curves and story points go into 05 verbatim, so A5 cannot repair them: check them here
         return [
           ...checkStoryPlan(plan),
           ...checkExpectationTables(plan.expectations, model),
-          ...checkEntityIds(plan, model.entities),
+          ...checkStoryRefs({ entities: model.entities, curves: plan.curves, storyPoints: plan.storyPoints }),
         ];
       }),
       input,
@@ -121,6 +125,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       {
         onEvent: opts.onEvent,
         signal: opts.signal,
+        verify: opts.verify,
         // kept next to the artifacts so a failed A5 can be inspected or fixed by hand
         onRejected: (n, value) => {
           writeFileSync(join(dir, `05_scenario.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);

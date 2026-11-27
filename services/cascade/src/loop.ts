@@ -1,6 +1,7 @@
 /**
  * Repair loop shared by A5 and whatIf (docs/cascade-design.md D5/D6): ask the agent, assemble the
- * scenario in code, `compileScenario`, feed the errors back. No engine run, no expectations here.
+ * scenario in code, `compileScenario`, feed the errors back. An optional `verify` (A5: the story gate)
+ * runs the engine and the expectations on a scenario that compiled.
  */
 import { LlmOutputInvalid, type Llm, type ObjectRequest } from "@s2d/llm";
 import { compileScenario } from "@s2d/noiser";
@@ -27,6 +28,8 @@ export interface RepairLoopOptions<T> {
   maxIterations?: number;
   /** Story checks on a compiled scenario (see checks.ts); errors are fed back like compile errors. */
   check?: ((scenario: Scenario) => CompileError[]) | undefined;
+  /** Slow checks on a scenario that compiled and passed `check` (e.g. the story gate, gate.ts). */
+  verify?: ((scenario: Scenario) => Promise<CompileError[]>) | undefined;
   /** A rejected attempt (raw agent output or assembled scenario), e.g. to keep it for debugging. */
   onRejected?: ((n: number, value: unknown) => void) | undefined;
 }
@@ -56,7 +59,11 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
     previous = output;
     const assembled = opts.assemble(output);
     const compiledRaw = assembled.ok ? compileScenario(assembled.scenario) : assembled;
-    const checkErrors = compiledRaw.ok ? (opts.check?.(compiledRaw.scenario) ?? []) : [];
+    let checkErrors = compiledRaw.ok ? (opts.check?.(compiledRaw.scenario) ?? []) : [];
+    if (compiledRaw.ok && checkErrors.length === 0 && opts.verify) {
+      opts.signal?.throwIfAborted();
+      checkErrors = await opts.verify(compiledRaw.scenario);
+    }
     const compiled = checkErrors.length > 0 ? { ok: false as const, errors: checkErrors } : compiledRaw;
     opts.onEvent?.({
       type: "loop.iteration",

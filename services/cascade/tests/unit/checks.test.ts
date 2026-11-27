@@ -70,6 +70,39 @@ describe("checks in the cascade", () => {
   });
 });
 
+describe("04_story: curve scopes and story entities", () => {
+  let cleanup = () => {};
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("a day-scoped curve and an entity-less story point are sent back to A4, then accepted", async () => {
+    const bad = {
+      ...story,
+      curves: story.curves.map((c, i) =>
+        i === 0 ? { ...c, scope: { field: "day", ids: ["laptop_delivery"] } } : c,
+      ),
+      storyPoints: story.storyPoints.map(({ entity: _entity, ...sp }) => sp),
+    };
+    const t = setup([company, model, influences, bad, story]);
+    cleanup = t.cleanup;
+    await runCascade(
+      { story: "s", company: "c" },
+      { llm: t.llm, runsDir: t.runsDir, runId: "r3", until: "04_story" },
+    );
+    expect(t.fake.calls.map((c) => c.schemaName)).toEqual([
+      "01_company",
+      "02_model",
+      "03_influences",
+      "04_story",
+      "04_story",
+    ]);
+    const retry = t.fake.calls[4]?.prompt ?? "";
+    expect(retry).toContain("curves[0].scope.field");
+    expect(retry).toContain("storyPoints[0].entity");
+  });
+});
+
 describe("expectation tables", () => {
   it("lists observed tables of supplier_delay (ground_truth excluded)", async () => {
     const { observedTables } = await import("../../src/checks");

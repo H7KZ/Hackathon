@@ -47,6 +47,9 @@ export const LEVERS_ONLY = `Curves only on ROOT CAUSES (levers):
 export const A4_STORY = `${SHARED_RULES}
 Task A4: split the story into dated story points, define root curves (only on parameters) and SQL expectations.
 ${LEVERS_ONLY}
+Curves and story points:
+- A curve that targets specific entities has "scope": {"field": "self.<field holding the id>", "ids": ["SUP-002"]}, e.g. "self.supplier_id"; never "day". Ids are "<idPrefix>-001".."<idPrefix>-<count>" of 02_model entities. Omit scope for a curve that applies to every record.
+- Every story point that a curve segment refers to names the affected entity: "entity": {"name": "<entity>", "ids": [...]}, usually the same ids as the curve scope.
 Expectations:
 - Each expectation SQL must return columns period ('before'|'after') and value DOUBLE, reading only schema main.
 - The SQL may read ONLY the listed observed tables. ground_truth tables (hidden causes, e.g. purchase attempts) are not in the evidence database; build day lists from observed tables (e.g. sales, deliveries).

@@ -1,5 +1,6 @@
 export { compileScenario, type CompileResult } from "./compiler/validate";
 export { topoSort } from "./compiler/dag";
+export { checkStoryRefs, entityId } from "./compiler/story";
 export { createStream, hashString, type Rng } from "./engine/rng";
 export { evaluateCurve } from "./engine/curves";
 export { toDay, fromDay } from "./engine/days";

@@ -7,6 +7,7 @@
 import { Scenario, type ProcessDef } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { sourceProcessId, topoSort } from "./dag";
+import { checkStoryRefs } from "./story";
 
 export type CompileResult =
   { ok: true; scenario: Scenario; order: string[] } | { ok: false; errors: CompileError[] };
@@ -249,8 +250,25 @@ export function compileScenario(raw: unknown): CompileResult {
     /** valid key.* names, `undefined` = checked elsewhere */
     keys?: string[];
   }
+  const curveDefs = new Map(s.curves.map((c) => [c.id, c]));
   const checkScope = (value: unknown, at: string, scope: Scope) => {
-    for (const [path, v] of strings(value, at)) {
+    for (const [path, v] of strings(value, at)) checkPath(path, v, scope);
+    // a scoped curve reads its scope field from the record that uses it
+    walk(value, at, (node, path) => {
+      const c = typeof node.curve === "string" ? curveDefs.get(node.curve) : undefined;
+      if (c?.scope && c.scope.field !== "day") {
+        checkPath(
+          `${path}.curve`,
+          c.scope.field,
+          scope,
+          (m) => `The scope field "${c.scope?.field ?? ""}" of curve "${c.id}" cannot be resolved here: ${m}`,
+        );
+      }
+    });
+  };
+  const checkPath = (path: string, v: string, scope: Scope, wrap: (m: string) => string = (m) => m) => {
+    const err = (p: string, m: string) => errors.push({ path: p, message: wrap(m) });
+    {
       const name = v.slice(v.indexOf(".") + 1);
       if (v.startsWith("self.") && !scope.self.includes(name)) {
         err(
@@ -407,6 +425,9 @@ export function compileScenario(raw: unknown): CompileResult {
       }
     }
   }
+
+  // ---- curve scopes and story point entities ----
+  errors.push(...checkStoryRefs(s));
 
   // ---- dates ----
   const inRange = (d: string) => d >= s.meta.start && d <= s.meta.end;
