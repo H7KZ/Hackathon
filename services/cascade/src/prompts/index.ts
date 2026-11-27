@@ -46,12 +46,14 @@ Task A4: split the story into dated story points, define root curves (only on pa
 ${LEVERS_ONLY}
 Expectations:
 - Each expectation SQL must return columns period ('before'|'after') and value DOUBLE, reading only schema main.
+- The SQL may read ONLY the listed observed tables. ground_truth tables (hidden causes, e.g. purchase attempts) are not in the evidence database; build day lists from observed tables (e.g. sales, deliveries).
 - Test consequences through the chain with COUNTS or LEVELS (e.g. complaints per week, lost sales per day, revenue per day), not a ratio whose probability is constant (complaints per lost sale stays flat by design).
 - Add at least one control that must stay stable (e.g. demand / visits).`;
 
 export const A5_DETAIL = `${SHARED_RULES}
 Task A5: turn the model skeleton (02_model) into a complete, runnable model: final entities (with counts and field generators), flows and processes with EVERY parameter filled in.
 - Curves, story points and expectations are taken from 04_story by code: reference curves only as {"curve": "<id>"} using ids defined there, never invent new curve ids.
+- Keep the table names and visibility of 02_model: the expectations in 04_story read those observed tables.
 - Use a curve only where 04_story intends that lever; every downstream p / rate is a constant number, so the story effect emerges through the process chain.
 - Realize each influence edge of 03_influences as a probability, rate or condition in some process.
 - Pick start/end (ISO dates) so that every story point and curve segment lies inside [start, end).

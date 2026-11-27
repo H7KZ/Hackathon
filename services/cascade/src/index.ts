@@ -5,3 +5,10 @@ export { a5Detail, assembleScenario, ScenarioDetail, DEFAULT_SEED } from "./a5_d
 export { whatIf, applyWhatIf, WhatIfEdit, WhatIfFailed } from "./what_if";
 export { repairLoop, MAX_ITERATIONS } from "./loop";
 export type { CascadeEvent, OnEvent } from "./events";
+export {
+  checkCurveCoverage,
+  checkExpectationTables,
+  checkModelShape,
+  observedTables,
+  sqlTables,
+} from "./checks";

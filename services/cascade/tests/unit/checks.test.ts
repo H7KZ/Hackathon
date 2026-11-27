@@ -55,3 +55,39 @@ describe("checks in the cascade", () => {
     expect(JSON.stringify(loops[0])).toContain("curves.late_prob");
   });
 });
+
+describe("expectation tables", () => {
+  it("lists observed tables of supplier_delay (ground_truth excluded)", async () => {
+    const { observedTables } = await import("../../src/checks");
+    const t = observedTables(base);
+    expect(t).toEqual(expect.arrayContaining(["delivery", "sale", "complaint", "stock_daily"]));
+    expect(t).not.toContain("purchase_attempt");
+    expect(t).not.toContain("lost_sale");
+  });
+
+  it("finds tables after FROM/JOIN, skipping CTEs and EXTRACT(... FROM col)", async () => {
+    const { sqlTables } = await import("../../src/checks");
+    expect(
+      sqlTables(
+        "WITH days AS (SELECT EXTRACT(day FROM date) d FROM main.sale) SELECT * FROM days JOIN main.complaint c ON true",
+      ),
+    ).toEqual(["sale", "complaint"]);
+  });
+
+  it("flags ground_truth and unknown tables, passes supplier_delay's own expectations", async () => {
+    const { checkExpectationTables } = await import("../../src/checks");
+    expect(checkExpectationTables(base.expectations, base)).toEqual([]);
+    const bad = [
+      {
+        ...base.expectations[0]!,
+        id: "a",
+        sql: "SELECT 'before' period, 1.0 value FROM main.purchase_attempt",
+      },
+      { ...base.expectations[0]!, id: "b", sql: "SELECT 'before' period, 1.0 value FROM nope" },
+    ];
+    expect(checkExpectationTables(bad, base).map((e) => e.message)).toEqual([
+      expect.stringMatching(/"purchase_attempt", a ground_truth table/),
+      expect.stringMatching(/unknown table "nope"/),
+    ]);
+  });
+});

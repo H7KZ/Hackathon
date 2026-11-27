@@ -10,6 +10,7 @@ import {
   type Influences as InfluencesT,
   type StoryPlan as StoryPlanT,
 } from "@s2d/schema/artifacts";
+import { observedTables } from "./checks";
 import { A1_COMPANY, A2_MODEL, A3_INFLUENCES, A4_STORY, userPrompt } from "./prompts/index";
 
 export interface CascadeInput {
@@ -54,6 +55,11 @@ export function a4Story(
     schemaName: "04_story",
     schema: StoryPlan,
     instructions: A4_STORY,
-    prompt: userPrompt({ Story: input.story, "02_model": model, "03_influences": influences }),
+    prompt: userPrompt({
+      Story: input.story,
+      "02_model": model,
+      "03_influences": influences,
+      "Observed tables (expectation SQL may read only these)": observedTables(model).join(", "),
+    }),
   });
 }

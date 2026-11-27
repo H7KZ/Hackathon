@@ -43,3 +43,69 @@ function collectCurveRefs(node: unknown, used: Set<string>, key?: string): void 
   if (typeof rec.curve === "string") used.add(rec.curve);
   for (const [k, v] of Object.entries(rec)) collectCurveRefs(v, used, k);
 }
+
+type ModelTables = Pick<DataModel, "entities" | "flows" | "processes">;
+
+/** Table name -> visibility of every table the model writes (entities, processes, outcomes, snapshots). */
+export function modelTables(model: ModelTables): Map<string, "observed" | "ground_truth"> {
+  const tables = new Map<string, "observed" | "ground_truth">();
+  const add = (name: string, visibility?: "observed" | "ground_truth") => {
+    // several processes may write one table; ground_truth on any of them hides it
+    if (tables.get(name) !== "ground_truth") tables.set(name, visibility ?? "observed");
+  };
+  for (const e of model.entities) add(e.name, e.visibility);
+  for (const f of model.flows) if (f.snapshot) add(f.snapshot.table, f.snapshot.visibility);
+  for (const p of model.processes) {
+    if (p.type === "branch") {
+      if (p.then) add(p.then.table, p.then.visibility);
+      if (p.else) add(p.else.table, p.else.visibility);
+    } else add(p.table, p.visibility);
+  }
+  return tables;
+}
+
+export function observedTables(model: ModelTables): string[] {
+  return [...modelTables(model)].filter(([, v]) => v === "observed").map(([t]) => t);
+}
+
+/**
+ * Expectation SQL runs on the sandbox, which holds only observed tables (schema main). A real run
+ * built every expectation on a ground_truth table, so all of them failed with "table does not exist".
+ */
+export function checkExpectationTables(
+  expectations: Pick<StoryPlan, "expectations">["expectations"],
+  model: ModelTables,
+): CompileError[] {
+  const tables = modelTables(model);
+  const observed = observedTables(model).join(", ");
+  const errors: CompileError[] = [];
+  for (const [i, e] of expectations.entries()) {
+    for (const t of sqlTables(e.sql)) {
+      const v = tables.get(t);
+      if (v === "observed") continue;
+      errors.push({
+        path: `expectations.${i}.sql`,
+        message:
+          v === "ground_truth"
+            ? `Expectation "${e.id}" reads "${t}", a ground_truth table that is not in the evidence database. Use only observed tables: ${observed}.`
+            : `Expectation "${e.id}" reads unknown table "${t}". Use only observed tables: ${observed}.`,
+      });
+    }
+  }
+  return errors;
+}
+
+/** Table names after FROM / JOIN, minus CTE names. Good enough for LLM-written evidence SQL. */
+export function sqlTables(sql: string): string[] {
+  // CTE names: "name AS (" or "name(col, ...) AS ("
+  const ctes = new Set(
+    [...sql.matchAll(/\b([a-z_][a-z0-9_]*)\s*(?:\([^()]*\))?\s+as\s*\(/gi)].map((m) =>
+      (m[1] ?? "").toLowerCase(),
+    ),
+  );
+  const refs = [...sql.matchAll(/\b(?:from|join)\s+(?:main\.)?"?([a-z_][a-z0-9_]*)"?/gi)]
+    // EXTRACT(day FROM date), TRIM(x FROM y), SUBSTRING(s FROM 2): FROM inside a function call
+    .filter((m) => !/\b(?:extract|trim|substring|overlay|position)\s*\([^()]*$/i.test(sql.slice(0, m.index)))
+    .map((m) => (m[1] ?? "").toLowerCase());
+  return [...new Set(refs.filter((t) => !ctes.has(t)))];
+}
