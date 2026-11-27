@@ -7,6 +7,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import type { Health } from "@s2d/schema/api";
 import type { ApiConfig } from "./config";
+import { runRoutes } from "./routes/runs";
 import { scenarioRoutes } from "./routes/scenarios";
 
 export const API_VERSION = "0.1.0";
@@ -18,7 +19,8 @@ export function createApp(cfg: ApiConfig, opts: { log?: boolean } = {}) {
 
   const routes = app
     .get("/health", (c) => c.json({ status: "ok", version: API_VERSION } satisfies Health))
-    .route("/scenarios", scenarioRoutes(cfg));
+    .route("/scenarios", scenarioRoutes(cfg))
+    .route("/runs", runRoutes(cfg));
 
   app.onError((err, c) => {
     console.error(err);

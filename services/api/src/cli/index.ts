@@ -7,10 +7,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { compileScenario } from "@s2d/noiser";
 import { createLlm } from "@s2d/llm";
 import { runCascade } from "@s2d/cascade";
 import { loadConfig } from "../config";
+import { generateRun } from "../runs";
 
 const [command, ...rest] = process.argv.slice(2);
 const cfg = loadConfig();
@@ -25,15 +25,19 @@ async function main(): Promise<number> {
       });
       const file = positionals[0];
       if (!file) return usage("gen <scenario.json> [--seed N] [--scale X]");
-      const result = compileScenario(JSON.parse(readFileSync(resolve(cfg.root, file), "utf8")));
+      const seed = values.seed === undefined ? undefined : Number(values.seed);
+      const scale = values.scale === undefined ? undefined : Number(values.scale);
+      const raw: unknown = JSON.parse(readFileSync(resolve(cfg.root, file), "utf8"));
+      const result = await generateRun(cfg.outDir, raw, { seed, scale });
       if (!result.ok) {
         for (const e of result.errors) console.error(`${e.path}: ${e.message}`);
         return 1;
       }
-      console.log(`compiled ${result.scenario.meta.id}: ${result.order.join(" -> ")}`);
-      console.log(`seed=${values.seed ?? result.scenario.meta.seed} scale=${values.scale ?? 1}`);
-      console.error("engine not implemented yet (services/noiser/src/engine/run.ts)");
-      return 2;
+      console.log(`${result.meta.scenarioId} seed=${result.meta.seed}: ${result.order.join(" -> ")}`);
+      for (const t of result.tables)
+        console.log(`  ${t.visibility === "observed" ? "main" : "truth"}.${t.name}: ${t.rows} rows`);
+      console.log(result.dbPath);
+      return 0;
     }
     case "cascade": {
       const { positionals, values } = parseArgs({
