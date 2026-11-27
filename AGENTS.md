@@ -53,7 +53,7 @@ Agents must ask first before:
 - pushing, opening or merging a PR, or touching `main`,
 - running `EVAL_LIVE=1 pnpm evals` or anything that calls a paid API,
 - deleting or rewriting entries in `.cache/llm/`, `scenarios/`, or `runs/`,
-- reading `.env*` files (secrets stay with their owner).
+- anything that needs secrets. Agents cannot read `.env` files at all: `.claude/settings.json` denies them for the Read/Grep/Glob tools and the Bash sandbox (`sandbox.filesystem.denyRead`) blocks them at OS level, also for `pnpm dev` or scripts an agent starts. Run anything that needs real keys yourself, outside the agent; agents use `LLM_OFFLINE=1`.
 
 ## Commands
 
