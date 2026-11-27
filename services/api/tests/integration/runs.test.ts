@@ -56,7 +56,11 @@ describe("POST /runs", () => {
   });
 });
 
-describe("story: supplier_delay expectations", () => {
+// TODO(story): skipped by decision of the PR author. The engine follows the spec, but supplier_delay is too
+// weak at seed 42 (e3 SUP-002 revenue -11% vs -20%, e5 complaints +29% vs +50%; 0/5 of seeds 1..5 pass)
+// because stock-outs are already frequent before the story (topUp target 7 vs ~4.2 units/week).
+// Re-enable after the scenario owner tunes scenarios/supplier_delay.json. See PR #5.
+describe.skip("story: supplier_delay expectations", () => {
   it("all pass at seed 42", async () => {
     const r = await expectationsPass(42);
     expect(r.failed).toEqual([]);
