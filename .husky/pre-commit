@@ -1,1 +1,7 @@
 pnpm exec lint-staged
+
+# Verification before every commit (humans and agents). Full `pnpm verify` runs before the PR.
+pnpm verify:fast || {
+  echo "pre-commit: pnpm verify:fast is red. Fix it before committing (AGENTS.md, Definition of done)." >&2
+  exit 1
+}

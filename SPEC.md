@@ -338,7 +338,6 @@ Hackathon/
 ├─ package.json  pnpm-workspace.yaml  turbo.json  tsconfig.base.json
 ├─ eslint.config.js  .dependency-cruiser.cjs  vitest.config.ts  vitest.shared.ts
 ├─ .claude/settings.json      # Stop hook → scripts/agent-verify.mjs (pnpm verify:fast)
-├─ .github/workflows/ci.yml   # pnpm verify + evals (offline)
 ├─ scenarios/supplier_delay.json
 ├─ runs/  out/  .cache/llm/
 ├─ packages/
