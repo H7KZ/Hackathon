@@ -89,7 +89,8 @@ export function sessionRoutes(orch: Orchestrator) {
             for (let e = queue.shift(); e; e = queue.shift()) {
               if (e.seq <= last) continue;
               last = e.seq;
-              await stream.writeSSE({ id: String(e.seq), event: e.type, data: JSON.stringify(e) });
+              // no `event:` field on purpose: EventSource.onmessage then receives every event; type is in data
+              await stream.writeSSE({ id: String(e.seq), data: JSON.stringify(e) });
             }
             await new Promise<void>((resolve) => {
               wake = resolve;

@@ -1,6 +1,6 @@
 # API orchestrator: design (variant A approved and implemented)
 
-**Status:** core + routes + SSE implemented in `services/api/src/{orchestrator,sessionStore,routes/sessions,adapters}.ts`, tested against fake ports. The real adapters (`adapters.ts`) still return "zatím není implementováno" for `cascade.whatIf`, `dataer.compare` and `dataer.detective`. Cascade A5 is missing too: for now, upload `05_scenario` with `PUT /sessions/:id/artifacts/05_scenario` and then `approve`.
+**Status:** core + routes + SSE implemented in `services/api/src/{orchestrator,sessionStore,routes/sessions,adapters/}`. Tested against fake ports (`API_FAKE=all` runs the whole flow without LLM). Handoffs per team: [`docs/handoffs/`](handoffs/README.md). The real adapters (`adapters/*.ts`) still return "zatím není implementováno" for `cascade.whatIf`, `dataer.compare` and `dataer.detective`. Cascade A5 is missing too: for now, upload `05_scenario` with `PUT /sessions/:id/artifacts/05_scenario` and then `approve`.
 
 Owner: `services/api`. Research: [`docs/research/api-orchestration.md`](research/api-orchestration.md).
 
@@ -103,3 +103,10 @@ GET  /sessions/:id/datasets/:d/evidence | /tables/:t | /compare/:other | /detect
 - `@s2d/schema/api`: `SessionStatus`, `SessionState`, `SessionCommand`, `SessionEvent`, `DatasetEvidence`, `DetectiveResult`.
 - `@s2d/schema/artifacts`: `CascadeEvent`.
 - `@s2d/llm`: optional `abortSignal` in the request (cascade cancel).
+
+## Port changes
+
+One line per change to `services/api/src/ports.ts` (date, team, what changed, why).
+
+- 2026-11-27, API: `dataer.evidence(dbPath, expectations)`. Expectations come from the scenario (SPEC rule 7) and run on the sandbox.
+- 2026-11-27, API: adapters split into `src/adapters/{cascade,noiser,dataer}.ts` (one file per team). Fakes in `src/adapters/fake.ts`, enabled with `API_FAKE`.

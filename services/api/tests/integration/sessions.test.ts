@@ -131,7 +131,9 @@ describe("sessions REST", () => {
     const reading = readSse(res, (f) => f.includes("dataset.ready"));
     orch.command(id, { type: "approve" });
     const frames = await reading;
-    expect(frames.some((f) => f.includes("event: dataset.ready"))).toBe(true);
+    expect(frames.some((f) => f.includes('"type":"dataset.ready"'))).toBe(true);
+    // unnamed events, so EventSource.onmessage receives them
+    expect(frames.every((f) => !f.includes("event:"))).toBe(true);
     await orch.idle(id);
   });
 });
