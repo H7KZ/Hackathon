@@ -3,19 +3,22 @@
 ## 1. Landing → chat morph
 
 - User sends company + story. On `201` (or instantly in demo mode) the landing **does not navigate**: `Landing.tsx` swaps to `ChatWorkspace` inside `document.startViewTransition` + `flushSync`.
-- The prompt box (`.box`) and the chat frame (`.chat-frame`) share `view-transition-name: jojo-shell`, so the browser grows the box to the full-height frame (600ms, `--ease-out-soft`). The rest cross-fades (350ms).
+- The prompt box (`.box`) and the workspace area (`.workspace`) share `view-transition-name: jojo-shell`, so the browser grows the box to the full-height workspace (600ms, `--ease-out-soft`). The rest cross-fades (350ms).
 - URL updates with `history.pushState` to `/chat?s=<id>` (`&demo=1` in demo) so reload/back work. The session is saved to history (localStorage).
 - No View Transition support or `prefers-reduced-motion` → instant swap.
 
-## 2. Chat + canvas
+## 2. Workspace layouts (compare at `/lab`)
 
-| Chat column (340–420px) | Canvas (rest) |
-| --- | --- |
-| user / agent bubbles, small surfaces (progress, company, "what next" card), thinking, composer, quick replies | big surfaces as tabs: Příběh, Data dN, Detektiv dN, dA ↔ dB |
+Full screen, no outer frame: push sidebar (history) + topbar + layout. Inspiration: CopilotKit A2UI playground (one centered thread, hairline borders, small radii, optional protocol inspector).
 
-- Placement is decided by the emitter: `createSurface.metadata.placement`. A new canvas surface becomes the active tab.
-- A chat card can open a canvas tab (`open_canvas` action).
-- ≤ 900px: one column with a Chat / Plátno toggle in the header.
+| Route | Layout | When |
+| --- | --- | --- |
+| `/lab/thread` (default for `/chat`) | **A · Vlákno**: one centered column (max 880px); big surfaces render inline as panels with a title strip and `A2UI · N komponent` chip | default product view |
+| `/lab/inspector` | **B · Vlákno + inspektor**: thread + right panel with the live A2UI message stream and per-surface data model | demo / jury: shows how agents build UI and that numbers come from data |
+| `/lab/split` | **C · Chat + plátno**: narrow chat + canvas tabs | most room for charts |
+
+- Same session hook (`components/chat/useChatSession.ts`) and renderer for all three; only the arrangement differs. `/chat?layout=inspector` works too.
+- ≤ 900px: sidebar overlays with a scrim, inspector hidden, split gets a Chat / Plátno toggle.
 
 ## 3. Always-visible work (loading)
 
@@ -41,9 +44,10 @@
 - A2UI integrity/validation errors are logged (`console.warn`) and the surface is skipped, never a crash.
 - `409` (busy): "Ještě běží předchozí krok. Zkuste to za chvilku."
 
-## 7. History / skip landing
+## 7. History sidebar (no hamburger)
 
-- Hamburger top-left (landing + chat) opens a drawer (native `<dialog>`: focus trap, Esc, backdrop click): Nový chat, Ukázka s demo daty, history (newest first, max 20, localStorage), Design systém.
+- Push sidebar (264px, hairline border, no rounded corners): Nový chat, Ukázka s demo daty, history (newest first, max 20, localStorage, current chat highlighted), footer links Varianty rozložení and Design systém.
+- Open by default in the workspace, closed on the landing; the choice persists (`jojo.sidebar`). Toggle = sidebar icon (in the sidebar header when open, in the topbar when closed).
 - `/chat?s=<id>` reconnects to an API session (SSE replays from `events.jsonl`); `/chat?demo=1` replays the scripted demo.
 
 ## 8. Demo mode

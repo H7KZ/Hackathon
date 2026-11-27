@@ -6,6 +6,7 @@ import { createMockSource } from "../../lib/chat/mockSource";
 import { findEntry } from "../../lib/history";
 import { EXAMPLES } from "../../lib/prompt";
 import { ChatWorkspace } from "./ChatWorkspace";
+import type { Layout } from "../../lib/chat/layout";
 
 const noop = () => () => undefined;
 /** false during SSR and hydration, true afterwards (history lives in localStorage). */
@@ -16,7 +17,17 @@ const useHydrated = () =>
     () => false,
   );
 
-export function ChatRoute({ demo, sessionId }: { demo: boolean; sessionId: string | null }) {
+export function ChatRoute({
+  demo,
+  sessionId,
+  layout = "thread",
+  switcher = false,
+}: {
+  demo: boolean;
+  sessionId: string | null;
+  layout?: Layout;
+  switcher?: boolean;
+}) {
   const hydrated = useHydrated();
   const chat = useMemo(() => {
     if (!hydrated) return null;
@@ -37,5 +48,13 @@ export function ChatRoute({ demo, sessionId }: { demo: boolean; sessionId: strin
       </div>
     );
   if (!chat) return null;
-  return <ChatWorkspace source={chat.source} title={chat.title} />;
+  return (
+    <ChatWorkspace
+      source={chat.source}
+      title={chat.title}
+      layout={layout}
+      sessionId={sessionId ?? undefined}
+      switcher={switcher}
+    />
+  );
 }

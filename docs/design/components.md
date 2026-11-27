@@ -7,11 +7,13 @@
 | `Landing` | landing page; morphs into the chat after send | landing / chat |
 | `PromptForm` | company + story + files, examples, clear dialog | idle, error bubble, sending, sent |
 | `PromptHelp` | inline expandable help | closed / open (Esc closes) |
-| `chat/ChatWorkspace` | header, chat column, canvas tabs; owns the surface store | busy / idle, chat / canvas view (mobile) |
+| `chat/ChatWorkspace` | AppShell + chosen layout (`thread` default, `inspector`, `split`) | busy / idle |
 | `chat/ChatRoute` | `/chat` entry: picks mock or live source after hydration | loading, missing, ready |
 | `chat/Composer` | input + quick replies; Enter sends | enabled / disabled ("Pracuji…") |
 | `chat/Thinking` | step label + rotating phrase | — |
-| `chat/HistoryMenu` | hamburger + drawer with history | closed / open / empty history |
+| `chat/AppShell` | full-screen frame: push sidebar (history) + topbar | sidebar open / closed, overlay ≤ 900px |
+| `chat/layouts` | `ThreadLayout`, `InspectorLayout`, `SplitLayout` | — |
+| `chat/useChatSession` | store, thread, busy, A2UI message log for any layout | — |
 | `DesignGallery` | `/design` living style guide | — |
 | `a2ui/A2uiSurface` | renders one surface from the store | missing node → placeholder, unknown → error text |
 

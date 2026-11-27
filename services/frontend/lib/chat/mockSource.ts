@@ -104,7 +104,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     emit({
       type: "say",
       role: "agent",
-      text: "Návrh příběhu je v plátně. Posuňte body nebo jejich sílu a klikněte **Schválit a generovat**.",
+      text: "Návrh příběhu je připravený. Posuňte body nebo jejich sílu a klikněte **Schválit a generovat**.",
     });
     phase = "awaiting_refinement";
   }
@@ -139,7 +139,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     emit({
       type: "say",
       role: "agent",
-      text: "Detektiv data neznal, a přesto našel 2 ze 3 bodů příběhu. Výsledek je v plátně.",
+      text: "Detektiv data neznal, a přesto našel 2 ze 3 bodů příběhu. Výsledek najdete v panelu Detektiv d1.",
     });
     emit({ type: "suggest", items: WHAT_IF_SUGGESTIONS });
     phase = "ready";
@@ -159,7 +159,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     emit({
       type: "say",
       role: "agent",
-      text: "Hotovo. Když se dodavatel po 2 týdnech vrátí k normálu, storna i stížnosti klesnou. Porovnání je v plátně.",
+      text: "Hotovo. Když se dodavatel po 2 týdnech vrátí k normálu, storna i stížnosti klesnou. Porovnání najdete v panelu d1 ↔ d2.",
     });
     emit({ type: "suggest", items: WHAT_IF_SUGGESTIONS });
     phase = "ready";
@@ -199,7 +199,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
         emit({
           type: "say",
           role: "agent",
-          text: "Příběh upravíte přímo v plátně. Až budete spokojeni, klikněte **Schválit a generovat**.",
+          text: "Příběh upravíte přímo v návrhu. Až budete spokojeni, klikněte **Schválit a generovat**.",
         });
       else emit({ type: "say", role: "agent", text: "Chvilku, ještě pracuju. Hned jak doběhnu, ozvu se." });
     },

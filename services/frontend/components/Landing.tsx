@@ -8,7 +8,7 @@ import { createMockSource } from "../lib/chat/mockSource";
 import type { ChatSource } from "../lib/chat/types";
 import { chatHref, remember } from "../lib/history";
 import { ChatWorkspace } from "./chat/ChatWorkspace";
-import { HistoryMenu } from "./chat/HistoryMenu";
+import { AppShell } from "./chat/AppShell";
 import { PromptForm, type Send, type SessionInfo } from "./PromptForm";
 import { PromptHelp } from "./PromptHelp";
 
@@ -24,7 +24,7 @@ export function morph(update: () => void) {
 
 /** Landing → chat in place: no navigation, so the box can grow into the workspace (docs/design/patterns.md). */
 export function Landing() {
-  const [chat, setChat] = useState<{ source: ChatSource; title: string } | null>(null);
+  const [chat, setChat] = useState<{ source: ChatSource; title: string; id: string } | null>(null);
 
   const send: Send = (input) =>
     isDemo()
@@ -44,29 +44,30 @@ export function Landing() {
     const source = demo ? createMockSource(info) : createLiveSource(info.sessionId);
     morph(() => {
       flushSync(() => {
-        setChat({ source, title: info.company });
+        setChat({ source, title: info.company, id: info.sessionId });
       });
     });
     window.history.pushState(null, "", chatHref(entry));
   }
 
-  if (chat) return <ChatWorkspace source={chat.source} title={chat.title} />;
+  if (chat) return <ChatWorkspace source={chat.source} title={chat.title} sessionId={chat.id} />;
 
   return (
-    <div className="landing">
-      <div className="landing-menu">
-        <HistoryMenu />
+    <AppShell defaultOpen={false}>
+      <div className="landing-scroll">
+        <div className="landing">
+          <header className="brand">
+            {/* a full reload on purpose: it resets the form */}
+            <a href="/" title="Začít znovu">
+              <img src="/fis-logo.png" alt="Fakulta informatiky a statistiky VŠE" />
+              <h1>JOJO</h1>
+            </a>
+          </header>
+          <p className="lead">Z vašeho příběhu vytvoříme data, ve kterých se dá dohledat.</p>
+          <PromptForm send={send} onSent={onSent} />
+          <PromptHelp />
+        </div>
       </div>
-      <header className="brand">
-        {/* a full reload on purpose: it resets the form */}
-        <a href="/" title="Začít znovu">
-          <img src="/fis-logo.png" alt="Fakulta informatiky a statistiky VŠE" />
-          <h1>JOJO</h1>
-        </a>
-      </header>
-      <p className="lead">Z vašeho příběhu vytvoříme data, ve kterých se dá dohledat.</p>
-      <PromptForm send={send} onSent={onSent} />
-      <PromptHelp />
-    </div>
+    </AppShell>
   );
 }

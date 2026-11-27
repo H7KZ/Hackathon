@@ -27,11 +27,11 @@ body {
   --color-muted: #5b6563;
   --color-line: #e3eae8;
   --color-wash: #f1f9f7;
-  --radius-shell: 28px;
-  --radius-card: 18px;
-  --radius-field: 16px;
+  --radius-shell: 12px;
+  --radius-card: 10px;
+  --radius-field: 8px;
   --shadow-shell: 0 18px 45px rgb(0 32 27 / 9%);
-  --shadow-card: 0 8px 28px rgb(0 32 27 / 8%);
+  --shadow-card: 0 1px 2px rgb(0 32 27 / 5%);
   --shadow-pop: 0 6px 18px rgb(0 32 27 / 12%);
   --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
 }

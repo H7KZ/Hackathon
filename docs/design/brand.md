@@ -40,8 +40,8 @@ Ordered: `#00957d` green, `#009ee0` blue, `#7a5cc7` violet, `#c77700` amber (avo
 
 ## Shape, depth, space
 
-- Radius: 28px shells (prompt box, chat frame) · 18px cards · 16px fields · 12–14px icon buttons · 99px pills/chips · 24px dialogs.
-- Shadow: shell `0 18px 45px rgb(0 32 27 / 9%)` · card `0 8px 28px rgb(0 32 27 / 8%)` · popover `0 6px 18px rgb(0 32 27 / 12%)`.
+- Radius (small, "desloppified"): 16px landing prompt box · 10–12px panels, composer · 8px cards inside panels, inputs, buttons, tables · 6px chips, nav items · 4px badges. Sidebar and app shell: square, hairline borders.
+- Shadow: almost none. Hairline `line` borders separate surfaces; composer gets `0 4px 16px rgb(0 32 27 / 6%)`; primary buttons are flat `green-dark`.
 - Spacing: 4px base; common steps 8 / 12 / 16 / 22 / 32.
 - Border: 1px `line`. Focus: 3px ring `rgb(0 149 125 / 38–60%)`, never removed.
 

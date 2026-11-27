@@ -144,7 +144,7 @@ export function createLiveSource(sessionId: string): ChatSource {
     emit({
       type: "say",
       role: "agent",
-      text: "Návrh příběhu je v plátně. Upravte body a klikněte **Schválit a generovat**.",
+      text: "Návrh příběhu je připravený. Upravte body a klikněte **Schválit a generovat**.",
     });
   }
 

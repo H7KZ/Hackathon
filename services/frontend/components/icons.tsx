@@ -25,4 +25,7 @@ export const ICONS = {
   plus: "M12 5v14M5 12h14",
   chat: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
   canvas: "M3 3h18v18H3zM3 9h18M9 21V9",
+  sidebar: "M3 4h18v16H3zM9 4v16",
+  code: "m16 18 6-6-6-6M8 6l-6 6 6 6",
+  expand: "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",
 };

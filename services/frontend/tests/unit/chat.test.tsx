@@ -74,15 +74,31 @@ describe("mock demo workflow", () => {
 });
 
 describe("chat workspace", () => {
-  it("shows thinking, then the story on the canvas; approving generates the dataset", async () => {
+  it("thread layout: thinking, story panel inline, approving generates the dataset", async () => {
     render(<ChatWorkspace source={createMockSource(input, { speed: 0 })} title={input.company} />);
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByText("Demo data")).toBeInTheDocument();
-    expect(await screen.findByRole("tab", { name: "Příběh", selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Příběh" })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Schválit a generovat" }));
     expect(await screen.findByRole("heading", { name: "Dataset d1" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Data d1", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Data d1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Spustit detektiva" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Historie chatů" })).toBeInTheDocument();
+  });
+
+  it("split layout puts big surfaces in canvas tabs", async () => {
+    render(<ChatWorkspace source={createMockSource(input, { speed: 0 })} title="x" layout="split" />);
+    expect(await screen.findByRole("tab", { name: "Příběh", selected: true })).toBeInTheDocument();
+  });
+
+  it("inspector layout logs every A2UI message and shows data models", async () => {
+    render(<ChatWorkspace source={createMockSource(input, { speed: 0 })} title="x" layout="inspector" />);
+    await screen.findByRole("region", { name: "Příběh" });
+    expect(screen.getByRole("tab", { name: /^Zprávy/ })).toBeInTheDocument();
+    expect(screen.getAllByText("createSurface").length).toBeGreaterThan(0);
+    const [json] = screen.getAllByRole("button", { name: "JSON" });
+    if (json) fireEvent.click(json);
+    expect(screen.getByRole("tab", { name: "Data model", selected: true })).toBeInTheDocument();
   });
 });
 
