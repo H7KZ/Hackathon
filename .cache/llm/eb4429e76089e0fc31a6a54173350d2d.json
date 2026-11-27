@@ -1,0 +1,11 @@
+{
+  "key": "eb4429e76089e0fc31a6a54173350d2d",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT p.supplier_id, date_trunc('month', l.date) AS month, count(*) AS n, sum(l.quantity) AS qty, count(*) FILTER (WHERE l.went_to<>'nikam') AS to_competitor FROM lost_sale l JOIN product p ON p.id=l.product_id GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

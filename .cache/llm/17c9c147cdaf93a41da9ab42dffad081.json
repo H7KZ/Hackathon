@@ -1,0 +1,39 @@
+{
+  "key": "17c9c147cdaf93a41da9ab42dffad081",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatel SUP-001 se od začátku března 2025 výrazně zhoršil. Do konce února měl podíl pozdních dodávek kolem 5–7 % a průměrné zpoždění pod 1 den. Od týdne 2025-03-03 podíl pozdních dodávek vzrostl na asi 20 % a od 2025-03-31 na 35–40 %. Průměrné zpoždění se zvýšilo z necelého 1 dne na 3–4 dny. Od dubna se k tomu přidalo i krácení dodávek: podíl krácených dodávek vzrostl z 4–7 % na 18–27 %. Ostatní dodavatelé, SUP-002 a SUP-003, zůstali stabilní. Zhoršení se přeneslo do prodejů. Ztracené prodeje u produktů SUP-001 vzrostly z 14 případů v únoru na 61 v březnu a 158 v dubnu. Důvodem je vždy nedostupnost zboží a většina zákazníků odešla ke konkurenci (např. Alza.cz). Ztráty u SUP-002 a SUP-003 zůstaly zhruba na stejné úrovni.",
+        "findings": [
+          {
+            "claim": "Dodavatel SUP-001 začal od března 2025 dodávat výrazně pozdě. Podíl pozdních dodávek vzrostl z cca 5 % na 20 % a v dubnu až na 35–40 %. Průměrné zpoždění se zvýšilo z <1 dne na 3–4 dny. Ostatní dodavatelé zůstali stabilní.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2025-03-03",
+            "supportingSql": "SELECT supplier_id, date_trunc('week', received_date) AS wk, count(*) AS n, avg(is_late::INT) AS late_rate, avg(delay_days) AS avg_delay FROM delivery GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "U SUP-001 se v dubnu 2025 zhoršila i úplnost dodávek. Podíl krácených dodávek vzrostl z cca 4–7 % na 18–27 %.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2025-03-31",
+            "supportingSql": "SELECT date_trunc('week', received_date) AS wk, count(*) AS n, avg(is_short::INT) AS short_rate FROM delivery WHERE supplier_id='SUP-001' GROUP BY 1 ORDER BY 1"
+          },
+          {
+            "claim": "Následkem toho vzrostly ztracené prodeje z nedostupnosti zboží u produktů dodavatele SUP-001. Šlo o 14 případů v únoru, 61 v březnu a 158 v dubnu, většinou s odchodem zákazníků ke konkurenci. U SUP-002 a SUP-003 žádný takový nárůst nenastal.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2025-03-03",
+            "supportingSql": "SELECT p.supplier_id, date_trunc('month', l.date) AS month, count(*) AS n, sum(l.quantity) AS qty, count(*) FILTER (WHERE l.went_to<>'nikam') AS to_competitor FROM lost_sale l JOIN product p ON p.id=l.product_id GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

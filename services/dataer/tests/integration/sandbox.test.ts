@@ -86,14 +86,21 @@ describe("withSandbox", () => {
 });
 
 describe("readTruthPoints (full db, scoring only)", () => {
-  it("reads truth.story_points as TruthPoints, sorted by id; no entity -> []", async () => {
+  it("reads findable story points only: phase >= 1 with an entity (live run #2: a baseline capped recall)", async () => {
     const { dir, cleanup } = makeTempDir();
     try {
       const db = join(dir, "run.duckdb");
-      await writeRun(db, run);
+      const baseline = {
+        id: "sp0",
+        phase: 0,
+        title: "Běžný provoz",
+        description: "d",
+        entity: { name: "supplier", ids: ["SUP-001"] },
+        start: "2025-01-01",
+      };
+      await writeRun(db, { ...run, storyPoints: [...run.storyPoints, baseline] });
       expect(await readTruthPoints(db)).toEqual([
         { id: "sp1", entityIds: ["SUP-002", "SUP-003"], start: "2025-03-01" },
-        { id: "sp2", entityIds: [], start: "2025-04-01" },
       ]);
       await writeRun(db, { ...run, storyPoints: [] });
       expect(await readTruthPoints(db)).toEqual([]);

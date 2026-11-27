@@ -1,0 +1,11 @@
+{
+  "key": "cf80bdeb2d748f2f15e1a5b2c13104d8",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', l.date) AS wk, count(*) AS n, sum(l.quantity) AS qty FROM lost_sale l JOIN product p ON p.id=l.product_id WHERE p.supplier_id='SUP-001' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

@@ -46,3 +46,44 @@ describe("scoreFindings", () => {
     expect(s.recall).toBe(1);
   });
 });
+
+describe("scoreFindings — a finding counts only for its nearest story point (live run #2)", () => {
+  const f = (entities: string[], start: string) => ({
+    claim: "x",
+    entities,
+    start,
+    supportingSql: "SELECT 1",
+  });
+  const truth = [
+    { id: "late", entityIds: ["SUP-001"], start: "2025-03-01" },
+    { id: "short", entityIds: ["SUP-001"], start: "2025-03-15" },
+  ];
+
+  it("does not let a finding about the 1 March change claim the 15 March point", () => {
+    // run #2: F0 and F2 point at 3 March (the delays), F1 dates the short-shipping to 31 March (16 days off)
+    const s = scoreFindings(
+      [f(["SUP-001"], "2025-03-03"), f(["SUP-001"], "2025-03-31"), f(["SUP-001"], "2025-03-03")],
+      truth,
+    );
+    expect(s.matched).toEqual([{ storyPointId: "late", findingIndex: 0 }]);
+    expect(s.recall).toBe(0.5);
+  });
+
+  it("matches the later point when the finding is nearest to it and inside the window", () => {
+    const s = scoreFindings([f(["SUP-001"], "2025-03-02"), f(["SUP-001"], "2025-03-20")], truth);
+    expect(s.recall).toBe(1);
+  });
+
+  it("a finding equally near two points may match either", () => {
+    const s = scoreFindings([f(["SUP-001"], "2025-03-08")], truth);
+    expect(s.matched).toHaveLength(1);
+  });
+
+  it("only points sharing an entity compete for nearest", () => {
+    const mixed = [
+      { id: "a", entityIds: ["SUP-001"], start: "2025-03-01" },
+      { id: "b", entityIds: ["STO-001"], start: "2025-03-10" },
+    ];
+    expect(scoreFindings([f(["SUP-001"], "2025-03-09")], mixed).recall).toBe(0.5);
+  });
+});

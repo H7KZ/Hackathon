@@ -1,0 +1,11 @@
+{
+  "key": "5c56d525cb8740b1315cce2132b957c9",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', received_date) AS wk, count(*) AS n, avg(is_late::INT) AS late_rate, avg(delay_days) AS avg_delay, avg(is_short::INT) AS short_rate, min(received_date) AS first_d FROM delivery WHERE supplier_id='SUP-001' AND received_date BETWEEN '2025-02-15' AND '2025-03-20' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "key": "52920c9025af628c889248778c219d26",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT supplier_id, date_trunc('month', received_date) AS month, count(*) AS n, avg(is_late::INT) AS late_rate, avg(delay_days) AS avg_delay, avg(is_short::INT) AS short_rate, avg(delivered_qty) AS avg_qty FROM delivery GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}
