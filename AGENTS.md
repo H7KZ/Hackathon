@@ -30,8 +30,11 @@ Four people work on this repo, humans and agents alike.
 
 - **Owners** (who reviews PRs in an area): see `.github/CODEOWNERS`. Changes to `packages/schema` are announced in the PR and approved by the owner before the compiler/engine change lands.
 - **One person, one workspace at a time** when possible. Shared files are conflict hotspots: `packages/schema/src/*`, `services/api/src/app.ts`, `pnpm-lock.yaml`, `scenarios/*.json`, `.cache/llm/`.
-- **Branches:** `feat/<area>-<name>` or `fix/<area>-<name>`, short-lived. Never push to `main` directly; it is protected and every change goes through a PR with green CI (`verify`).
-- **Before pushing:** `git fetch && git log HEAD..origin/main` and rebase on `main` if it moved. Do not force push.
+- **Trunk:** `origin/main`. Never push to `main` directly; every change goes through a PR with green CI (`verify`).
+- **Branches:** one branch per feature (a larger unit of work, not per file or per commit), e.g. `feat/<area>-<name>`. Each person works on their own branch(es).
+- **Agents work in git worktrees**, one per branch, so parallel agents never share a checkout.
+- **Pushes:** push in larger, meaningful batches, not after every small commit. Keep the local history readable before pushing.
+- **Before pushing:** `git fetch origin && git rebase origin/main` from the feature branch, then resolve conflicts there. Do not force push to shared branches. A rebased feature branch that was already pushed needs `git push --force-with-lease` on your own branch; humans run that themselves, agents ask first (`.claude/settings.json` denies force pushes).
 - **Lockfile conflicts:** do not merge by hand. Take `main`'s `pnpm-lock.yaml`, run `pnpm install`, commit the result.
 - **LLM cache conflicts:** `.cache/llm/` is regenerated, not hand-merged. Only one person records (`EVAL_LIVE=1 pnpm evals`) at a time; announce it in the team chat.
 - **PR:** fill in the template (`.github/pull_request_template.md`); squash merge.

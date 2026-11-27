@@ -24,4 +24,6 @@ runs/*
 # tooling scratch
 .playwright-mcp/
 .claude/settings.local.json
+.claude/worktrees/
+.worktrees/
 .DS_Store
