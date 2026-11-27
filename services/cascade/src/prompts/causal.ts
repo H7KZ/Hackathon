@@ -58,7 +58,7 @@ Each query:
 - reads ONLY the listed observed tables of schema main (never truth.*), and reads the hypothesis' "table";
 - "before" covers dates in [before.start, before.end), "after" covers [after.start, after.end) (end exclusive);
 - measures an event as a daily rate (COUNT(*) / number of days in the window), so windows of different length compare fairly;
-- measures a state (a flow snapshot table) as AVAILABILITY: the share of snapshot rows with value > 0, AVG(CASE WHEN value > 0 THEN 1 ELSE 0 END). Not the average level: late deliveries cause stock-outs and overshoots at once, so the level can rise while availability falls;
+- measures a state (a flow snapshot table) as its STOCK-OUT SHARE: the share of snapshot rows with value <= 0, AVG(CASE WHEN value <= 0 THEN 1.0 ELSE 0.0 END). The hypothesis direction already refers to this share. Not the average level: late deliveries cause stock-outs and overshoots at once, so the level can rise while stock-outs rise too;
 - respects "focus": "only" keeps just records related to the listed entity ids (join through foreign keys, e.g. sale -> product.supplier_id), "exclude" keeps all other records;
 - for an event recorded as a flag or field of the table (e.g. a late delivery in table delivery), count the records where it happened.
 Return {"queries": [{"hypothesisId", "sql"}]} with one query for EVERY hypothesis id. If errors are given, return the corrected full object.`;

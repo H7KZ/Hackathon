@@ -16,8 +16,7 @@ describe("hypotheses from map + overlay (D3)", () => {
     const hs = deriveHypotheses(causalMap, overlay, processesPlan);
     expect(summary(hs)).toEqual([
       "sp1_late_delivery:increase:only", // rare event (probabilistic edge): no stable control
-      "sp1_stock:decrease:only",
-      "sp1_stock_outside:stable:exclude",
+      "sp1_stock:increase:only", // stock-out share of the state rises
       "sp1_sale:decrease:only",
       "sp1_sale_outside:stable:exclude",
       "sp1_complaint:increase:only",

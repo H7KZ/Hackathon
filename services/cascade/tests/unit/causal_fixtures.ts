@@ -114,7 +114,7 @@ function rateSql(from: string, date: string, where: string, agg: "count" | "avg"
   const value =
     agg === "count"
       ? `CAST(COUNT(*) AS DOUBLE) / CASE period WHEN 'before' THEN ${BEFORE_DAYS} ELSE ${AFTER_DAYS} END`
-      : "AVG(CASE WHEN v > 0 THEN 1.0 ELSE 0.0 END)"; // availability of a state (EXPECTATION_SQL prompt)
+      : "AVG(CASE WHEN v <= 0 THEN 1.0 ELSE 0.0 END)"; // stock-out share of a state (EXPECTATION_SQL prompt)
   return `SELECT period, ${value} AS value FROM (SELECT CASE WHEN ${date} < DATE '2025-03-01' THEN 'before' ELSE 'after' END AS period, ${agg === "avg" ? "t.value" : "1"} AS v FROM ${from} WHERE ${where}) GROUP BY period`;
 }
 
@@ -128,7 +128,6 @@ export const queries = [
     sql: rateSql("main.delivery t", "t.planned_date", "t.is_late AND t.supplier_id = 'SUP-002'"),
   },
   { hypothesisId: "sp1_stock", sql: rateSql(viaProduct("stock_daily"), "t.date", sup("="), "avg") },
-  { hypothesisId: "sp1_stock_outside", sql: rateSql(viaProduct("stock_daily"), "t.date", sup("<>"), "avg") },
   { hypothesisId: "sp1_sale", sql: rateSql(viaProduct("sale"), "t.date", sup("=")) },
   { hypothesisId: "sp1_sale_outside", sql: rateSql(viaProduct("sale"), "t.date", sup("<>")) },
   { hypothesisId: "sp1_complaint", sql: rateSql(viaProduct("complaint"), "t.date", sup("=")) },

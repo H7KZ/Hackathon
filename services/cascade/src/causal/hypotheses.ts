@@ -12,6 +12,11 @@ import { observedTables } from "../checks";
 import { leverPeriods } from "./curves";
 
 export const MIN_CHANGE = 0.1;
+/*
+ * States are measured as the share of snapshot rows at zero (stock-out share), not availability:
+ * availability sits near 1, so a real drop is compressed (live run: -6..-10% on every seed, while the
+ * stock-out share rose ~ +85%). Their direction is therefore opposite to the level's.
+ */
 export const STABLE_TOLERANCE = 0.15;
 /** A metric reached with both signs gets the sign whose strongest path is at least this much stronger. */
 export const DOMINANCE = 2;
@@ -115,7 +120,11 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
   const metrics = map.nodes.filter(
     (n) => (n.kind === "event" || n.kind === "state") && n.table !== undefined && observed.has(n.table),
   );
-  const rare = new Set(map.edges.filter((e) => e.type === "probabilistic").map((e) => e.to));
+  // no stable control for rare events or states: small counts / a stock-out share near 0 are too noisy
+  const rare = new Set([
+    ...map.edges.filter((e) => e.type === "probabilistic").map((e) => e.to),
+    ...map.nodes.filter((n) => n.kind === "state").map((n) => n.id),
+  ]);
   const byPeak = new Map<string, Episode[]>();
   for (const e of episodes(map, overlay, plan.entities))
     byPeak.set(e.peak.id, [...(byPeak.get(e.peak.id) ?? []), e]);
@@ -141,7 +150,7 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
           table,
           before,
           after,
-          description: `${node.description} (${table})${where} ${WORD[h.direction]} v období „${sp.title}“ (od ${sp.start}) proti období před příběhem`,
+          description: `${node.kind === "state" ? "Podíl dní bez zásoby (value <= 0): " : ""}${node.description} (${table})${where} ${WORD[h.direction]} v období „${sp.title}“ (od ${sp.start}) proti období před příběhem`,
         });
       };
       const effects = paths.flatMap(({ move, paths: p }) => {
@@ -166,7 +175,9 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
       const focus = effects.length === 1 ? first.move.focus : undefined;
       add({
         id: `${sp.id}_${node.id}`,
-        direction: first.net.sign * first.move.sign > 0 ? "increase" : "decrease",
+        // a state is measured as its stock-out share (EXPECTATION_SQL), which moves against the level
+        direction:
+          first.net.sign * first.move.sign * (node.kind === "state" ? -1 : 1) > 0 ? "increase" : "decrease",
         minRelChange: MIN_CHANGE,
         ...(focus && { focus: { ...focus, mode: "only" as const } }),
         path: first.net.path.edges,
