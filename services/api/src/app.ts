@@ -6,19 +6,24 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import type { Health } from "@s2d/schema/api";
+import { realPorts } from "./adapters";
 import type { ApiConfig } from "./config";
+import { createOrchestrator, type Orchestrator } from "./orchestrator";
 import { scenarioRoutes } from "./routes/scenarios";
+import { sessionRoutes } from "./routes/sessions";
 
 export const API_VERSION = "0.1.0";
 
-export function createApp(cfg: ApiConfig, opts: { log?: boolean } = {}) {
+export function createApp(cfg: ApiConfig, opts: { log?: boolean; orchestrator?: Orchestrator } = {}) {
+  const orchestrator = opts.orchestrator ?? createOrchestrator({ ports: realPorts(), runsDir: cfg.runsDir });
   const app = new Hono();
   app.use("*", cors({ origin: cfg.corsOrigin }));
   if (opts.log) app.use("*", logger());
 
   const routes = app
     .get("/health", (c) => c.json({ status: "ok", version: API_VERSION } satisfies Health))
-    .route("/scenarios", scenarioRoutes(cfg));
+    .route("/scenarios", scenarioRoutes(cfg))
+    .route("/sessions", sessionRoutes(orchestrator));
 
   app.onError((err, c) => {
     console.error(err);

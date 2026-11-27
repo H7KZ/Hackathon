@@ -1,4 +1,6 @@
-# API orchestrator: design (draft for approval)
+# API orchestrator: design (variant A approved and implemented)
+
+**Status:** core + routes + SSE implemented in `services/api/src/{orchestrator,sessionStore,routes/sessions,adapters}.ts`, tested against fake ports. The real adapters (`adapters.ts`) still return "zatím není implementováno" for `cascade.whatIf`, `dataer.compare` and `dataer.detective`. Cascade A5 is missing too: for now, upload `05_scenario` with `PUT /sessions/:id/artifacts/05_scenario` and then `approve`.
 
 Owner: `services/api`. Research: [`docs/research/api-orchestration.md`](research/api-orchestration.md).
 

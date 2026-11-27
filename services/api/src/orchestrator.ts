@@ -22,7 +22,7 @@ import {
   type SessionStatus,
 } from "./contract.draft";
 import type { Ports } from "./ports";
-import { sessionStore, type JobSpec } from "./sessionStore";
+import { NotFoundError, sessionStore, type JobSpec } from "./sessionStore";
 
 export { NotFoundError } from "./sessionStore";
 
@@ -53,6 +53,8 @@ export interface Orchestrator {
   evidence(sessionId: string, datasetId: string): Promise<DatasetEvidence>;
   compare(sessionId: string, a: string, b: string): Promise<MetricDiff[]>;
   detective(sessionId: string, datasetId: string): Promise<DetectiveResult | null>;
+  /** Current cascade artifact (e.g. 04_story for the timeline editor); throws NotFoundError if not produced yet. */
+  artifact(sessionId: string, name: ArtifactName): unknown;
 }
 
 type NewEvent = SessionEvent extends infer E ? (E extends SessionEvent ? Omit<E, "seq"> : never) : never;
@@ -122,7 +124,8 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
     const run = ports.noiser.run(scenario, seed);
     const db = join(dir, "db.duckdb");
     await ports.dataer.store(run, db);
-    store.writeJson(join(dir, "evidence.json"), DatasetEvidence.parse(await ports.dataer.evidence(db)));
+    const evidence = await ports.dataer.evidence(db, scenario.expectations);
+    store.writeJson(join(dir, "evidence.json"), DatasetEvidence.parse(evidence));
     const dataset: DatasetInfo = { id: datasetId, seed, ...info };
     if (dataset.parent) {
       const diff = await ports.dataer.compare(join(store.datasetDir(id, dataset.parent), "db.duckdb"), db);
@@ -135,7 +138,7 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
 
   const datasetOf = (id: string, datasetId: string) => {
     const d = store.read(id).datasets.find((x) => x.id === datasetId);
-    if (!d) throw new Error(`Dataset "${datasetId}" neexistuje.`);
+    if (!d) throw new NotFoundError(`Dataset "${datasetId}" neexistuje.`);
     return { info: d, dir: store.datasetDir(id, datasetId) };
   };
 
@@ -313,6 +316,7 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
     },
 
     get: (id) => store.read(id),
+    artifact: (id, name) => store.readJson(store.artifactPath(id, name)),
     events: (id, afterSeq = 0) => store.events(id).filter((e) => e.seq > afterSeq),
 
     subscribe(id, listener) {
@@ -336,12 +340,12 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       ),
 
     async compare(id, a, b) {
-      const stored = join(datasetOf(id, a).dir, `compare_${b}.json`);
+      // both ids are checked against the session's datasets (and /^d[0-9]+$/) before any path is built
+      const da = datasetOf(id, a);
+      const db = datasetOf(id, b);
+      const stored = join(da.dir, `compare_${db.info.id}.json`);
       if (existsSync(stored)) return MetricDiff.array().parse(store.readJson(stored));
-      return ports.dataer.compare(
-        join(datasetOf(id, b).dir, "db.duckdb"),
-        join(datasetOf(id, a).dir, "db.duckdb"),
-      );
+      return ports.dataer.compare(join(db.dir, "db.duckdb"), join(da.dir, "db.duckdb"));
     },
 
     detective(id, datasetId) {
