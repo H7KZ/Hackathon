@@ -29,3 +29,36 @@ export const ICONS = {
   code: "m16 18 6-6-6-6M8 6l-6 6 6 6",
   expand: "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",
 };
+
+const FILE_KINDS = {
+  csv: { label: "CSV", color: "#00957d" },
+  json: { label: "JSON", color: "#7a5cc7" },
+  md: { label: "MD", color: "#009ee0" },
+  txt: { label: "TXT", color: "#5b6563" },
+} as const;
+export type FileKind = keyof typeof FILE_KINDS;
+
+export const fileKind = (name: string): FileKind => {
+  const ext = /\.([a-z0-9]+)$/i.exec(name)?.[1]?.toLowerCase();
+  return ext === "csv" || ext === "json" || ext === "md" ? ext : "txt";
+};
+
+/** Document glyph with a coloured type tag (landing attachments). */
+export function FileIcon({ name }: { name: string }) {
+  const kind = FILE_KINDS[fileKind(name)];
+  return (
+    <svg aria-hidden="true" viewBox="0 0 28 32" className="file-icon" data-kind={kind.label}>
+      <path d="M4 1h14l7 7v22a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" fill="#fff" stroke="#c9d1cf" />
+      <path d="M18 1v6a1 1 0 0 0 1 1h6" fill="none" stroke="#c9d1cf" />
+      <rect x="1" y="17" width={kind.label.length > 3 ? 24 : 20} height="10" rx="2" fill={kind.color} />
+      <text x="3.5" y="24.8" fill="#fff" fontSize="7" fontWeight="700" fontFamily="system-ui, sans-serif">
+        {kind.label}
+      </text>
+    </svg>
+  );
+}
+
+export const formatBytes = (bytes: number) =>
+  bytes < 1024
+    ? `${String(bytes)} B`
+    : `${(bytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} kB`;

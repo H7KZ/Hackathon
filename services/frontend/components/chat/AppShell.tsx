@@ -26,13 +26,19 @@ function useSidebar(defaultOpen: boolean): [boolean, (open: boolean) => void] {
     () => localStorage.getItem(KEY),
     () => null,
   );
+  // narrow screens: the sidebar overlays the chat, so it always starts closed and is not remembered
+  const wide = useSyncExternalStore(
+    noop,
+    () => typeof window.matchMedia !== "function" || window.matchMedia("(min-width: 901px)").matches,
+    () => true,
+  );
   const [local, setLocal] = useState<boolean | null>(null);
-  const open = local ?? (saved === null ? defaultOpen : saved === "1");
+  const open = local ?? (wide && (saved === null ? defaultOpen : saved === "1"));
   return [
     open,
     (next) => {
       setLocal(next);
-      localStorage.setItem(KEY, next ? "1" : "0");
+      if (wide) localStorage.setItem(KEY, next ? "1" : "0");
     },
   ];
 }

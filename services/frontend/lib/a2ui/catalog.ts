@@ -28,6 +28,7 @@ export const COMPONENTS = [
   "ChoicePicker",
   "CheckBox",
   "DateTimeInput",
+  "PeriodPicker",
   // data (custom)
   "Kpi",
   "Table",
@@ -52,6 +53,7 @@ export const DATA_PROPS: Partial<Record<ComponentName, readonly string[]>> = {
   ChoicePicker: ["value"],
   CheckBox: ["value"],
   DateTimeInput: ["value"],
+  PeriodPicker: ["value"],
   CurveEditor: ["points"],
 };
 

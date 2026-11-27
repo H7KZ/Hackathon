@@ -10,7 +10,7 @@ import {
   toSessionInput,
   type PromptError,
 } from "../lib/prompt";
-import { Icon, ICONS } from "./icons";
+import { FileIcon, formatBytes, Icon, ICONS } from "./icons";
 
 export type Send = (input: { company: string; story: string }) => Promise<CreateResult>;
 
@@ -176,7 +176,11 @@ export function PromptForm({
             <ul className="files">
               {files.map((file, i) => (
                 <li key={`${file.name}-${String(i)}`}>
-                  {file.name}
+                  <FileIcon name={file.name} />
+                  <span className="file-meta">
+                    <span className="file-name">{file.name}</span>
+                    <small>{formatBytes(file.size)}</small>
+                  </span>
                   <button
                     type="button"
                     aria-label={`Odebrat ${file.name}`}

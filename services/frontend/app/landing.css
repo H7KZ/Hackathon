@@ -172,11 +172,33 @@
 .files li {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px 4px 12px;
-  border-radius: 99px;
-  background: #e6f4f1;
+  gap: 8px;
+  max-width: 100%;
+  padding: 5px 6px 5px 8px;
+  border: 1px solid #e3eae8;
+  border-radius: 10px;
+  background: #fff;
   font-size: 0.9rem;
+}
+.files .file-icon {
+  width: 22px;
+  height: 26px;
+  flex: none;
+}
+.file-meta {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+}
+.file-name {
+  overflow: hidden;
+  max-width: 220px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.file-meta small {
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 .files button {
   width: 24px;

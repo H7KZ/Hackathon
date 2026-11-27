@@ -49,6 +49,7 @@
 | `TextField` | `label`, **`value`**, `placeholder`, `variant: text|longText|number` (number writes a number) |
 | `DateTimeInput` | `label`, **`value`** (ISO date; empty = removed), `min`, `max` |
 | `CheckBox` | `label: Dyn<string>`, **`value`** (boolean) |
+| `PeriodPicker` | **`value`**: `TimeConfig` `{start, length, unit: days|weeks|months|years, granularity: hour|day|week, from, to}`. Writes the whole object with derived `from`/`to`; shows record count per entity, warns above 20 000, presets (2 týdny po hodinách … 4 roky po dnech). Limits: 10 years. |
 | `Slider` | `label`, **`value`**, `min`, `max`, `steps`, `unit` |
 | `ChoicePicker` | `label`, **`value`** (string[]), `options: [{label, value}]`, `variant: single\|multiple` |
 
@@ -67,7 +68,7 @@
 | --- | --- |
 | `Steps` | **`steps`**: `[{id, label, state: pending\|running\|done\|failed, detail?}]` |
 | `StoryTimeline` | **`points`**: `[{id, title, start, end?}]`, `from`, `to` (ISO dates), read-only overview |
-| `CurveEditor` | **`points`**: `[{id, title, description?, start, end?, level}]`, `baseline`, `rampDays`, `from`, `to`, `min`, `max`, `label`, `unit`, `locked`, `height`. Interactions: drag point (date + value), drag square (return to normal), double-click adds, `+ Bod`, arrows nudge (Shift = 7 days / 1 unit), Delete, Ctrl+Z / Ctrl+Shift+Z, inline editor for the selected point. Writes every change into the bound data model. |
+| `CurveEditor` | **`points`**: `[{id, title, description?, start, end?, level}]`, `baseline`, `rampDays`, `from`, `to`, `min`, `max`, `label`, `unit`, `locked`, `height`. Sticky at the top of the thread while settings below scroll. Interactions: hover near the line shows a ghost `+` point, one click adds it there; drag point (date + value), drag square (return to normal), double-click adds, `+ Bod`, arrows nudge (Shift = 7 days / 1 unit), Delete, Ctrl+Z / Ctrl+Shift+Z, inline editor for the selected point; points outside a changed period get a one-click "Rozložit body do období". Ramp is capped at 1/8 of the range. Writes every change into the bound data model. |
 
 ## Presenter surfaces (`lib/chat/surfaces.ts`)
 
@@ -75,7 +76,7 @@
 | --- | --- | --- |
 | `progressSurface` / `setSteps` | chat | Card + Steps |
 | `companySurface` | chat | industry, size, actor badges (template), processes |
-| `storySurface` | canvas | CurveEditor, basic settings (období, objem dat, seed), `Pokročilé nastavení` (points, curve, noise, company size, expectations), Generovat data (sends points + config + expectations) |
+| `storySurface` | canvas | CurveEditor (sticky), PeriodPicker, basic settings (objem dat, seed), `Pokročilé nastavení` (points, curve, noise, company size, expectations), Generovat data (sends points + config + expectations) |
 | `datasetSurface` | canvas | 4 KPIs, tabs: Přehled (chart + markers), Důkazy (expectations), Tabulky |
 | `readySurface` | chat | summary + "Spustit detektiva" / "Otevřít data" |
 | `detectiveSurface` | canvas | recall/precision/count KPIs, narrative, findings table |

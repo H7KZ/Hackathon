@@ -9,6 +9,7 @@ import { Card, Collapsible, Column, Divider, List, Row, Tabs } from "./layout";
 import { Badge, Callout, Text } from "./content";
 import { Button, CheckBox, ChoicePicker, DateTimeInput, Slider, TextField } from "./inputs";
 import { CurveEditor } from "./curve";
+import { PeriodPicker } from "./period";
 import { Kpi, Table } from "./data";
 import { BarChart, LineChart } from "./charts";
 import { Steps, StoryTimeline } from "./story";
@@ -31,6 +32,7 @@ export const REGISTRY: Registry & Record<ComponentName, ComponentType<NodeProps>
   ChoicePicker,
   CheckBox,
   DateTimeInput,
+  PeriodPicker,
   Kpi,
   Table,
   LineChart,

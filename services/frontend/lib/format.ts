@@ -43,3 +43,9 @@ export function toText(value: unknown): string {
     return value.toString();
   return JSON.stringify(value);
 }
+
+/** Czech plural: `plural(1, "bod", "body", "bodů")` → "1 bod", 3 → "3 body", 5 → "5 bodů". */
+export function plural(n: number, one: string, few: string, many: string): string {
+  const word = n === 1 ? one : n >= 2 && n <= 4 ? few : many;
+  return `${n.toLocaleString("cs-CZ")} ${word}`;
+}

@@ -9,11 +9,15 @@
 import type { DatasetEvidence, DetectiveResult, SessionCommand, SessionEvent, SessionState } from "@s2d/api";
 import type { MetricDiff } from "@s2d/schema/evidence";
 import type { Step } from "../a2ui/catalog";
-import { API_URL } from "../api";
+import { apiUrl } from "../api";
+import { plural } from "../format";
 import { DEFAULT_CONFIG, normalize } from "./config";
 import { addDays } from "./curve";
+import { makeTime } from "./time";
 import { STEP_LABELS, type StepKey } from "./phrases";
+import { a2ui } from "../a2ui/protocol";
 import {
+  companySurface,
   compareSurface,
   datasetSurface,
   detectiveSurface,
@@ -21,6 +25,7 @@ import {
   readySurface,
   setSteps,
   storySurface,
+  type CompanyView,
   type DatasetView,
   type ExpectationToggle,
   type SeriesRow,
@@ -47,7 +52,7 @@ type StoryArtifact = {
 };
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
+  const res = await fetch(`${apiUrl()}${path}`);
   if (!res.ok) throw new Error(`GET ${path}: HTTP ${String(res.status)}`);
   return (await res.json()) as T;
 }
@@ -71,17 +76,17 @@ export function storyToEdit(story: StoryArtifact): {
     };
   });
   const starts = points.map((x) => x.start).sort();
-  const from = addDays(starts[0] ?? DEFAULT_CONFIG.period.from, -56);
+  const from = addDays(starts[0] ?? DEFAULT_CONFIG.time.from, -56);
   const levels = [curve?.baseline ?? 0, ...points.map((x) => x.level)];
   const max = Math.max(...levels);
   return {
     points,
     config: normalize({
       ...DEFAULT_CONFIG,
-      period: { from, to: from },
+      time: makeTime(from, 6, "months", "day"),
       curve: {
         ...DEFAULT_CONFIG.curve,
-        label: curve?.id ?? DEFAULT_CONFIG.curve.label,
+        label: curve ? `Parametr ${curve.id.replace(/_/g, " ")}` : DEFAULT_CONFIG.curve.label,
         unit: "",
         baseline: curve?.baseline ?? 0,
         min: Math.min(0, ...levels),
@@ -143,6 +148,7 @@ export function evidenceToView(
   return {
     datasetId,
     totals: { rows: Number.NaN, tables: Number.NaN, days: byDay.size },
+    seriesTitle: "Průběh metrik z dat",
     series: [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day)),
     seriesLines: ev.series.slice(0, 5).map((s) => ({ key: s.table, label: s.table })),
     markers: (story?.storyPoints ?? []).map((p) => ({ date: p.start, label: p.title })),
@@ -158,6 +164,8 @@ export function evidenceToView(
   };
 }
 
+const LIVE_SUGGESTIONS = ["Co kdyby se změna stala o měsíc později?", "Co kdyby byl dopad poloviční?"];
+
 const CASCADE_KEYS: StepKey[] = ["01_company", "02_model", "03_influences", "04_story", "05_scenario"];
 
 export function createLiveSource(sessionId: string): ChatSource {
@@ -168,9 +176,13 @@ export function createLiveSource(sessionId: string): ChatSource {
   let progressId = "";
   let progress: Step[] = [];
   let runs = 0;
+  let storySurfaceId = "";
+  /** true once generation started; async story fetches (replays) must not unlock it again */
+  let storyLocked = false;
+  let companyShown = false;
 
   const command = async (cmd: SessionCommand) => {
-    const res = await fetch(`${API_URL}/sessions/${sessionId}/commands`, {
+    const res = await fetch(`${apiUrl()}/sessions/${sessionId}/commands`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cmd),
@@ -196,14 +208,61 @@ export function createLiveSource(sessionId: string): ChatSource {
     emit({ type: "a2ui", message: setSteps(progressId, progress) });
   };
 
+  /** Step details like the demo ("4 aktéři, 4 procesy"), read from the artifact the step just wrote. */
+  async function describeStep(step: string) {
+    const get = <T>(name: string) =>
+      getJson<{ value: T }>(`/sessions/${sessionId}/artifacts/${name}`).then((r) => r.value);
+    if (step === "01_company") {
+      const c = await get<CompanyView>("01_company");
+      mark(
+        step,
+        "done",
+        `${plural(c.actors.length, "aktér", "aktéři", "aktérů")}, ${plural(c.keyProcesses.length, "proces", "procesy", "procesů")}`,
+      );
+      if (!companyShown) {
+        companyShown = true;
+        emit({ type: "a2ui", message: companySurface("company", c) });
+      }
+    } else if (step === "02_model") {
+      const m = await get<{ entities: unknown[]; processes: unknown[] }>("02_model");
+      mark(
+        step,
+        "done",
+        `${plural(m.entities.length, "entita", "entity", "entit")}, ${plural(m.processes.length, "proces", "procesy", "procesů")}`,
+      );
+    } else if (step === "03_influences") {
+      const i = await get<{ edges: unknown[] }>("03_influences");
+      mark(step, "done", plural(i.edges.length, "vliv", "vlivy", "vlivů"));
+    } else if (step === "04_story") {
+      const st = await get<StoryArtifact>("04_story");
+      mark(step, "done", plural(st.storyPoints.length, "bod příběhu", "body příběhu", "bodů příběhu"));
+    }
+  }
+
   async function showStory() {
     const { value } = await getJson<{ value: StoryArtifact }>(`/sessions/${sessionId}/artifacts/04_story`);
     story = value;
     const edit = storyToEdit(value);
+    // one story surface per session: a replay (reload, reopened from history) or a re-run after an
+    // edit updates it in place instead of stacking copies
+    if (storySurfaceId) {
+      emit({
+        type: "a2ui",
+        message: a2ui.data(storySurfaceId, "/", {
+          points: edit.points,
+          config: edit.config,
+          expectations: edit.expectations,
+          locked: storyLocked,
+        }),
+      });
+      return;
+    }
+    storySurfaceId = "story";
     emit({
       type: "a2ui",
-      message: storySurface(`story-${String(runs)}`, edit.points, edit.config, edit.expectations),
+      message: storySurface(storySurfaceId, edit.points, edit.config, edit.expectations),
     });
+    if (storyLocked) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
     emit({
       type: "say",
       role: "agent",
@@ -219,6 +278,7 @@ export function createLiveSource(sessionId: string): ChatSource {
       message: datasetSurface(`dataset-${datasetId}`, evidenceToView(datasetId, ev, story)),
     });
     emit({ type: "a2ui", message: readySurface(`ready-${datasetId}`, datasetId) });
+    emit({ type: "suggest", items: LIVE_SUGGESTIONS });
     const state = await getJson<SessionState>(`/sessions/${sessionId}`);
     const info = state.datasets.find((d) => d.id === datasetId);
     if (info?.parent) {
@@ -265,6 +325,11 @@ export function createLiveSource(sessionId: string): ChatSource {
         })),
       }),
     });
+    emit({
+      type: "say",
+      role: "agent",
+      text: `Detektiv data neznal a našel ${String(Math.round(result.score.recall * 100))} % bodů příběhu.`,
+    });
   }
 
   function onEvent(e: SessionEvent) {
@@ -278,9 +343,14 @@ export function createLiveSource(sessionId: string): ChatSource {
     switch (e.type) {
       case "status":
         if (e.status === "drafting") newProgress("Agenti navrhují příběh", CASCADE_KEYS.slice(0, 4));
-        if (e.status === "generating") newProgress("Generování dat", ["05_scenario", "engine", "evidence"]);
+        if (e.status === "generating") {
+          newProgress("Generování dat", ["05_scenario", "engine", "evidence"]);
+          storyLocked = true;
+          if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
+        }
         if (e.status === "detecting") newProgress("Detektiv", ["detective"]);
         if (e.status === "awaiting_refinement") {
+          storyLocked = false;
           emit({ type: "busy", step: null });
           if (pendingApprove) {
             pendingApprove = false;
@@ -297,8 +367,10 @@ export function createLiveSource(sessionId: string): ChatSource {
         if (c.type === "step.started") {
           mark(c.step, "running");
           emit({ type: "busy", step: STEP_LABELS[c.step] });
-        } else if (c.type === "step.done") mark(c.step, "done", c.cached ? "z cache" : undefined);
-        else if (c.type === "loop.iteration")
+        } else if (c.type === "step.done") {
+          mark(c.step, "done", c.cached ? "z cache" : undefined);
+          void describeStep(c.step).catch(() => undefined); // details are a nicety, never an error
+        } else if (c.type === "loop.iteration")
           mark(c.step, c.ok ? "done" : "running", `iterace ${String(c.n)}${c.ok ? "" : ": opravuji chyby"}`);
         break;
       }
@@ -322,7 +394,7 @@ export function createLiveSource(sessionId: string): ChatSource {
     demo: false,
     start(next) {
       emit = next;
-      const source = new EventSource(`${API_URL}/sessions/${sessionId}/events`);
+      const source = new EventSource(`${apiUrl()}/sessions/${sessionId}/events`);
       source.onmessage = (m: MessageEvent<string>) => {
         onEvent(JSON.parse(m.data) as SessionEvent);
       };
@@ -343,17 +415,41 @@ export function createLiveSource(sessionId: string): ChatSource {
       const { action } = msg;
       if (action.userMessage) emit({ type: "say", role: "user", text: action.userMessage });
       if (action.name === "approve") {
+        if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
         const edited = action.context.points as StoryPointEdit[] | undefined;
         if (story && edited) {
           const config = action.context.config as StoryConfig | undefined;
           const next = editToStory(story, edited, config?.curve.baseline);
-          const changed = JSON.stringify(next) !== JSON.stringify(story);
+          // compare normalized forms: mapping alone (key order, phases) must not count as an edit
+          const unchanged = editToStory(
+            story,
+            storyToEdit(story).points,
+            storyToEdit(story).config.curve.baseline,
+          );
+          const changed = JSON.stringify(next) !== JSON.stringify(unchanged);
           if (changed) {
             pendingApprove = true;
-            void fetch(`${API_URL}/sessions/${sessionId}/artifacts/04_story`, {
+            story = next; // markers on the dataset chart follow the edited story
+            void fetch(`${apiUrl()}/sessions/${sessionId}/artifacts/04_story`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(next),
+            }).then(async (res) => {
+              if (res.ok) return;
+              pendingApprove = false;
+              if (storySurfaceId)
+                emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", false) });
+              const body = (await res.json().catch(() => null)) as {
+                errors?: { path: string; message: string }[];
+              } | null;
+              const first = body?.errors?.[0];
+              emit({
+                type: "say",
+                role: "agent",
+                text: first
+                  ? `Úpravu nešlo uložit: ${first.path}: ${first.message}`
+                  : `Úpravu nešlo uložit (HTTP ${String(res.status)}).`,
+              });
             });
             return;
           }

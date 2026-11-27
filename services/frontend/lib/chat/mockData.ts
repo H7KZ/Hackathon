@@ -4,8 +4,9 @@
  * Deterministic (LCG on the seed). The story curve the user edits drives the metrics, so a dragged
  * point visibly moves the generated dataset. Never used outside demo mode.
  */
-import { DEFAULT_CONFIG, normalize, periodFor } from "./config";
-import { addDays, curveAt, daysBetween } from "./curve";
+import { DEFAULT_CONFIG, normalize } from "./config";
+import { samplesPerEntity } from "./time";
+import { addDays, curveAt, daysBetween, effectiveRamp } from "./curve";
 import type {
   CompanyView,
   CompareView,
@@ -17,7 +18,7 @@ import type {
   StoryPointEdit,
 } from "./surfaces";
 
-export { addDays, DEFAULT_CONFIG, normalize, periodFor };
+export { addDays, DEFAULT_CONFIG, normalize };
 
 function lcg(seed: number) {
   let s = seed >>> 0;
@@ -29,7 +30,7 @@ function lcg(seed: number) {
 
 const round = (v: number, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
 
-export const PERIOD = periodFor(6);
+export const PERIOD = { from: DEFAULT_CONFIG.time.from, to: DEFAULT_CONFIG.time.to };
 
 export const MOCK_COMPANY: CompanyView = {
   industry: "E-shop s domácími spotřebiči",
@@ -75,16 +76,22 @@ export const MOCK_EXPECTATIONS: ExpectationToggle[] = [
   { id: "e4", description: "Počet objednávek neklesl o více než 10 %", enabled: true },
 ];
 
-/** Weekly metrics that "emerged" from the process chain, driven by the story curve. */
+/** Chart bucket: a week for long ranges, a day for short ones (hourly records are summed per day). */
+export const stepDays = (c: StoryConfig) => (daysBetween(c.time.from, c.time.to) > 120 ? 7 : 1);
+const bucketOf = (from: string, day: string, step: number) =>
+  addDays(from, Math.floor(daysBetween(from, day) / step) * step);
+
+/** Metrics per bucket that "emerged" from the process chain, driven by the story curve. */
 export function mockSeries(points: StoryPointEdit[], config: StoryConfig = DEFAULT_CONFIG): SeriesRow[] {
   const c = normalize(config);
   const rnd = lcg(c.seed || 0);
   const wobble = 0.6 + c.noise.missing / 10;
   const base = c.curve.baseline;
-  const weeks = Math.floor(daysBetween(c.period.from, c.period.to) / 7) + 1;
-  return Array.from({ length: weeks }, (_, w) => {
-    const day = addDays(c.period.from, w * 7);
-    const delay = curveAt(day, base, points, c.curve.rampDays);
+  const step = stepDays(c);
+  const buckets = Math.floor(daysBetween(c.time.from, c.time.to) / step) + 1;
+  return Array.from({ length: buckets }, (_, w) => {
+    const day = addDays(c.time.from, w * step);
+    const delay = curveAt(day, base, points, effectiveRamp(c.curve.rampDays, c.time.from, c.time.to));
     const stress = Math.max(0, delay - base);
     return {
       day,
@@ -135,13 +142,11 @@ function mockTables(seed: number, storyStart: string) {
 export const SERIES_LINES = [
   { key: "delay", label: "Zpoždění dodávky (dny)" },
   { key: "cancel", label: "Storna (%)" },
-  { key: "complaints", label: "Stížnosti / týden" },
+  { key: "complaints", label: "Stížnosti" },
 ];
 
 const firstStart = (points: StoryPointEdit[]) =>
   [...points].sort((a, b) => a.start.localeCompare(b.start))[0]?.start ?? "2026-03-02";
-
-const weekOf = (from: string, day: string) => addDays(from, Math.floor(daysBetween(from, day) / 7) * 7);
 
 export function mockDataset(
   datasetId: string,
@@ -151,11 +156,13 @@ export function mockDataset(
 ): DatasetView {
   const c = normalize(config);
   const series = mockSeries(points, c);
-  const split = Math.max(1, Math.floor(daysBetween(c.period.from, firstStart(points)) / 7));
+  const step = stepDays(c);
+  const split = Math.max(1, Math.floor(daysBetween(c.time.from, firstStart(points)) / step));
   const rel = (b: number, a: number) => round((a - b) / b, 3);
   const exp = (id: string, key: string) => {
     const before = avg(series, key, 0, split);
-    const after = avg(series, key, split + 2, series.length);
+    const settle = Math.ceil(effectiveRamp(c.curve.rampDays, c.time.from, c.time.to) / step);
+    const after = avg(series, key, split + settle, series.length);
     const relChange = rel(before, after);
     return { id, before, after, relChange, pass: relChange >= 0.2 };
   };
@@ -167,17 +174,19 @@ export function mockDataset(
   };
   const tables = mockTables(c.seed || 0, firstStart(points));
   const sizeFactor = (c.size.customers / 2400 + c.size.products / 120 + c.size.stores / 3) / 3;
-  const days = daysBetween(c.period.from, c.period.to) + 1;
+  const days = daysBetween(c.time.from, c.time.to) + 1;
+  const samples = samplesPerEntity(c.time);
   return {
     datasetId,
     totals: {
-      rows: Math.round(48_210 * c.scale * sizeFactor * (1 + c.noise.duplicates / 100) * (days / 182)),
+      rows: Math.round(48_210 * c.scale * sizeFactor * (1 + c.noise.duplicates / 100) * (samples / 181)),
       tables: 12,
       days,
     },
     series,
+    seriesTitle: step === 7 ? "Týdenní průběh klíčových metrik" : "Denní průběh klíčových metrik",
     seriesLines: SERIES_LINES,
-    markers: points.map((p) => ({ date: weekOf(c.period.from, p.start), label: p.title })),
+    markers: points.map((p) => ({ date: bucketOf(c.time.from, p.start, step), label: p.title })),
     expectations: expectations
       .filter((e) => e.enabled)
       .flatMap((e) => {
@@ -248,7 +257,8 @@ export function mockCompare(
   const a = mockSeries(points, config);
   const b = mockSeries(changed, config);
   const c = normalize(config);
-  const from = Math.floor(daysBetween(c.period.from, cutoff) / 7);
+  const step = stepDays(c);
+  const from = Math.floor(daysBetween(c.time.from, cutoff) / step);
   const rel = (x: number, y: number) => round((y - x) / x, 3);
   const metric = (label: string, key: string) => {
     const va = avg(a, key, from, a.length);
@@ -261,7 +271,7 @@ export function mockCompare(
     question,
     metric: "Zpoždění dodávky (dny), týdně",
     series: a.map((row, i) => ({ day: row.day, a: Number(row.delay), b: Number(b[i]?.delay ?? 0) })),
-    markers: [{ date: weekOf(c.period.from, cutoff), label: "Dodavatel se vrací k normálu" }],
+    markers: [{ date: bucketOf(c.time.from, cutoff, step), label: "Dodavatel se vrací k normálu" }],
     diff: [
       metric("Zpoždění dodávky (dny)", "delay"),
       metric("Storna (%)", "cancel"),

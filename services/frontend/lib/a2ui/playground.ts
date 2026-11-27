@@ -4,6 +4,7 @@
  * tests can never disagree about how a component behaves.
  */
 import { DEFAULT_CONFIG, MOCK_POINTS, mockSeries } from "../chat/mockData";
+import { makeTime } from "../chat/time";
 import type { ComponentName } from "./catalog";
 import { path, type ComponentNode } from "./protocol";
 
@@ -137,6 +138,13 @@ export const EXAMPLES: Example[] = [
     tryIt: "Výběr data (ISO RRRR-MM-DD), prázdné pole hodnotu smaže.",
     components: [{ id: "root", component: "DateTimeInput", label: "Začátek", value: path("/start") }],
     data: { start: "2026-03-02" },
+  },
+  {
+    name: "PeriodPicker",
+    tryIt:
+      "Začátek, délka (dny / týdny / měsíce / roky) a jak často se data zapisují (hodiny / dny / týdny). Konec a počet záznamů se dopočítají; u obřích objemů varuje.",
+    components: [{ id: "root", component: "PeriodPicker", value: path("/time") }],
+    data: { time: makeTime("2026-01-05", 6, "months", "day") },
   },
   {
     name: "Collapsible",

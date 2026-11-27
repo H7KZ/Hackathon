@@ -757,3 +757,147 @@
 .a2-row > .a2-badge {
   align-self: center;
 }
+.a2-curve .hit.adding {
+  cursor: copy;
+}
+.a2-curve .ghost circle {
+  fill: #fff;
+  stroke: var(--color-green-dark);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
+.a2-curve .ghost text {
+  fill: var(--color-green-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* period picker */
+.a2-period {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+}
+.a2-period legend {
+  padding: 0 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.a2-period-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+.a2-period label,
+.a2-period-gran > span {
+  display: grid;
+  gap: 4px;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.a2-period input,
+.a2-period select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-fis-dark);
+  font-size: 0.95rem;
+  font-weight: 400;
+  outline: none;
+}
+.a2-period input:focus,
+.a2-period select:focus {
+  border-color: var(--color-green);
+}
+.a2-period-len {
+  display: flex;
+  gap: 6px;
+}
+.a2-period-len input {
+  width: 84px;
+}
+.a2-period-gran {
+  display: grid;
+  gap: 4px;
+}
+.a2-period-gran > div,
+.a2-period-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.a2-period-gran button,
+.a2-period-presets button {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.9rem;
+}
+.a2-period-presets button {
+  height: 28px;
+  border-style: dashed;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+.a2-period-gran button[aria-checked="true"],
+.a2-period-presets button[aria-pressed="true"] {
+  border-color: var(--color-green-dark);
+  border-style: solid;
+  background: var(--color-green-dark);
+  color: #fff;
+}
+.a2-period-sum {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.a2-period-sum.warn {
+  color: var(--color-amber);
+  font-weight: 600;
+}
+
+/* sticky curve: the whole editor sticks to the top of the thread while settings below scroll */
+.a2-curve {
+  position: sticky;
+  top: -1px;
+  z-index: 4;
+  margin: 0 -10px;
+  padding: 9px 10px 8px;
+  border-radius: 0 0 10px 10px;
+  background: #fff;
+  transition: box-shadow 0.2s;
+}
+.a2-curve.stuck {
+  box-shadow: 0 12px 24px -14px rgb(0 32 27 / 30%);
+}
+.a2-curve-sticky {
+  display: grid;
+  gap: 6px;
+}
+.a2-curve-outside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-amber);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.a2-curve-outside button {
+  padding: 3px 10px;
+  border: 1px solid var(--color-amber);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-amber);
+}
+.a2-curve-tools button {
+  white-space: nowrap;
+}

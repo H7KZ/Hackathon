@@ -211,3 +211,67 @@ describe("CurveEditor: it just works", () => {
     expect((store.read("s", "/points") as unknown[]).length).toBe(3);
   });
 });
+
+describe("PeriodPicker", () => {
+  it("derives the end date and record count; presets and units recompute", () => {
+    const { read } = mount("PeriodPicker");
+    expect(read("/time")).toMatchObject({ from: "2026-01-05", to: "2026-07-04", granularity: "day" });
+    fireEvent.click(screen.getByRole("radio", { name: "hodinách" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/4\s344 záznamů na entitu/);
+    fireEvent.change(screen.getByLabelText("Jednotka délky"), { target: { value: "years" } });
+    expect(read("/time")).toMatchObject({ unit: "years", length: 6, to: "2032-01-04" });
+    expect(screen.getByRole("status")).toHaveTextContent(/hodně dat/);
+    fireEvent.click(screen.getByRole("button", { name: "4 roky po dnech" }));
+    expect(read("/time")).toMatchObject({ length: 4, unit: "years", granularity: "day", to: "2030-01-04" });
+    fireEvent.change(screen.getByLabelText("Začátek"), { target: { value: "2025-03-01" } });
+    expect(read("/time/from")).toBe("2025-03-01");
+  });
+});
+
+describe("CurveEditor reacts to the pointer and the period", () => {
+  const rect = {
+    left: 0,
+    top: 0,
+    width: 760,
+    height: 240,
+    right: 760,
+    bottom: 240,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  };
+
+  it("hovering near the line shows a ghost point; one click adds it on the curve", () => {
+    const { read } = mount("CurveEditor");
+    const svg = document.querySelector(".a2-curve svg");
+    const hit = document.querySelector(".a2-curve .hit");
+    if (!svg || !hit) throw new Error("no svg");
+    svg.getBoundingClientRect = () => rect;
+    // baseline 2 on a 0..10 axis, early January: the line sits near the bottom of the plot
+    const yBaseline = 30 + (1 - 2 / 10) * (240 - 30 - 28);
+    fireEvent.pointerMove(svg, { clientX: 90, clientY: yBaseline });
+    expect(document.querySelector(".a2-curve .ghost")).not.toBeNull();
+    fireEvent.click(hit);
+    const added = (read("/points") as { id: string; level: number }[]).find((p) => p.id === "sp4");
+    expect(added?.level).toBe(2);
+  });
+
+  it("points outside a new period can be fitted back in one click", () => {
+    const store = createSurfaceStore();
+    const ex = EXAMPLES.find((e) => e.name === "CurveEditor");
+    if (!ex) throw new Error("no example");
+    const [root] = ex.components;
+    store.apply(
+      a2ui.create({
+        surfaceId: "s",
+        components: [{ ...root, id: "root", component: "CurveEditor", from: "2027-01-01", to: "2027-01-14" }],
+        dataModel: structuredClone(ex.data),
+      }),
+    );
+    render(<A2uiSurface store={store} surfaceId="s" onAction={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Rozložit body do období" }));
+    const pts = store.read("s", "/points") as { start: string }[];
+    expect(pts.every((p) => p.start >= "2027-01-01" && p.start <= "2027-01-14")).toBe(true);
+    expect(screen.queryByRole("button", { name: "Rozložit body do období" })).toBeNull();
+  });
+});

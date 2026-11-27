@@ -4,6 +4,7 @@
  * drafting → awaiting_refinement → generating → ready ⟲ (detect | what-if).
  */
 import type { SessionInput } from "@s2d/api";
+import { plural } from "../format";
 import type { Step } from "../a2ui/catalog";
 import { a2ui } from "../a2ui/protocol";
 import { STEP_LABELS, type StepKey } from "./phrases";
@@ -120,10 +121,10 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     const ds = mockDataset(id, points, config, expectations);
     const passed = ds.expectations.filter((e) => e.pass).length;
     await pipeline("Generování dat", ["05_scenario", "engine", "integrity", "evidence"], 1300, {
-      "05_scenario": `${String(points.length)} body příběhu, seed ${String(config.seed)}`,
+      "05_scenario": `${plural(points.length, "bod příběhu", "body příběhu", "bodů příběhu")}, seed ${String(config.seed)}`,
       engine: `${ds.totals.rows.toLocaleString("cs-CZ")} řádků`,
       integrity: "všechny cizí klíče sedí",
-      evidence: `${String(passed)} / ${String(ds.expectations.length)} hypotéz splněno`,
+      evidence: `splněno ${String(passed)} z ${plural(ds.expectations.length, "hypotézy", "hypotéz", "hypotéz")}`,
     });
     if (stopped) return;
     emit({ type: "a2ui", message: datasetSurface(`dataset-${id}`, ds, true) });

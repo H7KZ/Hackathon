@@ -50,3 +50,22 @@ export function nextId(knots: { id: string }[]): string {
   const n = knots.reduce((max, k) => Math.max(max, Number(/^sp(\d+)$/.exec(k.id)?.[1] ?? 0)), 0);
   return `sp${String(n + 1)}`;
 }
+
+/** Ramp length that fits the range: never longer than 1/8 of it (14 days on a 2-week range would hide everything). */
+export function effectiveRamp(rampDays: number, from: string, to: string): number {
+  return Math.max(1, Math.min(Math.round(rampDays) || 1, Math.floor((daysBetween(from, to) + 1) / 8)));
+}
+
+/** Moves points into [from, to] keeping their order and relative spacing (10 % margins). */
+export function fitInto<T extends Knot>(knots: T[], from: string, to: string): T[] {
+  if (!knots.length) return knots;
+  const days = knots.flatMap((k) => (k.end ? [k.start, k.end] : [k.start])).sort();
+  const lo = days[0] ?? from;
+  const hi = days.at(-1) ?? to;
+  const srcSpan = Math.max(1, daysBetween(lo, hi));
+  const span = daysBetween(from, to);
+  const a = addDays(from, Math.round(span * 0.1));
+  const dst = Math.max(1, Math.round(span * 0.8));
+  const map = (d: string) => addDays(a, Math.round((daysBetween(lo, d) / srcSpan) * dst));
+  return knots.map((k) => ({ ...k, start: map(k.start), ...(k.end && { end: map(k.end) }) }));
+}

@@ -7,6 +7,7 @@
 import { a2ui, JOJO_CATALOG_ID, path, type A2uiMessage, type ComponentNode } from "../a2ui/protocol";
 import { STEP_LABELS, type StepKey } from "./phrases";
 import type { Step, StepState } from "../a2ui/catalog";
+import type { TimeConfig } from "./time";
 
 // ---------- view models (what a surface needs, whatever the source) ----------
 
@@ -29,8 +30,7 @@ export type StoryPointEdit = {
 /** Everything the Generate button sends (basic + advanced settings). */
 export type StoryConfig = {
   curve: { label: string; unit: string; baseline: number; rampDays: number; min: number; max: number };
-  period: { from: string; to: string };
-  months: string[];
+  time: TimeConfig;
   seed: number;
   scale: number;
   noise: { missing: number; duplicates: number; hourJitter: boolean };
@@ -49,7 +49,9 @@ export type ExpectationRow = {
 };
 export type DatasetView = {
   datasetId: string;
+  /** NaN = unknown (live API has no totals yet): that KPI is left out. */
   totals: { rows: number; tables: number; days: number };
+  seriesTitle?: string;
   series: SeriesRow[];
   seriesLines: { key: string; label: string }[];
   markers: Marker[];
@@ -177,27 +179,17 @@ export function storySurface(
         points: path("/points"),
         baseline: path("/config/curve/baseline"),
         rampDays: path("/config/curve/rampDays"),
-        from: path("/config/period/from"),
-        to: path("/config/period/to"),
+        from: path("/config/time/from"),
+        to: path("/config/time/to"),
         min: path("/config/curve/min"),
         max: path("/config/curve/max"),
         label: path("/config/curve/label"),
         unit: path("/config/curve/unit"),
         locked: path("/locked"),
       },
-      { id: "basic", component: "Row", gap: "md", children: ["months", "scale", "seed"] },
-      {
-        id: "months",
-        component: "ChoicePicker",
-        label: "Období",
-        variant: "single",
-        value: path("/config/months"),
-        options: [
-          { label: "3 měsíce", value: "3" },
-          { label: "6 měsíců", value: "6" },
-          { label: "12 měsíců", value: "12" },
-        ],
-      },
+      { id: "basic", component: "Column", gap: "md", children: ["time", "basicRow"] },
+      { id: "time", component: "PeriodPicker", value: path("/config/time") },
+      { id: "basicRow", component: "Row", gap: "md", children: ["scale", "seed"] },
       {
         id: "scale",
         component: "Slider",
@@ -361,7 +353,18 @@ export function datasetSurface(id: string, d: DatasetView, demo = false): A2uiMe
     "canvas",
     [
       { id: "root", component: "Column", gap: "lg", children: ["kpis", "tabs"] },
-      { id: "kpis", component: "Row", gap: "md", children: ["k1", "k2", "k3", "k4"] },
+      {
+        id: "kpis",
+        component: "Row",
+        gap: "md",
+        // unknown totals (NaN) are left out instead of showing "–"
+        children: [
+          ...(Number.isFinite(d.totals.rows) ? ["k1"] : []),
+          ...(Number.isFinite(d.totals.tables) ? ["k2"] : []),
+          "k3",
+          "k4",
+        ],
+      },
       { id: "k1", component: "Kpi", label: "Řádků", value: path("/totals/rows"), format: "int" },
       { id: "k2", component: "Kpi", label: "Tabulek", value: path("/totals/tables"), format: "int" },
       { id: "k3", component: "Kpi", label: "Dní", value: path("/totals/days"), format: "int" },
@@ -372,14 +375,14 @@ export function datasetSurface(id: string, d: DatasetView, demo = false): A2uiMe
         tabs: [
           { title: "Přehled", child: "overview" },
           { title: "Důkazy", child: "evidence" },
-          { title: "Tabulky", child: "tables" },
+          ...(d.tables.length ? [{ title: "Tabulky", child: "tables" }] : []),
         ],
       },
       { id: "overview", component: "Column", gap: "md", children: ["chart", "hint"] },
       {
         id: "chart",
         component: "LineChart",
-        title: "Týdenní průběh klíčových metrik",
+        title: d.seriesTitle ?? "Týdenní průběh klíčových metrik",
         data: path("/series"),
         lines: d.seriesLines,
         markers: path("/markers"),
