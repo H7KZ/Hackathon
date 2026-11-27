@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>JOJO · Story2Data — pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green: #00957d;
+    --green-dark: #006252;
+    --green-light: #33b39e;
+    --mint: #00d2b0;
+    --blue: #009ee0;
+    --ink: #00201b;
+    --muted: #5b6563;
+    --line: #d9e1df;
+    --card: #ffffff;
+    --bg: #f6f8f7;
+    --warn: #b42800;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --sans: "Titillium Web", system-ui, sans-serif;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  ::selection { background: rgb(0 210 176 / 35%); }
+
+  /* fixed 16:9 stage scaled to the window */
+  .viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+  .deck { position: relative; width: 1600px; height: 900px; flex: none; transform-origin: center; }
+
+  /* grid paper */
+  .viewport::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgb(0 32 27 / 4.5%) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(0 32 27 / 4.5%) 1px, transparent 1px);
+    background-size: 128px 128px;
+    background-position: center;
+  }
+
+  .slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transform: translateY(24px) scale(.985); transition: opacity .6s var(--ease), transform .8s var(--ease), visibility 0s .8s; }
+  .slide.active { opacity: 1; visibility: visible; transform: none; transition: opacity .6s var(--ease) .1s, transform .8s var(--ease) .1s, visibility 0s; }
+  .slide.past { transform: translateY(-24px) scale(.985); }
+
+  /* staggered reveal: elements get --d delay (s) */
+  .in { opacity: 0; transform: translateY(16px); transition: opacity .5s var(--ease), transform .7s var(--ease); }
+  .active .in { opacity: 1; transform: none; transition-delay: calc(var(--d, 0) * 1s + .25s); }
+  .pop { opacity: 0; transform: scale(.6); transition: opacity .35s var(--ease), transform .5s cubic-bezier(.3, 1.6, .5, 1); }
+  .active .pop { opacity: 1; transform: none; transition-delay: calc(var(--d, 0) * 1s + .25s); }
+
+  /* SVG line drawing (pathLength=1) */
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.4s var(--ease); }
+  .active .draw { stroke-dashoffset: 0; transition-delay: calc(var(--d, 0) * 1s + .25s); }
+
+  /* connectors: dotted base + travelling packet (pathLength=100) */
+  .wire { fill: none; stroke: #b9c4c1; stroke-width: 1.6; stroke-dasharray: 2 5; }
+  .packet { fill: none; stroke: var(--green); stroke-width: 3.4; stroke-linecap: round; stroke-dasharray: 7 93; stroke-dashoffset: 100; opacity: 0; }
+  .packet.blue { stroke: var(--blue); }
+  .active .packet { opacity: 1; animation: travel var(--t, 2.6s) linear infinite; animation-delay: calc(var(--d, 0) * 1s + .4s); }
+  @keyframes travel { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+
+  /* typography */
+  .kicker { font-family: var(--mono); font-size: 17px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--green); }
+  .kicker.blue { color: var(--blue); }
+  h1, h2 { font-weight: 700; letter-spacing: -.01em; line-height: 1.02; }
+  h1 { font-size: 92px; }
+  h2 { font-size: 58px; max-width: 1200px; }
+  .em { background: linear-gradient(90deg, var(--green), var(--blue)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { font-size: 26px; color: var(--muted); line-height: 1.35; max-width: 820px; }
+  .label { font-family: var(--mono); font-size: 15px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+  .mono { font-family: var(--mono); }
+  .abs { position: absolute; }
+  .head { position: absolute; left: 120px; top: 84px; display: grid; gap: 18px; }
+
+  /* cards */
+  .card { position: absolute; background: var(--card); border: 1.6px solid var(--line); border-radius: 14px; box-shadow: 0 14px 40px rgb(0 32 27 / 6%); }
+  .card .cap { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--green); padding: 16px 20px 12px; border-bottom: 1.6px solid var(--line); }
+  .card .cap.blue { color: var(--blue); }
+  .card .body { padding: 16px 20px; }
+
+  /* aurora glow */
+  .glow { position: absolute; border-radius: 50%; background: linear-gradient(90deg, var(--blue), var(--mint), var(--green), var(--green-light)); background-size: 160% 100%; filter: blur(90px); opacity: .28; pointer-events: none; animation: drift 11s ease-in-out infinite alternate; }
+  @keyframes drift { from { background-position: 0 0; transform: scaleX(.94); } to { background-position: 100% 0; transform: scaleX(1.06); } }
+
+  /* ---------- slide 1 ---------- */
+  .msg .row { display: grid; grid-template-columns: 120px 1fr; font-family: var(--mono); font-size: 21px; line-height: 1.75; }
+  .msg .k { color: var(--green-dark); font-weight: 600; }
+  .msg .v { color: #3d4745; }
+  .caret::after { content: ""; display: inline-block; width: 10px; height: 22px; margin-left: 3px; vertical-align: -3px; background: var(--green); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .tlabel { position: absolute; font-family: var(--mono); font-weight: 600; font-size: 17px; letter-spacing: .2em; text-align: center; }
+  .barg { transform-box: fill-box; transform-origin: bottom; transform: scaleY(0); transition: transform .7s var(--ease); }
+  .active .barg { transform: none; transition-delay: calc(var(--d, 0) * 1s); }
+  .fk { position: absolute; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .1em; color: var(--muted); background: var(--bg); padding: 2px 6px; border: 1px dashed #b9c4c1; border-radius: 6px; }
+
+  /* ---------- slide 2 ---------- */
+  table.noise { border-collapse: collapse; font-family: var(--mono); font-size: 18px; width: 100%; }
+  table.noise th { text-align: left; font-size: 13px; letter-spacing: .16em; color: var(--muted); font-weight: 600; padding: 0 0 10px; }
+  table.noise td { padding: 7px 0; border-top: 1px solid #edf1f0; color: #3d4745; }
+  table.noise td.r { transition: color .2s; }
+  .q { font-size: 150px; font-weight: 700; line-height: 1; color: transparent; -webkit-text-stroke: 2px #b9c4c1; }
+
+  /* ---------- slide 3 ---------- */
+  .node { padding: 0; }
+  .node .t { font-size: 28px; white-space: nowrap; font-weight: 700; padding: 14px 20px 0; line-height: 1.1; }
+  .node .d { font-size: 18px; color: var(--muted); padding: 6px 20px 16px; line-height: 1.3; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: .08em; padding: 4px 10px; border-radius: 99px; background: #e6f4f1; color: var(--green-dark); }
+  .tag.blue { background: #e2f3fb; color: #006f9e; }
+  .tag.warn { background: #fbe9e4; color: var(--warn); }
+  .rule { display: flex; gap: 18px; align-items: flex-start; padding: 22px 26px; }
+  .rule .n { font-family: var(--mono); font-size: 44px; font-weight: 600; color: var(--green); line-height: 1; }
+  .rule p { font-size: 22px; line-height: 1.35; }
+  .active .scan { animation: scan 2.4s var(--ease) infinite; }
+  @keyframes scan { 0%, 100% { box-shadow: 0 14px 40px rgb(0 32 27 / 6%), 0 0 0 0 rgb(0 149 125 / 0%); } 50% { box-shadow: 0 14px 40px rgb(0 32 27 / 6%), 0 0 0 6px rgb(0 149 125 / 16%); } }
+
+  /* ---------- slide 4 ---------- */
+  .chain .t { font-size: 25px; font-weight: 700; }
+  .chain .d { font-size: 16px; color: var(--muted); font-family: var(--mono); letter-spacing: .04em; margin-top: 2px; }
+  .chain { display: grid; grid-template-columns: 1fr 250px; align-items: center; padding: 0 22px; }
+  .arrow-up { color: var(--warn); font-weight: 700; }
+  .arrow-down { color: var(--warn); font-weight: 700; }
+
+  /* ---------- slide 5 ---------- */
+  .exp { display: grid; grid-template-columns: 46px 1fr auto; gap: 14px; align-items: center; padding: 13px 0; border-top: 1px solid #edf1f0; font-size: 21px; }
+  .exp:first-child { border-top: 0; }
+  .exp .id { font-family: var(--mono); color: var(--muted); font-weight: 600; }
+  .exp .th { font-family: var(--mono); font-size: 15px; color: var(--muted); }
+  .pass { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: .12em; color: #fff; background: var(--green); padding: 5px 11px; border-radius: 99px; }
+  .term { background: #0b2a25; border-color: #0b2a25; color: #cfe7e1; overflow: hidden; }
+  .term .cap { color: var(--mint); border-color: rgb(255 255 255 / 10%); display: flex; justify-content: space-between; }
+  .term pre { font-family: var(--mono); font-size: 17px; line-height: 1.6; padding: 18px 22px; white-space: pre-wrap; min-height: 330px; }
+  .term .c { color: var(--mint); }
+  .term .g { color: #7d9893; }
+  .term .y { color: #ffd479; }
+  .finding { padding: 18px 22px; border-top: 1px solid rgb(255 255 255 / 10%); background: rgb(0 210 176 / 8%); font-size: 20px; line-height: 1.4; color: #fff; }
+
+  /* ---------- slide 6 ---------- */
+  .diff { font-family: var(--mono); font-size: 19px; line-height: 1.8; }
+  .diff .minus { color: var(--warn); background: #fbe9e4; padding: 0 6px; border-radius: 4px; }
+  .diff .plus { color: var(--green-dark); background: #e6f4f1; padding: 0 6px; border-radius: 4px; }
+  .legend { white-space: nowrap; display: flex; gap: 26px; font-family: var(--mono); font-size: 15px; font-weight: 600; letter-spacing: .1em; }
+  .legend i { display: inline-block; width: 26px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 8px; }
+
+  /* ---------- slide 7 ---------- */
+  .crit .n { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: .2em; color: var(--green); }
+  .crit h3 { font-size: 27px; line-height: 1.1; margin: 10px 0 10px; }
+  .crit p { font-size: 18px; color: var(--muted); line-height: 1.4; }
+  .lockup { display: flex; align-items: center; gap: 22px; }
+  .lockup img { height: 58px; }
+  .lockup b { font-size: 40px; letter-spacing: .04em; color: var(--green-dark); padding-left: 22px; border-left: 2px solid #c9d1cf; }
+
+  /* chrome */
+  .chrome { position: fixed; left: 0; right: 0; bottom: 0; height: 4px; background: rgb(0 32 27 / 6%); z-index: 10; }
+  .chrome .bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width .6s var(--ease); }
+  .counter { position: fixed; right: 26px; bottom: 18px; font-family: var(--mono); font-size: 13px; letter-spacing: .2em; color: var(--muted); z-index: 10; }
+  .timer { position: fixed; left: 26px; bottom: 18px; font-family: var(--mono); font-size: 13px; letter-spacing: .2em; color: var(--muted); z-index: 10; opacity: 0; transition: opacity .3s; }
+  .timer.on { opacity: 1; }
+  .timer.late { color: var(--warn); }
+  .notes { position: fixed; left: 50%; bottom: 40px; transform: translate(-50%, 20px); width: min(900px, 92vw); padding: 18px 22px; border-radius: 14px; background: #0b2a25; color: #e5f3ef; font-size: 18px; line-height: 1.45; box-shadow: 0 20px 50px rgb(0 0 0 / 25%); z-index: 20; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  .notes.on { opacity: 1; transform: translate(-50%, 0); }
+  .notes .label { color: var(--mint); font-size: 12px; display: block; margin-bottom: 6px; }
+  .hint { position: fixed; top: 18px; right: 26px; font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: #9aa5a2; z-index: 10; transition: opacity .6s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: .01s !important; transition-delay: 0s !important; }
+  }
+</style>
+</head>
+<body>
+<div class="viewport">
+<div class="deck" id="deck">
+
+  <!-- 1 · TITLE / HERO -->
+  <section class="slide" data-notes="Hook (~20 s): Dejte nám jednu větu příběhu – třeba ‚dodavatel začne dodávat pozdě‘. JOJO z ní vyrobí celou propojenou databázi firmy: dodávky, zásoby, prodeje, stížnosti, zákazníky. A ten příběh v ní není napsaný komentářem – je v ní zapsaný v datech.">
+    <div class="glow" style="left:880px; top:-40px; width:760px; height:360px;"></div>
+    <div class="head" style="top:96px">
+      <div class="kicker in" style="--d:0">JOJO · Story2Data</div>
+      <h1 class="in" style="--d:.1">Od příběhu<br /><span class="em">k datům.</span></h1>
+      <p class="sub in" style="--d:.25; max-width:640px">Jedna věta zadání → propojený dataset, ve kterém se skutečně něco děje.</p>
+    </div>
+
+    <div class="card msg in" style="--d:.45; left:900px; top:92px; width:600px;">
+      <div class="cap">Zadání příběhu</div>
+      <div class="body">
+        <div class="row"><span class="k">firma</span><span class="v">"Síť 5 prodejen"</span></div>
+        <div class="row"><span class="k">příběh</span><span class="v caret" id="typed"></span></div>
+        <div class="row"><span class="k">období</span><span class="v">2025-01 → 2025-08</span></div>
+      </div>
+    </div>
+
+    <svg class="abs" id="heroWires" width="1600" height="900" style="left:0;top:0;pointer-events:none"></svg>
+    <div id="heroCards"></div>
+  </section>
+
+  <!-- 2 · PROBLEM -->
+  <section class="slide" data-notes="Problém (~25 s): Na výuku analytiky a testování AI agentů potřebujeme data, ve kterých je co najít. Běžné generátory umí správné tabulky s náhodnými čísly. Vazby sedí, ale když se zeptáte ‚proč klesly tržby?‘, odpověď tam není – protože tam žádný příběh nikdy nebyl.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Problém</div>
+      <h2 class="in" style="--d:.1">Náhodná čísla ve správných tabulkách<br /><span class="em">nemají příběh.</span></h2>
+    </div>
+    <div class="card in" style="--d:.35; left:120px; top:390px; width:760px;">
+      <div class="cap">main.sale · faker</div>
+      <div class="body" style="padding-top:12px">
+        <table class="noise" id="noise"></table>
+      </div>
+    </div>
+    <div class="abs in" style="--d:.7; left:960px; top:400px; width:540px;">
+      <div class="label" style="color:var(--muted)">Analytik se ptá</div>
+      <p style="font-size:42px; font-weight:700; margin:12px 0 4px; line-height:1.1">„Proč v dubnu klesly tržby?“</p>
+      <div class="q">???</div>
+      <p class="sub" style="font-size:22px; margin-top:6px">Vazby sedí, rozdělení vypadá věrohodně —<br />ale žádná příčina, žádný důsledek, nic k odhalení.</p>
+    </div>
+  </section>
+
+  <!-- 3 · SOLUTION PIPELINE -->
+  <section class="slide" data-notes="Řešení (~30 s): Kaskáda pěti AI agentů z příběhu navrhne firmu, datový model, kauzální vlivy a scénář. Klíčové: LLM nikdy nepíše řádky dat ani kód – jen validovaný JSON scénář. Data pak vyrobí deterministický simulační engine: stejný scénář a seed dají bit po bitu stejná data. Agent A5 si scénář sám ověří na enginu a opraví, dokud příběh v datech neprojde.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Řešení</div>
+      <h2 class="in" style="--d:.1">AI navrhne svět. <span class="em">Simulace ho prožije.</span></h2>
+    </div>
+    <svg class="abs" id="pipeWires" width="1600" height="900" style="left:0;top:0;pointer-events:none"></svg>
+    <div id="pipeNodes"></div>
+    <div class="card rule in" style="--d:2.2; left:141px; top:600px; width:580px;">
+      <div class="n">01</div>
+      <p><b>LLM nikdy negeneruje řádky ani kód.</b><br /><span style="color:var(--muted)">Jen konfiguraci validovanou schématem. Každé volání je v cache → demo běží offline.</span></p>
+    </div>
+  </section>
+
+  <!-- 4 · CAUSAL CHAIN -->
+  <section class="slide" data-notes="Jak je příběh v datech (~30 s): Příběh nikdy nepíšeme do výsledků. Změníme jediný parametr – pravděpodobnost zpoždění u dodavatele SUP-002 roste od března. Všechno ostatní vyplyne ze simulace: pozdní dodávky vyprázdní sklady, zákazník nemá co koupit, tržby u jeho produktů padají a přibývá stížností na nedostupnost. Poptávka přitom vůbec neklesla – přesně jako v zadání.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Kauzalita, ne kosmetika</div>
+      <h2 class="in" style="--d:.1">Měníme jen <span class="em">příčinu.</span> Důsledky vyplynou.</h2>
+    </div>
+    <div class="card in" style="--d:.3; left:120px; top:300px; width:560px; height:440px;">
+      <div class="cap">Křivka · late_prob · SUP-002</div>
+      <svg width="556" height="370" id="curveSvg" style="display:block"></svg>
+    </div>
+    <div class="abs in" style="--d:.5; left:120px; top:770px;"><span class="tag blue">poptávka (demand) = 1.0 · beze změny</span></div>
+    <svg class="abs" id="chainWires" width="1600" height="900" style="left:0;top:0;pointer-events:none"></svg>
+    <div id="chainNodes"></div>
+  </section>
+
+  <!-- 5 · EVIDENCE + DETECTIVE -->
+  <section class="slide" data-notes="Důkaz (~30 s): Příběh dokazujeme dvakrát. Za prvé SQL hypotézy – před a po – které musí projít na seedu 42 i na většině dalších seedů. Za druhé slepý detektiv: LLM agent, který vidí jen pozorovaná data, ne příběh ani scénář. Sám si klade SQL dotazy a příběh rekonstruuje. Jeho nálezy porovnáme se skrytou pravdou v truth tabulkách.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Důkaz v datech</div>
+      <h2 class="in" style="--d:.1">Příběh se dá <span class="em">najít zpátky.</span></h2>
+    </div>
+    <div class="card in" style="--d:.3; left:120px; top:300px; width:660px;">
+      <div class="cap">Expectations · SQL hypotézy před / po</div>
+      <div class="body" style="padding-top:6px; padding-bottom:6px">
+        <div class="exp"><span class="id">e1</span><span>Zpoždění dodávek SUP-002 <span class="th">1,5 → 37,0 dne</span></span><span class="pass pop" style="--d:1.0">PASS</span></div>
+        <div class="exp"><span class="id">e2</span><span>Dny s nulovou zásobou <span class="th">6 % → 31 %</span></span><span class="pass pop" style="--d:1.25">PASS</span></div>
+        <div class="exp"><span class="id">e3</span><span>Tržby produktů SUP-002 <span class="th">−35 %</span></span><span class="pass pop" style="--d:1.5">PASS</span></div>
+        <div class="exp"><span class="id">e4</span><span>Tržby ostatních dodavatelů <span class="th">+4,7 % · poptávka drží</span></span><span class="pass pop" style="--d:1.75">PASS</span></div>
+        <div class="exp"><span class="id">e5</span><span>Stížnosti „nedostupnost“ <span class="th">29 → 112</span></span><span class="pass pop" style="--d:2.0">PASS</span></div>
+      </div>
+    </div>
+    <div class="abs in" style="--d:2.3; left:120px; top:690px; display:flex; gap:10px">
+      <span class="tag">seed 42</span><span class="tag">≥ 4/5 seedů 1–5</span><span class="tag">FK integrita po každém běhu</span>
+    </div>
+    <div class="card term in" style="--d:.6; left:840px; top:300px; width:660px;">
+      <div class="cap"><span>Slepý detektiv · vidí jen main.*</span><span id="qcount">0 dotazů</span></div>
+      <pre id="termLog"></pre>
+      <div class="finding" id="finding" style="opacity:0; transition:opacity .6s">
+        <span class="label" style="color:var(--mint); font-size:12px">Nález</span><br />
+        Od března dodává <b>SUP-002</b> v průměru o 32 dní později → nulové zásoby → propad tržeb jen u jeho produktů.
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · CHANGE A PARAMETER -->
+  <section class="slide" data-notes="Možnost změny (~25 s): Není to jednorázový dataset. Posuneme start problému z března na červen, engine přegeneruje data se stejným seedem a porovnání ukáže čistý rozdíl: propad tržeb se posune přesně o tři měsíce. Všechno před změnou i kmenová data zůstanou bit po bitu stejná – každý proces má vlastní náhodný proud. Expectations navíc u běhu B správně selžou: příběh v březnu už v datech není.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Možnost změny</div>
+      <h2 class="in" style="--d:.1">Změň parametr. <span class="em">Svět se přepočítá.</span></h2>
+    </div>
+    <div class="card in" style="--d:.3; left:120px; top:300px; width:420px;">
+      <div class="cap">scenario.json · curves.late_prob</div>
+      <div class="body diff">
+        <div><span class="g" style="color:var(--muted)">"ramp": {</span></div>
+        <div>&nbsp;&nbsp;"start": <span class="minus">"2025-03-01"</span></div>
+        <div class="in" style="--d:1.6">&nbsp;&nbsp;"start": <span class="plus">"2025-06-01"</span></div>
+        <div>&nbsp;&nbsp;"to": 0.8</div>
+        <div style="color:var(--muted)">}</div>
+      </div>
+    </div>
+    <div class="abs in" style="--d:2.6; left:120px; top:600px; width:420px; display:grid; gap:10px">
+      <span class="tag" style="justify-self:start">stejný seed 42</span>
+      <span class="tag" style="justify-self:start">nezávislé RNG proudy per proces</span>
+      <span class="tag blue" style="justify-self:start">do března bit po bitu shodné</span>
+      <span class="tag blue" style="justify-self:start">kmenová data: 0 změn</span>
+    </div>
+    <div class="card in" style="--d:.45; left:600px; top:300px; width:900px; height:470px;">
+      <div class="cap" style="display:flex; justify-content:space-between"><span>Tržby SUP-002 · tis. Kč / týden</span>
+        <span class="legend"><span><i style="background:var(--green)"></i>běh A · březen</span><span><i style="background:var(--blue)"></i>běh B · červen</span></span></div>
+      <svg width="896" height="410" id="cmpSvg" style="display:block"></svg>
+    </div>
+  </section>
+
+  <!-- 7 · CLOSE -->
+  <section class="slide" data-notes="Závěr (~20 s): Data věrohodná a konzistentní, příběh dohledatelný dotazy i slepým agentem, generátor znovupoužitelný pro jakýkoli příběh a funkční demo, které běží offline. JOJO – data, ve kterých se skutečně něco děje. Děkujeme.">
+    <div class="glow" style="left:300px; top:520px; width:1000px; height:320px; opacity:.22"></div>
+    <div class="head">
+      <div class="kicker in" style="--d:0">Shrnutí</div>
+      <h2 class="in" style="--d:.1; font-size:72px">Data, ve kterých se<br /><span class="em">skutečně něco děje.</span></h2>
+    </div>
+    <div id="crit"></div>
+    <div class="abs in lockup" style="--d:1.4; left:120px; top:760px;">
+      <img src="fis-logo.png" alt="FIS VŠE" />
+      <b>JOJO</b>
+    </div>
+    <div class="abs in" style="--d:1.6; right:120px; top:772px; text-align:right">
+      <div style="font-size:40px; font-weight:700">Děkujeme.</div>
+      <div class="label" style="color:var(--muted); margin-top:2px">Live demo → localhost:3000</div>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<div class="chrome"><div class="bar" id="bar"></div></div>
+<div class="counter" id="counter"></div>
+<div class="timer" id="timer">00:00</div>
+<div class="hint" id="hint">← → listovat · N poznámky · T čas · F celá obrazovka</div>
+<div class="notes" id="notes"><span class="label">Poznámky řečníka</span><span id="notesText"></span></div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const $ = (s) => document.querySelector(s);
+function el(tag, attrs = {}, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function wire(svg, d, { delay = 0, dur = 2.6, blue = false, packets = 1 } = {}) {
+  el("path", { d, class: "wire" }, svg);
+  for (let i = 0; i < packets; i++) {
+    const p = el("path", { d, pathLength: 100, class: "packet" + (blue ? " blue" : "") }, svg);
+    p.style.setProperty("--d", delay + (i * dur) / packets);
+    p.style.setProperty("--t", dur + "s");
+  }
+}
+// deterministic pseudo-noise for illustrations
+function rng(seed) { return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
+function card(parent, { x, y, w, h, cap, blue, html = "", d = 0, cls = "" }) {
+  const c = document.createElement("div");
+  c.className = "card in " + cls;
+  Object.assign(c.style, { left: x + "px", top: y + "px", width: w + "px" });
+  if (h) c.style.height = h + "px";
+  c.style.setProperty("--d", d);
+  c.innerHTML = (cap ? `<div class="cap${blue ? " blue" : ""}">${cap}</div>` : "") + html;
+  parent.appendChild(c);
+  return c;
+}
+
+/* ---------- slide 1: story → tables ---------- */
+(() => {
+  const wires = $("#heroWires"), host = $("#heroCards");
+  const tables = [
+    { name: "DELIVERY", vals: [3, 4, 3, 4, 9, 10, 9, 10], hi: [4, 5, 6, 7] },
+    { name: "STOCK_DAILY", vals: [8, 7, 8, 7, 2, 1, 2, 1], hi: [4, 5, 6, 7] },
+    { name: "SALE", vals: [8, 9, 8, 9, 5, 4, 5, 4], hi: [4, 5, 6, 7] },
+    { name: "COMPLAINT", vals: [2, 1, 2, 2, 6, 8, 7, 9], hi: [4, 5, 6, 7] },
+    { name: "CUSTOMER", vals: [6, 6, 6, 6, 6, 6, 6, 6], hi: [] },
+  ];
+  const W = 236, G = 44, X0 = 120, Y = 540, H = 230;
+  tables.forEach((t, i) => {
+    const x = X0 + i * (W + G), cx = x + W / 2;
+    wire(wires, `M1200 300 C1200 420 ${cx} 400 ${cx} ${Y}`, { delay: 0.9 + i * 0.15, dur: 2.2 + i * 0.25 });
+    const bars = t.vals.map((v, j) => {
+      const bh = v * 13;
+      const fill = t.hi.includes(j) ? "var(--ink)" : "#6fc3b3";
+      return `<rect x="${20 + j * 24}" y="${150 - bh}" width="17" height="${bh}" rx="2" fill="${fill}" class="barg" style="--d:${1.2 + i * 0.12 + j * 0.05}"/>`;
+    }).join("");
+    card(host, {
+      x, y: Y, w: W, h: H, d: 0.6 + i * 0.1,
+      html: `<div style="padding:18px 20px 0"><div style="height:9px;width:110px;background:#c9d1cf;border-radius:4px"></div>
+        <div style="height:9px;width:70px;background:#e3e9e7;border-radius:4px;margin-top:8px"></div></div>
+        <svg width="232" height="170" style="display:block">${bars}</svg>`,
+    });
+    const l = document.createElement("div");
+    l.className = "tlabel in"; l.textContent = t.name;
+    Object.assign(l.style, { left: x + "px", width: W + "px", top: Y + H + 32 + "px" });
+    l.style.setProperty("--d", 0.8 + i * 0.1);
+    host.appendChild(l);
+    if (i < tables.length - 1) {
+      el("path", { d: `M${x + W} ${Y + 40} L${x + W + G} ${Y + 40}`, class: "wire" }, wires);
+      const fk = document.createElement("div");
+      fk.className = "fk in"; fk.textContent = "FK";
+      Object.assign(fk.style, { left: x + W + G / 2 - 15 + "px", top: Y + 30 + "px" });
+      fk.style.setProperty("--d", 1.6);
+      host.appendChild(fk);
+    }
+  });
+  el("rect", { x: 100, y: Y + H, width: 1400, height: 1.6, fill: "#c9d1cf" }, wires);
+})();
+const typedText = '"Dodavatel SUP-002 začne dodávat pozdě"';
+let typeTimer;
+function typeStory() {
+  clearInterval(typeTimer);
+  const t = $("#typed"); t.textContent = ""; let i = 0;
+  setTimeout(() => { typeTimer = setInterval(() => { t.textContent = typedText.slice(0, ++i); if (i >= typedText.length) clearInterval(typeTimer); }, 38); }, 700);
+}
+
+/* ---------- slide 2: flickering random table ---------- */
+(() => {
+  const r = rng(7);
+  const t = $("#noise");
+  t.innerHTML = "<tr><th>SALE_ID</th><th>STORE</th><th>PRODUCT</th><th>QTY</th><th>DATE</th></tr>";
+  for (let i = 0; i < 7; i++) t.innerHTML += `<tr><td>sale-00${1040 + i}</td><td class="r"></td><td class="r"></td><td class="r"></td><td class="r"></td></tr>`;
+  const fill = () => {
+    t.querySelectorAll("tr").forEach((row, i) => {
+      if (!i) return;
+      const c = row.querySelectorAll(".r");
+      c[0].textContent = "STO-00" + (1 + Math.floor(r() * 5));
+      c[1].textContent = "PRD-0" + (10 + Math.floor(r() * 24));
+      c[2].textContent = 1 + Math.floor(r() * 3);
+      c[3].textContent = "2025-0" + (1 + Math.floor(r() * 8)) + "-" + String(1 + Math.floor(r() * 28)).padStart(2, "0");
+    });
+  };
+  fill(); setInterval(() => { if (current === 1) fill(); }, 420);
+})();
+
+/* ---------- slide 3: pipeline ---------- */
+(() => {
+  const svg = $("#pipeWires"), host = $("#pipeNodes");
+  const nodes = [
+    { t: "Příběh", d: "věta + popis firmy", tag: "text" },
+    { t: "Kaskáda A1–A5", d: "firma → model → vlivy\n→ příběh → scénář", tag: "LLM agenti", blue: true },
+    { t: "scenario.json", d: "entity, procesy, křivky, expectations", tag: "zod kontrakt" },
+    { t: "Engine", d: "simulace den po dni, FK na předka", tag: "deterministický" },
+    { t: "DuckDB", d: "main.* pozorovaná\ntruth.* skrytá pravda", tag: "≥ 5 tabulek" },
+  ];
+  const W = 230, G = 42, X0 = 141, Y = 300, H = 170;
+  nodes.forEach((n, i) => {
+    const x = X0 + i * (W + G);
+    card(host, {
+      x, y: Y, w: W, h: H, d: 0.3 + i * 0.25, cls: "node" + (i === 3 ? " scan" : ""),
+      html: `<div style="padding:16px 20px 0"><span class="tag${n.blue ? " blue" : ""}">${n.tag}</span></div>
+        <div class="t">${n.t}</div><div class="d">${n.d.replace("\n", "<br>")}</div>`,
+    });
+    if (i < nodes.length - 1) wire(svg, `M${x + W} ${Y + H / 2} L${x + W + G} ${Y + H / 2}`, { delay: 0.6 + i * 0.25, dur: 1.4 });
+  });
+  // A5 repair loop: scenario → engine check → back to cascade
+  const sx = X0 + 2 * (W + G) + W / 2, kx = X0 + 1 * (W + G) + W / 2;
+  wire(svg, `M${sx} ${Y} C${sx} ${Y - 90} ${kx} ${Y - 90} ${kx} ${Y}`, { delay: 1.6, dur: 2.2, blue: true });
+  const lab = document.createElement("div");
+  lab.className = "abs in mono"; lab.style.setProperty("--d", 1.6);
+  Object.assign(lab.style, { left: kx + 10 + "px", top: Y - 104 + "px", width: sx - kx - 20 + "px", textAlign: "center", whiteSpace: "nowrap", fontSize: "13px", letterSpacing: ".1em", color: "#006f9e", fontWeight: 600 });
+  lab.textContent = "SMYČKA A5 · OVĚŘ → OPRAV";
+  host.appendChild(lab);
+  // outputs
+  const outs = [{ t: "Důkaz", d: "SQL hypotézy + grafy" }, { t: "Detektiv", d: "slepý LLM nad main.*" }, { t: "Porovnání", d: "běh A vs. běh B" }];
+  const dbx = X0 + 4 * (W + G) + W / 2;
+  outs.forEach((o, i) => {
+    const w = 240, x = 780 + i * 270, y = 620;
+    wire(svg, `M${dbx} ${Y + H} C${dbx} ${Y + H + 80} ${x + w / 2} ${y - 80} ${x + w / 2} ${y}`, { delay: 1.9 + i * 0.15, dur: 1.8 });
+    card(host, { x, y, w, d: 1.7 + i * 0.15, html: `<div class="body"><div style="font-size:26px;font-weight:700">${o.t}</div><div style="color:var(--muted);font-size:17px">${o.d}</div></div>` });
+  });
+})();
+
+/* ---------- slide 4: curve + causal chain ---------- */
+(() => {
+  const svg = $("#curveSvg");
+  const L = 60, R = 520, T = 30, B = 300, days = 243;
+  const X = (d) => L + (d / days) * (R - L), Y = (v) => B - v * (B - T);
+  for (const v of [0, 0.5, 1]) {
+    el("line", { x1: L, x2: R, y1: Y(v), y2: Y(v), stroke: "#edf1f0" }, svg);
+    el("text", { x: L - 12, y: Y(v) + 5, "text-anchor": "end", "font-family": "IBM Plex Mono", "font-size": 13, fill: "#8a9391" }, svg).textContent = v.toFixed(1);
+  }
+  ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp"].forEach((m, i) => {
+    el("text", { x: X(i * 30.4 + 15), y: B + 28, "text-anchor": "middle", "font-family": "IBM Plex Mono", "font-size": 13, fill: "#8a9391" }, svg).textContent = m;
+  });
+  el("rect", { x: X(59), y: T, width: X(104) - X(59), height: B - T, fill: "rgb(0 158 224 / 8%)" }, svg);
+  const p = el("path", { d: `M${X(0)} ${Y(0.05)} L${X(59)} ${Y(0.05)} L${X(104)} ${Y(0.8)} L${X(days)} ${Y(0.8)}`, fill: "none", stroke: "var(--green)", "stroke-width": 4, "stroke-linejoin": "round", pathLength: 1, class: "draw" }, svg);
+  p.style.setProperty("--d", 0.6);
+  const lab = el("text", { x: X(110), y: Y(0.8) - 16, "font-family": "IBM Plex Mono", "font-size": 15, "font-weight": 600, fill: "var(--green-dark)", class: "in" }, svg);
+  lab.textContent = "0.05 → 0.8 (sp1)"; lab.style.setProperty("--d", 1.6);
+  const lab2 = el("text", { x: X(81), y: B - 10, "text-anchor": "middle", "font-family": "IBM Plex Mono", "font-size": 12, fill: "#006f9e", class: "in" }, svg);
+  lab2.textContent = "rampa"; lab2.style.setProperty("--d", 1.2);
+
+  const wires = $("#chainWires"), host = $("#chainNodes");
+  const steps = [
+    { t: "Pozdní dodávky", d: "main.delivery · +30–60 dní", up: true, s: [2, 2, 2, 2, 2, 7, 9, 9, 8, 9], arrow: "↑" },
+    { t: "Prázdné sklady", d: "main.stock_daily · 0 ks", up: true, s: [1, 1, 1, 1, 1, 1, 5, 8, 8, 9], arrow: "↑" },
+    { t: "Tržby SUP-002", d: "main.sale · ztracené nákupy", up: false, s: [8, 8, 8, 8, 8, 8, 6, 4, 3, 3], arrow: "↓" },
+    { t: "Stížnosti", d: "main.complaint · nedostupnost", up: true, s: [1, 2, 1, 1, 2, 1, 4, 7, 7, 8], arrow: "↑" },
+  ];
+  const X0 = 800, Y0 = 300, W = 700, H = 92, G = 24;
+  wire(wires, `M680 520 C740 520 740 ${Y0 + H / 2} ${X0} ${Y0 + H / 2}`, { delay: 1.8, dur: 1.6 });
+  steps.forEach((s, i) => {
+    const y = Y0 + i * (H + G);
+    const pts = s.s.map((v, j) => `${10 + j * 25},${70 - v * 6.5}`).join(" ");
+    card(host, {
+      x: X0, y, w: W, h: H, d: 1.9 + i * 0.35, cls: "",
+      html: `<div class="chain" style="height:100%"><div><div class="t"><span class="arrow-${s.up ? "up" : "down"}">${s.arrow}</span> ${s.t}</div><div class="d">${s.d}</div></div>
+        <svg width="250" height="80"><polyline points="${pts}" fill="none" stroke="${i === 2 ? "var(--warn)" : "var(--green)"}" stroke-width="3" stroke-linejoin="round" pathLength="1" class="draw" style="--d:${2.2 + i * 0.35}"/></svg></div>`,
+    });
+    if (i < steps.length - 1) wire(wires, `M${X0 + 40} ${y + H} L${X0 + 40} ${y + H + G}`, { delay: 2.1 + i * 0.35, dur: 0.9 });
+  });
+  const note = document.createElement("div");
+  note.className = "abs in mono";
+  Object.assign(note.style, { left: X0 + "px", top: Y0 + 4 * (H + G) + 8 + "px", fontSize: "15px", color: "var(--muted)", letterSpacing: ".06em" });
+  note.style.setProperty("--d", 3.4);
+  note.innerHTML = "Žádné z těchto čísel jsme nenapsali. <b style='color:var(--ink)'>Vyplynula ze simulace.</b>";
+  host.appendChild(note);
+})();
+
+/* ---------- slide 5: detective log ---------- */
+const LOG = [
+  ['c', '› list_tables()'],
+  ['g', '  delivery · stock_daily · sale · complaint · customer · product · supplier · store'],
+  ['c', '› run_sql("SELECT supplier_id, month,\n    avg(actual_date - planned_date) AS delay …")'],
+  ['g', '  SUP-001  │ před 2.8 d │ po  1.9 d'],
+  ['y', '  SUP-002  │ před 1.5 d │ po 32.2 d   ◀'],
+  ['c', '› run_sql("SELECT … share of days stock = 0 …")'],
+  ['y', '  SUP-002: 6 % → 31 % dní s nulovou zásobou'],
+  ['c', '› run_sql("SELECT … complaint type = \'nedostupnost\' …")'],
+  ['y', '  29 → 112 u produktů SUP-002'],
+];
+let logTimers = [];
+function runLog() {
+  logTimers.forEach(clearTimeout); logTimers = [];
+  const pre = $("#termLog"); pre.innerHTML = ""; $("#finding").style.opacity = 0; $("#qcount").textContent = "0 dotazů";
+  let q = 0, t = 900;
+  LOG.forEach(([cls, txt]) => {
+    logTimers.push(setTimeout(() => {
+      const s = document.createElement("span"); s.className = cls; s.textContent = txt + "\n"; pre.appendChild(s);
+      if (cls === "c") $("#qcount").textContent = ++q + (q === 1 ? " dotaz" : q < 5 ? " dotazy" : " dotazů");
+    }, t));
+    t += cls === "c" ? 650 : 320;
+  });
+  logTimers.push(setTimeout(() => ($("#finding").style.opacity = 1), t + 300));
+}
+
+/* ---------- slide 6: compare chart (real runs, seed 42) ---------- */
+(() => {
+  const svg = $("#cmpSvg");
+  const A = [58,61.3,60.4,59.9,51.2,59,48.1,47.6,57.5,52,58.8,38.7,36.6,34.4,41.8,25.8,25,29.2,34.9,44,23.2,38,63.2,51.6,46.5,50.2,54.9,58.4,58.3,53.8,39.1,33.8,36.1,40.8,22.8];
+  const B = [58,61.3,60.4,59.9,51.2,59,48.1,47.6,57.5,58.8,65.4,49.9,49.9,51.7,60.3,64.8,51.5,56.6,59,58.4,45.6,49.7,66.1,50.4,43.1,45.5,33.7,32.1,24.5,33.2,23.1,25.5,32.2,47.8,32.9];
+  const L = 70, R = 860, T = 30, B0 = 340, N = A.length;
+  const X = (i) => L + (i / (N - 1)) * (R - L), Y = (v) => B0 - (v / 80) * (B0 - T);
+  const band = (d0, d1, fill, d) => { const r = el("rect", { x: X(d0 / 7), y: T, width: X(d1 / 7) - X(d0 / 7), height: B0 - T, fill, class: "in" }, svg); r.style.setProperty("--d", d); };
+  band(59, 104, "rgb(0 149 125 / 9%)", 0.6);
+  band(151, 195, "rgb(0 158 224 / 10%)", 1.7);
+  for (const v of [0, 20, 40, 60, 80]) {
+    el("line", { x1: L, x2: R, y1: Y(v), y2: Y(v), stroke: "#edf1f0" }, svg);
+    el("text", { x: L - 12, y: Y(v) + 5, "text-anchor": "end", "font-family": "IBM Plex Mono", "font-size": 13, fill: "#8a9391" }, svg).textContent = v;
+  }
+  ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp"].forEach((m, i) => {
+    el("text", { x: X((i * 30.4 + 15) / 7), y: B0 + 30, "text-anchor": "middle", "font-family": "IBM Plex Mono", "font-size": 13, fill: "#8a9391" }, svg).textContent = m;
+  });
+  const path = (vals) => vals.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(" ");
+  const pa = el("path", { d: path(A), fill: "none", stroke: "var(--green)", "stroke-width": 3.4, "stroke-linejoin": "round", pathLength: 1, class: "draw" }, svg);
+  pa.style.setProperty("--d", 0.8);
+  const pb = el("path", { d: path(B), fill: "none", stroke: "var(--blue)", "stroke-width": 3.4, "stroke-linejoin": "round", pathLength: 1, class: "draw" }, svg);
+  pb.style.setProperty("--d", 1.9);
+  const lab = el("text", { x: X(4), y: Y(72), "text-anchor": "middle", "font-family": "IBM Plex Mono", "font-size": 14, "font-weight": 600, fill: "#5b6563", class: "in" }, svg);
+  lab.textContent = "běhy shodné"; lab.style.setProperty("--d", 2.6);
+  const lab2 = el("text", { x: X(25), y: Y(74), "text-anchor": "middle", "font-family": "IBM Plex Mono", "font-size": 15, "font-weight": 600, fill: "#006f9e", class: "in" }, svg);
+  lab2.textContent = "propad posunut o 3 měsíce →"; lab2.style.setProperty("--d", 3.1);
+})();
+
+/* ---------- slide 7: criteria ---------- */
+(() => {
+  const host = $("#crit");
+  const c = [
+    ["01", "Věrohodnost a konzistence", "Každý záznam má FK na svého předka. Integrita se testuje po každém běhu."],
+    ["02", "Dohledatelnost příběhu", "SQL hypotézy před/po a slepý detektiv, skórovaný proti skryté pravdě."],
+    ["03", "Znovupoužitelnost", "Libovolný příběh → kaskáda agentů → nový scénář. Žádný ručně připravený dataset."],
+    ["04", "Funkční demo", "Deterministický engine, LLM cache → běží offline, opakovatelně."],
+  ];
+  c.forEach(([n, h, p], i) => card(host, { x: 120 + i * 350, y: 400, w: 320, h: 250, d: 0.4 + i * 0.15, cls: "crit", html: `<div class="body" style="padding:26px 24px"><div class="n">${n}</div><h3>${h}</h3><p>${p}</p></div>` }));
+})();
+
+/* ---------- deck engine ---------- */
+const slides = [...document.querySelectorAll(".slide")];
+let current = 0;
+function fit() {
+  const s = Math.min(innerWidth / 1600, innerHeight / 900);
+  $("#deck").style.transform = `scale(${s})`;
+}
+function go(i) {
+  i = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, j) => { s.classList.toggle("active", j === i); s.classList.toggle("past", j < i); });
+  const s = slides[i];
+  // restart CSS animations on re-entry
+  s.classList.remove("active"); void s.offsetWidth; s.classList.add("active");
+  current = i;
+  $("#bar").style.width = ((i + 1) / slides.length) * 100 + "%";
+  $("#counter").textContent = String(i + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+  $("#notesText").textContent = s.dataset.notes || "";
+  if (i === 0) typeStory();
+  if (i === 4) runLog();
+  history.replaceState(null, "", "#" + (i + 1));
+}
+let t0 = null, tick;
+function toggleTimer() {
+  const el = $("#timer");
+  if (el.classList.toggle("on")) {
+    t0 = Date.now();
+    tick = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      el.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0") + " / 03:00";
+      el.classList.toggle("late", s > 180);
+    }, 250);
+  } else clearInterval(tick);
+}
+addEventListener("keydown", (e) => {
+  if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); go(current + 1); }
+  else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(current - 1); }
+  else if (e.key === "Home") go(0);
+  else if (e.key === "End") go(slides.length - 1);
+  else if (e.key.toLowerCase() === "n") $("#notes").classList.toggle("on");
+  else if (e.key.toLowerCase() === "t") toggleTimer();
+  else if (e.key.toLowerCase() === "f") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  $("#hint").style.opacity = 0;
+});
+addEventListener("click", (e) => { if (e.button === 0) go(current + (e.clientX < innerWidth / 4 ? -1 : 1)); });
+addEventListener("resize", fit);
+fit();
+go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>
