@@ -4,7 +4,7 @@
 # Format: <path> @owner [@owner2]
 # Last matching line wins, so keep the catch-all first.
 
-# Default: any PR needs at least one of the team (set in branch protection).
+# Default: the whole team is responsible for anything not listed below.
 # * @ikoronka @H7KZ @OndrejZemlicka @janvrzal
 
 # Contract: changes here affect every workspace.
