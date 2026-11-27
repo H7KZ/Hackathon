@@ -7,11 +7,25 @@ import type { CompileError } from "@s2d/schema/api";
 import type { DataModel, StoryPlan } from "@s2d/schema/artifacts";
 import type { EntityDef } from "@s2d/schema/scenario";
 
-/** The effect needs a chain to travel through: at least one branch or derive after an arrival. */
-export function checkModelShape(model: Pick<DataModel, "processes">): CompileError[] {
+/** A2's task asks for at least this many linked tables (entities + process tables + snapshots). */
+export const MIN_TABLES = 5;
+
+/**
+ * The effect needs a chain to travel through (at least one branch or derive after an arrival), and the
+ * dataset needs enough tables to be worth investigating.
+ */
+export function checkModelShape(model: ModelTables): CompileError[] {
+  const errors: CompileError[] = [];
+  const tables = [...modelTables(model).keys()];
+  if (tables.length < MIN_TABLES)
+    errors.push({
+      path: "tables",
+      message: `The model writes ${tables.length} tables (${tables.join(", ")}); use at least ${MIN_TABLES} linked tables, e.g. add the actors (suppliers, stores, products) as entities or split outcomes into their own tables.`,
+    });
   const hasChain = model.processes.some((p) => p.type === "branch" || p.type === "derive");
-  if (hasChain) return [];
+  if (hasChain) return errors;
   return [
+    ...errors,
     {
       path: "processes",
       message:

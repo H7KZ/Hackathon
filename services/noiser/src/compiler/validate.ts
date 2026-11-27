@@ -1,8 +1,8 @@
 /**
  * Compiler / validator (SPEC §3.B). Errors are `{ path, message }[]` and are fed back to agent A5,
  * so every message must say what is wrong AND what would be valid.
- * SQL of expectations is only shape-checked here; `EXPLAIN` against DuckDB happens in the A5 loop
- * (cascade), because noiser may not import a database.
+ * SQL of expectations is only shape-checked here (noiser may not import a database). The cascade
+ * checks which tables it reads (cascade/src/checks.ts); the SQL first runs against DuckDB in evidence.
  */
 import { Scenario, type ProcessDef } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";

@@ -89,12 +89,13 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   const model = await step("02_model", DataModel, () =>
     a2Model(
       llm("02_model", (v) => checkModelShape(DataModel.parse(v))),
+      input,
       company,
     ),
   );
   if (!shouldRun("03_influences")) return { dir, company, model };
   const influences = await step("03_influences", Influences, () =>
-    a3Influences(llm("03_influences"), company, model),
+    a3Influences(llm("03_influences"), input, company, model),
   );
   if (!shouldRun("04_story")) return { dir, company, model, influences };
   const story = await step("04_story", StoryPlan, () =>

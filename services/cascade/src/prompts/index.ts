@@ -21,7 +21,10 @@ export const MODEL_SYNTAX = `Model JSON syntax (follow exactly, the output is va
 - categorical values are strings (e.g. ["1","2","3"], not [1,2,3]).
 - Cond (has "kind"): fieldEq {path, value} | fieldGt {path, value: number} | flowGt/flowGte {flow, keys: {<key>: Path}, value: number | Path} | bernoulli {p: Param} | and/or {conds} | not {cond}.
 - Entity: name snake_case, count positive integer, idPrefix uppercase letters (e.g. "STO"), fields include "id": {"gen":"id"}.
-- Process: arrival {id, table, per: [entity], rate?: Param, schedule?: {everyDays}, fields} | branch {id, source, cond, then?: {table, fields}, else?: {table, fields}} | derive {id, table, source, p: Param, lag?: {min, max}, fields}. A branch outcome is consumed as source "<branchId>:then" or "<branchId>:else".
+- Process: arrival {id, table, per: [entity], rate?: Param, schedule?: {everyDays, phase?: "random"}, where?, fields, effects?} | branch {id, source, lag?, cond, then?: {table, fields, effects?}, else?: {table, fields, effects?}} | derive {id, table, source, p: Param, lag?: {min, max}, fields, effects?}. A branch outcome is consumed as source "<branchId>:then" or "<branchId>:else".
+- Flow (a stateful level, e.g. stock per store x product): {id, keys: [entity, ...], initial: FieldGen, min?: number, snapshot?: {table, visibility?}}. The snapshot table gets columns date, <key>_id per key, value.
+- Effect (how a record moves a flow; without effects a flow never changes): {flow, keys: {<key entity>: Path}, delta: Path (an earlier numeric field, e.g. "self.quantity"), sign: 1 | -1, on?: Path (date field when it applies, e.g. "self.delivered_date")}. E.g. a delivery adds (+1) its quantity to stock, a sale removes (-1) it; a branch on {"kind":"flowGte", "flow":"stock", "keys":{...}, "value":"source.quantity"} decides sale vs. lost sale.
+- visibility (on entities, process tables, outcomes, snapshots): "observed" (default, analysts see it) | "ground_truth" (hidden cause, e.g. purchase attempts; NOT readable by expectations). Several processes may write one table only with the same visibility.
 Example (different domain, syntax only):
 ${JSON.stringify(MODEL_EXAMPLE)}`;
 
@@ -48,7 +51,8 @@ Expectations:
 - Each expectation SQL must return columns period ('before'|'after') and value DOUBLE, reading only schema main.
 - The SQL may read ONLY the listed observed tables. ground_truth tables (hidden causes, e.g. purchase attempts) are not in the evidence database; build day lists from observed tables (e.g. sales, deliveries).
 - Test consequences through the chain with COUNTS or LEVELS (e.g. complaints per week, lost sales per day, revenue per day), not a ratio whose probability is constant (complaints per lost sale stays flat by design).
-- Add at least one control that must stay stable (e.g. demand / visits).`;
+- Add at least one control that must stay stable (e.g. demand / visits).
+Curves: {id, baseline, segments: [{kind: step|ramp|spike|decay, start, end?, to, storyPointId}], scope?: {field: Path, ids: [...]}, clamp?: [min, max]}. scope limits the curve to records whose field has one of the ids (e.g. {"field": "self.supplier_id", "ids": ["SUP-002"]}); entity ids are <idPrefix>-001 .. <idPrefix>-<count> of 02_model.`;
 
 export const A5_DETAIL = `${SHARED_RULES}
 Task A5: turn the model skeleton (02_model) into a complete, runnable model: final entities (with counts and field generators), flows and processes with EVERY parameter filled in.
@@ -56,7 +60,8 @@ Task A5: turn the model skeleton (02_model) into a complete, runnable model: fin
 - Keep the table names and visibility of 02_model: the expectations in 04_story read those observed tables.
 - Use a curve only where 04_story intends that lever; every downstream p / rate is a constant number, so the story effect emerges through the process chain.
 - Realize each influence edge of 03_influences as a probability, rate or condition in some process.
-- Pick start/end (ISO dates) so that every story point and curve segment lies inside [start, end).
+- Pick start/end (ISO dates, both days included) so that every story point and curve segment date lies within start..end.
+- Keep the count and idPrefix of entities named by 04_story (story point entities, curve scope ids like SUP-002), so those ids exist.
 - Make the expected effect visible: background rates high enough that the story points move the outcome tables.
 - If compiler errors are given, return the corrected full object; fix every listed path.
 ${MODEL_SYNTAX}`;

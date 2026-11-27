@@ -27,21 +27,26 @@ export function a1Company(llm: Llm, input: CascadeInput): Promise<CompanySpecT> 
   });
 }
 
-export function a2Model(llm: Llm, company: CompanySpecT): Promise<DataModelT> {
+export function a2Model(llm: Llm, input: CascadeInput, company: CompanySpecT): Promise<DataModelT> {
   return llm.object({
     schemaName: "02_model",
     schema: DataModel,
     instructions: A2_MODEL,
-    prompt: userPrompt({ "01_company": company }),
+    prompt: userPrompt({ Story: input.story, "01_company": company }),
   });
 }
 
-export function a3Influences(llm: Llm, company: CompanySpecT, model: DataModelT): Promise<InfluencesT> {
+export function a3Influences(
+  llm: Llm,
+  input: CascadeInput,
+  company: CompanySpecT,
+  model: DataModelT,
+): Promise<InfluencesT> {
   return llm.object({
     schemaName: "03_influences",
     schema: Influences,
     instructions: A3_INFLUENCES,
-    prompt: userPrompt({ "01_company": company, "02_model": model }),
+    prompt: userPrompt({ Story: input.story, "01_company": company, "02_model": model }),
   });
 }
 

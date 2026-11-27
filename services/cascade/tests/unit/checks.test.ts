@@ -12,6 +12,17 @@ describe("story checks", () => {
     expect(checkCurveCoverage(base, base)).toEqual([]);
   });
 
+  it("a model with fewer than 5 tables is sent back", () => {
+    const tiny = {
+      ...model,
+      entities: base.entities.slice(0, 1),
+      flows: [],
+      processes: base.processes.slice(0, 1),
+    };
+    expect(checkModelShape(tiny).map((e) => e.path)).toContain("tables");
+    expect(checkModelShape(model).map((e) => e.path)).not.toContain("tables");
+  });
+
   it("a model without branch/derive has no causal chain", () => {
     expect(checkModelShape(arrivalOnly).map((e) => e.path)).toEqual(["processes"]);
   });
@@ -36,6 +47,7 @@ describe("checks in the cascade", () => {
       { llm: t.llm, runsDir: t.runsDir, runId: "r1", until: "02_model" },
     );
     expect(t.fake.calls.map((c) => c.schemaName)).toEqual(["01_company", "02_model", "02_model"]);
+    expect(t.fake.calls[1]?.prompt).toContain("## Story\ns"); // A2 sees the story, not only 01_company
     expect(t.fake.calls[2]?.prompt).toContain("no causal chain");
     expect(t.fake.calls[2]?.prompt).toContain("fails the story checks");
     expect(t.fake.calls[2]?.prompt).not.toContain("failed schema validation");
@@ -180,5 +192,6 @@ describe("04_story coherence", () => {
       "04_story",
     ]);
     expect(t.fake.calls[4]?.prompt).toContain('Unknown story point "nope"');
+    expect(t.fake.calls[2]?.prompt).toContain("## Story\ns"); // A3 sees the story too
   });
 });

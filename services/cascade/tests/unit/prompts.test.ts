@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { compileScenario } from "@s2d/noiser";
 import { DataModel } from "@s2d/schema/artifacts";
 import { MODEL_EXAMPLE } from "../../src/prompts/example";
-import { A2_MODEL, A5_DETAIL } from "../../src/prompts/index";
+import { A2_MODEL, A4_STORY, A5_DETAIL } from "../../src/prompts/index";
 
 describe("prompt few-shot example", () => {
   it("is a valid 02_model", () => {
@@ -42,5 +42,21 @@ describe("story rule 3 (curves only on levers)", () => {
     const { A4_STORY } = await import("../../src/prompts/index");
     expect(A4_STORY).toMatch(/Downstream probabilities .* stay CONSTANT/);
     expect(A4_STORY).toMatch(/COUNTS or LEVELS/);
+  });
+});
+
+describe("syntax the story depends on", () => {
+  it("A2/A5 explain flows, effects and visibility; A4 explains curve scope", () => {
+    for (const p of [A2_MODEL, A5_DETAIL]) {
+      expect(p).toContain("Effect");
+      expect(p).toContain("snapshot");
+      expect(p).toContain('"ground_truth"');
+    }
+    expect(A4_STORY).toContain("scope");
+  });
+
+  it("A5 states the date range as the compiler and engine use it (end included)", () => {
+    expect(A5_DETAIL).not.toContain("[start, end)");
+    expect(A5_DETAIL).toContain("both days included");
   });
 });
