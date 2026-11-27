@@ -105,38 +105,42 @@ Mapování mapy na scénář:
 | páka → atribut | `bernoulli`/`normal` s `{curve}` |
 | atributová hrana (produkt → dodavatel) | `lookup` v polích |
 
-### D5. Kaskáda nespouští noiser ani dataer
+### D5. Kaskáda smí spustit vložený story gate (nahrazuje „kaskáda nespouští noiser ani dataer")
 
-- Kaskáda končí složeným `scenario.json`. Generování dat (noiser engine) a důkaz (dataer) navazují až po ní.
-- Uvnitř kaskády běží jen čistý kód: zod, kontroly pokrytí mapy (4a/4b), stavba křivek z matice, odvození hypotéz pro expectations.
-- Žádná zkušební generace dat ani smyčka nad expectations. Chyby v SQL nebo slabý efekt se ukážou až v evidence.
+- Kaskáda končí složeným `scenario.json`. Sama noiser ani dataer nevolá, ale `CascadeOptions.verify` jí může vložit pomalou kontrolu. API (`services/api/src/adapters/cascade.ts`) i CLI (`pnpm cascade`) tam dávají `storyGate` (`services/cascade/src/gate.ts`, PR #14).
+- `storyGate`: noiser `generate` na seedu scénáře → `storeRun` do DuckDB (kontrola FK) → na sandboxu `runExpectations` a `baselineDrift` (objem tabulek před prvním segmentem křivky nesmí driftovat o víc než 35 %). Chyby jsou `{path, message}` jako chyby compileru.
+- Ostatní kontroly uvnitř kaskády jsou čistý kód: zod, `checks.ts`, v causal variantě kontroly mapy a pokrytí (4a/4b), stavba křivek z matice a odvození hypotéz.
+- Bez `verify` (unit testy, `runCascade` bez gate) se slabý efekt nebo chybné SQL ukáže až v evidence.
 
 ### D6. Složený scénář validuje `compileScenario`
 
-- Na konci kaskády se zavolá `compileScenario` z `@s2d/noiser` (čistá funkce: reference, DAG, rozsah datumů). Engine se nespouští.
-- Spouštění noiseru a dataeru řeší API (`POST /runs` na větvi `feat/api-runs`).
+- Na konci kaskády se volá `compileScenario` z `@s2d/noiser` (čistá funkce: zod, reference, DAG, rozsah datumů a `checkStoryRefs`, tj. id entit ve `scope` křivek a ve story pointech, `services/noiser/src/compiler/story.ts`). Engine spouští jen `verify` (D5).
+- Generování datasetů a evidence po kaskádě řeší API: sessions (`routes/sessions.ts`, příkazy `approve`, `what_if`, `edit_scenario` v `orchestrator.ts`) a scénáře (`routes/scenarios.ts`).
 
 ### D7. Kaskáda se volá přes přístupové funkce
 
 - `services/cascade/src/access.ts`: `cascade()`, `getRun()`, `listRuns()`, `saveArtifact()`, `newRunId()`.
-- Stejný vzor jako noiser `generate()`: špatný vstup a chyba agenta vrací `{ ok: false, errors: {path, message}[] }`, nevyhazují výjimku.
-- `saveArtifact()` ověří ruční úpravu schématem a smaže pozdější artefakty (SPEC §2 pravidlo 9).
+- Stejný vzor jako noiser `generate()`: špatný vstup a chyba agenta vrací `{ ok: false, errors: {path, message}[] }`, nevyhazují výjimku. Neočekávané chyby (fs, bugy) se vyhodí a API z nich udělá 500.
+- `saveArtifact()` ověří ruční úpravu schématem z `ArtifactSchemas` (`@s2d/schema/artifacts`) a smaže pozdější artefakty v pořadí `ArtifactName` (SPEC §2 pravidlo 9).
+- API orchestrátor používá `runCascade` přímo přes port (`adapters/cascade.ts`), ne `cascade()`.
 
-### D8. Smyčka oprav = jen `compileScenario` (A5 i whatIf)
+### D8. Smyčka oprav: compile, story checks a story gate (A5); whatIf bez gate
 
 - A5 vrací jen `name`, `start`, `end`, `entities`, `flows`, `processes`. Meta (seed 42, id z runId), `curves`, `storyPoints` a `expectations` doplní kód z `00_input` a `04_story`.
-- Smyčka: agent → složení kódem → `compileScenario` → chyby zpět agentovi, max 3 iterace. Zod-neplatná odpověď je taky feedback. Každá iterace emituje `loop.iteration`.
-- Po 3 neúspěších se `05_scenario` nezapíše, přijde `log` a `CascadeStepError` (nekompilující scénář nejde dát noiseru).
-- whatIf: agent vrátí celé `curves` + záplaty existujících `Param` přes JSON pointer (mimo `meta`, `curves`, `storyPoints`, `expectations`). Kód je aplikuje na kopii, seed a struktura zůstanou. Po 3 neúspěších `WhatIfFailed`.
-- Engine na vzorku a expectations ve smyčce **nejsou** (D5). Handoff API (`docs/handoffs/cascade.md`) s tím počítal; gate „expectations ≥ 4/5 seedů" se ověřuje až v evidence.
+- Smyčka A5 (`loop.ts` `repairLoop`, max 3 iterace): agent → složení kódem → `compileScenario` → story checks → `verify`. První neprázdný seznam chyb jde zpět agentovi, `verify` běží jen nad scénářem, který prošel compile i checks. Zod-neplatná odpověď je taky feedback. Každá iterace emituje `loop.iteration`.
+- Story checks A5 (`checks.ts`): `checkModelShape` (aspoň 5 tabulek, řetězec branch/derive), `checkCurveCoverage` (každá křivka z 04_story je použitá), `checkCurvesOnRoots` (křivka jen na parametr bez příchozí hrany v 03_influences), `checkExpectationTables` (SQL čte jen observed tabulky), `checkEntityIds` (id entit ze 04_story existují).
+- Kroky A2–A4 mají checks přes `withSchemaRetry`: 02 `checkModelShape`; 03 `checkInfluenceRefs`; 04 `checkStoryPlan`, `checkExpectationTables`, `checkStoryRefs`.
+- Po 3 neúspěších se `05_scenario` nezapíše, odmítnuté pokusy zůstanou v `05_scenario.rejected-N.json`, přijde `log` a `CascadeStepError`.
+- whatIf: agent vrátí celé `curves` + záplaty existujících `Param` přes JSON pointer (mimo `meta`, `curves`, `storyPoints`, `expectations`). Kód je aplikuje na kopii, seed a struktura zůstanou. Smyčka má `compileScenario` a story check `checkCurveCoverage` (záplata nesmí odpojit křivku), **bez `verify`**: protipříklad nemusí splnit expectations základního příběhu. Po 3 neúspěších `WhatIfFailed`.
+- Causal varianta nemá A5. `05_scenario` skládá kód (`finishCausal`: compile + `checkStoryPlan`, `checkModelShape`, `checkCurveCoverage`, `checkExpectationTables`), pak běží stejné `verify` jako ve v1. Chyba nejde žádnému agentovi: krok skončí `CascadeStepError` a `log`.
 
 ## Otevřené otázky
 
-- **Nahrání cache.** Varianta `causal` nemá nahrané LLM odpovědi; eval `supplier_delay_causal` se offline přeskočí. Prompty: `services/cascade/src/prompts/causal.ts`. Změna promptu A3 (konvence jmen hran) změnila klíč cache i pro v1 od kroku 03.
+- **Nahrání cache.** K 2026-11-27 není v `.cache/llm/` nahraná žádná odpověď (ani pro v1), oba evaly se offline přeskočí. Varianta v1 zůstává výchozí a funguje, ale konvence jmen hran v promptu A3 mění klíč cache v1 od kroku 03 dál. Nahrávku v1 pořízenou před sloučením této změny je proto potřeba nahrát znovu; nahrávat až po sloučení. Prompty causal varianty: `services/cascade/src/prompts/causal.ts`.
 - **Agent 6 per úsek.** Matici vrací jeden agent (`04a_overlay`), žádní subagenti per úsek. Hranice úseků = story pointy, které agent sám navrhne.
 - **Tvary křivek.** Kód staví jen `step`. Pozvolný náběh (ramp) by potřeboval pravidlo, kdy ho kód zvolí.
 - **Kompatibilita druhů uzlů a typů hran.** Kontroluje se jen „žádná hrana do páky", „páka a větvení mají výstup" a realizace podle typu hrany. Např. „mechanická hrana musí končit ve `state`" kód nehlídá.
-- **Chyby ve 05.** Když složený scénář v causal variantě neprojde, přijde `CascadeStepError` a `log`. Chyby se nevrací žádnému agentovi (úpravou 04_story nebo 03b_processes v UI se 05 přepočítá).
+- **Chyby ve 05 (causal).** Když složený scénář neprojde checks nebo `verify` (story gate), přijde `CascadeStepError` a `log`. Chyby se nevrací žádnému agentovi; zpráva gate radí měnit rate a initial, což je práce 4b. Úpravou 04_story nebo 03b_processes v UI se 05 přepočítá.
 - **Znaménka přes větvení.** Znaménko hrany z uzlu `branch` (fulfil → lost_sale = negative) dává směr jen tehdy, když ho 4a nakreslí konzistentně (víc zásoby → víc vyřízených → méně ztrát). Kód to neověřuje.
 - **whatIf** pracuje se složeným scénářem a o mapě neví; křivky může měnit libovolně, ne přes matici.
 - Kalibrace: kdo nastaví „pozaďová“ čísla (rate, initial), aby efekt byl vidět a data realistická.

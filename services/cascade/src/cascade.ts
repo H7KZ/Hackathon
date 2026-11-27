@@ -29,12 +29,7 @@ import { deriveHypotheses } from "./causal/hypotheses";
 import { checkOverlayScenario } from "./causal/overlay";
 import { a4bExpectations, causalStory, checkQueries } from "./causal/sql";
 import { a4aCausalMap, a4bProcesses, a4Overlay } from "./causal/steps";
-import {
-  checkExpectationTables,
-  checkInfluenceRefs,
-  checkModelShape,
-  checkStoryPlan,
-} from "./checks";
+import { checkExpectationTables, checkInfluenceRefs, checkModelShape, checkStoryPlan } from "./checks";
 import type { OnEvent } from "./events";
 import { formatFeedback, withSchemaRetry } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
@@ -205,16 +200,18 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     );
     if (!shouldRun("05_scenario"))
       return { dir, company, model, causalMap, processes, overlay, expectations, story };
-    const scenario = await step("05_scenario", Scenario, () => {
+    const scenario = await step("05_scenario", Scenario, async () => {
       const res = finishCausal({ input, runId: opts.runId, plan: processes, overlay, story });
-      if (res.ok) return Promise.resolve(res.scenario);
+      // same story gate as v1 A5; there is no agent here, so a failure stops the step
+      const errors = res.ok ? ((await opts.verify?.(res.scenario)) ?? []) : res.errors;
+      if (res.ok && errors.length === 0) return res.scenario;
       opts.onEvent?.({
         type: "log",
         message: "Složený scénář neprošel kontrolami. Uprav 04_story (nebo 03b_processes) a spusť znovu.",
       });
       throw new CascadeStepError(
         "05_scenario",
-        new Error(`Causal scenario fails the checks:\n${formatFeedback(res.errors)}`),
+        new Error(`Causal scenario fails the checks:\n${formatFeedback(errors)}`),
       );
     });
     return { dir, company, model, causalMap, processes, overlay, expectations, story, scenario };

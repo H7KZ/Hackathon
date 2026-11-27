@@ -42,6 +42,8 @@ Template:
 
 ## 2026-11-27 — Cascade repair loop runs compileScenario only
 
+> **Superseded** by PR #14 (`dfc0e79`): the A5 loop also runs story checks and the injected story gate (`CascadeOptions.verify` = `storyGate`: engine at the scenario seed, FK integrity, expectations, baseline drift). whatIf keeps no gate. Current state: `docs/cascade-design.md` D5, D8.
+
 - **Decision:** the A5 and whatIf loops feed back only `compileScenario` (and zod) errors, max 3 iterations. They do not run the engine at `scale: 0.2` or the expectations, which differs from SPEC §3.A and `docs/handoffs/cascade.md`. Details: `docs/cascade-design.md` D8.
 - **Why:** design D5: the cascade ends with a composed scenario, and evidence shows weak effects.
 - **Who:** cascade owner.
@@ -62,6 +64,8 @@ Template:
 - **Affects:** `pnpm-workspace.yaml`, every `pnpm` command.
 
 ## 2026-11-27 — A5 loop runs the engine at `scale: 1`
+
+> Valid again since PR #14: the engine runs inside the A5 loop through `verify` (`storyGate` calls `generate` on the scenario as is, so its `scale` applies and the cascade leaves it unset = 1). It no longer contradicts the entry above, which #14 superseded.
 
 - **Decision:** the A5 agentic loop (compile → engine → expectations) runs `runScenario` at `scale: 1`, not 0.2.
 - **Why:** `scale` shrinks large entities and arrival volume, but flow levels and `topUp` targets are absolute. In `supplier_delay` at 0.2 the demand per [store, product] drops to 20 %, stockouts almost vanish and e3/e5 fail although they pass at 1. A full run takes ~150 ms, so shrinking saves nothing.

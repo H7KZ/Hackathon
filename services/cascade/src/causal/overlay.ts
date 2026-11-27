@@ -2,7 +2,6 @@
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
 import type { CausalMap, ProcessesPlan, StoryOverlay } from "@s2d/schema/artifacts";
-import { checkEntityIds } from "../checks";
 import type { CascadeInput } from "../steps";
 import { assembleCausal } from "./assemble";
 import { buildCurves, checkOverlay } from "./curves";
@@ -18,7 +17,7 @@ export function checkOverlayScenario(
   if (own.length > 0) return own;
   const curves = buildCurves(map, overlay);
   const story = { storyPoints: overlay.storyPoints, curves, expectations: [] };
-  const ids = checkEntityIds(story, plan.entities);
+  // compileScenario includes checkStoryRefs (scope and story point entity ids)
   const compiled = compileScenario(assembleCausal({ input, runId, plan, overlay, story }));
-  return [...ids, ...(compiled.ok ? [] : compiled.errors)];
+  return compiled.ok ? [] : compiled.errors;
 }

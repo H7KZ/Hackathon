@@ -4,13 +4,7 @@ import type { CompileError } from "@s2d/schema/api";
 import type { ProcessesPlan, StoryOverlay, StoryPlan } from "@s2d/schema/artifacts";
 import type { Scenario } from "@s2d/schema/scenario";
 import { DEFAULT_SEED, scenarioId } from "../a5_detail";
-import {
-  checkCurveCoverage,
-  checkEntityIds,
-  checkExpectationTables,
-  checkModelShape,
-  checkStoryPlan,
-} from "../checks";
+import { checkCurveCoverage, checkExpectationTables, checkModelShape, checkStoryPlan } from "../checks";
 import type { CascadeInput } from "../steps";
 
 export interface CausalParts {
@@ -55,7 +49,6 @@ export function finishCausal(
     ...checkModelShape(s),
     ...checkCurveCoverage(s, story),
     ...checkExpectationTables(s.expectations, s),
-    ...checkEntityIds(story, s.entities),
   ];
   return errors.length > 0 ? { ok: false, errors } : { ok: true, scenario: s };
 }

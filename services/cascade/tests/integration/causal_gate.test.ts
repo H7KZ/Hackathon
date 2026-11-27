@@ -8,6 +8,7 @@ import { finishCausal } from "../../src/causal/assemble";
 import { deriveHypotheses } from "../../src/causal/hypotheses";
 import { causalStory } from "../../src/causal/sql";
 import { causalMap, overlay, processesPlan, queries } from "../unit/causal_fixtures";
+import { storyGate } from "../../src/gate";
 import { expectationGate } from "../evals/gates";
 
 describe("causal design: derived hypotheses on generated data", () => {
@@ -29,6 +30,8 @@ describe("causal design: derived hypotheses on generated data", () => {
       story,
     });
     if (!res.ok) throw new Error(JSON.stringify(res.errors));
+    // the same gate v1's A5 runs (engine, FK integrity, expectations, flat baseline)
+    expect(await storyGate(res.scenario)).toEqual([]);
     const gate = await expectationGate(res.scenario, tmp.dir);
     expect(gate.main.failed).toEqual([]);
     expect(gate.robust.flatMap((r) => r.failed.map((f) => `seed ${r.seed}: ${f.id}`))).toEqual([]);

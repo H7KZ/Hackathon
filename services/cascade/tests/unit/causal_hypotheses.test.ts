@@ -138,4 +138,33 @@ describe("causal design end to end (fake LLM)", () => {
     expect(res.scenario?.expectations.map((e) => e.check.kind)).toContain("stable");
     expect(res.scenario?.meta.start).toBe(overlay.start);
   });
+
+  it("runs the injected story gate on the assembled 05_scenario; a failure stops the step", async () => {
+    const answers = [company, model, causalMap, processesPlan, overlay, { queries }];
+    const ok = setup(answers);
+    const seen: string[] = [];
+    await runCascade(input, {
+      llm: ok.llm,
+      runsDir: ok.runsDir,
+      runId: "c5",
+      design: "causal",
+      verify: (s) => {
+        seen.push(s.meta.id);
+        return Promise.resolve([]);
+      },
+    });
+    ok.cleanup();
+    expect(seen).toEqual(["c5"]);
+    const bad = setup(answers);
+    cleanup = bad.cleanup;
+    await expect(
+      runCascade(input, {
+        llm: bad.llm,
+        runsDir: bad.runsDir,
+        runId: "c6",
+        design: "causal",
+        verify: () => Promise.resolve([{ path: "expectations[0]", message: "too weak" }]),
+      }),
+    ).rejects.toThrow(/too weak/);
+  });
 });
