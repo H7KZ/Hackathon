@@ -85,8 +85,17 @@ export type SessionEvent = z.infer<typeof SessionEvent>;
 
 export const DatasetEvidence = z.object({
   expectations: z.array(ExpectationResult),
+  /**
+   * Daily series per observed table and DATE/TIMESTAMP column: `metric` "rows" = row count per day,
+   * "<column>.sum" = per-day sum of a numeric non-key column (snapshot tables move only in their values).
+   */
   series: z.array(
-    z.object({ table: z.string(), points: z.array(z.object({ day: z.iso.date(), value: z.number() })) }),
+    z.object({
+      table: z.string(),
+      dateColumn: z.string(),
+      metric: z.string(),
+      points: z.array(z.object({ day: z.iso.date(), value: z.number() })),
+    }),
   ),
 });
 export type DatasetEvidence = z.infer<typeof DatasetEvidence>;

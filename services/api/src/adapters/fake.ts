@@ -47,7 +47,7 @@ function fakeSeries(storyPoints: Scenario["storyPoints"], seed: number) {
     const base = 100 + ((seed * 7 + i * 13) % 11) - 5;
     return { day: new Date(t).toISOString().slice(0, 10), value: t >= t0 ? Math.round(base * 0.7) : base };
   });
-  return [{ table: "objednavky", points }];
+  return [{ table: "objednavky", dateColumn: "date", metric: "rows", points }];
 }
 
 export function fakePorts(opts: FakeOptions) {
