@@ -25,3 +25,10 @@ Template:
 - **Why:** four people and agents commit to the same repo; the team chose to rely on the workflow rather than GitHub enforcement.
 - **Who:** team (proposed in PR `chore/team-workflow`).
 - **Affects:** `AGENTS.md`, `.github/`, `.claude/settings.json`.
+
+## 2026-11-27 — pnpm `minimumReleaseAge` lowered to 60 minutes
+
+- **Decision:** `pnpm-workspace.yaml` sets `minimumReleaseAge: 60` (minutes) instead of pnpm 12's default of 1 day.
+- **Why:** the lockfile contains 11 packages released within the last day (eslint, hono, postcss, …). With the default, every pnpm command, including the pre-commit hook, fails until after the hackathon deadline. 60 minutes keeps a short supply-chain guard.
+- **Who:** Amelie (with an agent), while merging `feat/noiser-engine`.
+- **Affects:** `pnpm-workspace.yaml`, every `pnpm` command.
