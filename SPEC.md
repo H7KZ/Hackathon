@@ -288,11 +288,11 @@ Příklad ze zadání: tržby klesají, ale poptávka ne — dodavatel SUP-002 z
 
 - **Entity:** `supplier` (3), `product` (24, FK `supplier_id`, `price`, `category`), `store` (5), `customer` (600, FK `home_store_id`).
 - **Křivky:**
-  - `late_prob` — baseline 0.05, scope `self.supplier_id ∈ [SUP-002]`, ramp 2025-03-01 → 2025-04-15 na 0.6 (`sp1`).
+  - `late_prob` — baseline 0.05, scope `self.supplier_id ∈ [SUP-002]`, ramp 2025-03-01 → 2025-04-15 na 0.8 (`sp1`).
   - `demand` — baseline 1.0 (bez story, jen týdenní sezónnost volitelně).
 - **Flow:** `stock` keys `[store, product]`, initial ~ N(7, 1.5), min 0, snapshot → `main.stock_daily`.
 - **Procesy:**
-  1. `delivery` (arrival, per `[store, product]`, schedule každých 7 dní): `planned_date`, `quantity` = topUp(stock, target 7) — objednávka do stavu ≈ 1,5 týdne poptávky (poptávka ≈ 4,2 ks/týden na [prodejna, produkt]), `supplier_id` lookup z produktu, `is_late` ~ Bernoulli(`late_prob`), `delay_days` = if late → uniformInt(3, 10) else 0, `actual_date` = planned + delay; efekt +quantity na `stock` `on: actual_date`. → `main.delivery`
+  1. `delivery` (arrival, per `[store, product]`, schedule každých 7 dní): `planned_date`, `quantity` = topUp(stock, target 7) — objednávka do stavu ≈ 1,5 týdne poptávky (poptávka ≈ 4,2 ks/týden na [prodejna, produkt]), `supplier_id` lookup z produktu, `is_late` ~ Bernoulli(`late_prob`), `delay_days` = if late → uniformInt(30, 60) else 0, `actual_date` = planned + delay; efekt +quantity na `stock` `on: actual_date`. → `main.delivery`
   2. `purchase_attempt` (arrival, per `[customer]`, rate 0.06 × `demand`): `product_id` pick vážený, `store_id` = home store, `quantity` 1–3. → `truth.purchase_attempt`
   3. `fulfil` (branch na `purchase_attempt`, cond `flowGte stock ≥ source.quantity`):
      - then → `main.sale` (FK attempt, customer, store, product, `quantity`, `unit_price` lookup z produktu; tržba = quantity × unit_price v SQL), efekt −qty na `stock`
