@@ -110,7 +110,7 @@ describe("landing → chat", () => {
     fireEvent.click(screen.getByRole("button", { name: "Odeslat" }));
     expect(await screen.findByText("Demo data")).toBeInTheDocument();
     expect(window.location.pathname).toBe("/chat");
-    expect(window.location.search).toMatch(/demo=1&s=demo-/);
+    expect(window.location.search).toMatch(/demo=[a-z_]+&s=demo-/);
     expect(loadHistory()[0]).toMatchObject({ company: input.company, demo: true });
   });
 });

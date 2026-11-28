@@ -1,0 +1,204 @@
+{
+  "id": "isp_firmware",
+  "scenario": "isp_firmware.json",
+  "title": "Internet: aktualizace shodí routery",
+  "summary": "Regionální poskytovatel internetu. Nový firmware rozbije jeden model routeru: výpadky, přetížená linka, nepřijaté hovory, výjezdy techniků, dobropisy a výpovědi.",
+  "tags": ["telekomunikace", "zákaznická linka", "odchod zákazníků"],
+  "input": {
+    "company": "NetVlna s.r.o., regionální poskytovatel internetu na Vysočině. 3 200 domácností, vlastní zákaznická linka s 18 operátory a 6 servisních techniků.",
+    "story": "V polovině června nasadíme nový firmware na náš router NetVlna Box 5G. Routery začnou padat, lidé volají na linku, čeká se dlouho a část hovorů nikdo nevezme. Technici jezdí měnit routery, rozdáváme dobropisy a zákazníci s opakovanými výpadky odcházejí. Opravný firmware koncem července pomůže, v září routery plošně vyměníme."
+  },
+  "company": {
+    "industry": "Poskytovatel internetového připojení (optika a bezdrát)",
+    "size": "3 200 domácností v 10 obcích, 18 operátorů linky, 6 servisních techniků",
+    "actors": [
+      {
+        "kind": "customer",
+        "name": "Domácnosti",
+        "description": "Tarify Optik, Vzduch a Kombi TV + Net, čtyři modely routerů."
+      },
+      {
+        "kind": "employee",
+        "name": "Operátoři zákaznické linky",
+        "description": "18 operátorů v Jihlavě, 1. linie a technická podpora."
+      },
+      {
+        "kind": "employee",
+        "name": "Servisní technici",
+        "description": "Šest techniků, kteří jezdí k zákazníkům měnit a nastavovat routery."
+      },
+      {
+        "kind": "supplier",
+        "name": "Výrobce routeru NetVlna Box 5G",
+        "description": "Dodává firmware pro vlastní router poskytovatele."
+      },
+      {
+        "kind": "competitor",
+        "name": "Celostátní operátoři",
+        "description": "Kam odcházejí nespokojení zákazníci."
+      }
+    ],
+    "keyProcesses": ["provoz sítě", "zákaznická linka", "servisní výjezdy", "fakturace", "výpovědi smluv"]
+  },
+  "influences": {
+    "edges": [
+      {
+        "from": "outage",
+        "to": "outage_call",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 0,
+        "rationale": "Zhruba každý druhý zákazník bez internetu zavolá na linku ještě ten den nebo druhý den."
+      },
+      {
+        "from": "outage_call",
+        "to": "call_load",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Každý hovor zabere operátora; linka má pevnou kapacitu 18 lidí."
+      },
+      {
+        "from": "routine_call",
+        "to": "call_load",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Běžné dotazy (vyúčtování, tarify) linku vytěžují i bez výpadků."
+      },
+      {
+        "from": "call_load",
+        "to": "call.wait_sec",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Když linka nestíhá, čekání na operátora se z minuty a půl protáhne na deset minut."
+      },
+      {
+        "from": "call_load",
+        "to": "missed_call",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Při přetížení skoro polovina volajících zavěsí dřív, než se dovolá."
+      },
+      {
+        "from": "call",
+        "to": "technician_visit",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 2,
+        "rationale": "Když restart nepomůže, operátor objedná technika."
+      },
+      {
+        "from": "outage",
+        "to": "credit",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 14,
+        "rationale": "Za výpadek delší než hodina a půl dostane zákazník dobropis."
+      },
+      {
+        "from": "outage",
+        "to": "recent_outages",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Výpadky se zákazníkovi sčítají, zapomíná je po šesti až osmi týdnech."
+      },
+      {
+        "from": "recent_outages",
+        "to": "termination",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 7,
+        "rationale": "Po třetím výpadku v krátké době začne zákazník uvažovat o odchodu."
+      }
+    ]
+  },
+  "whatIfs": [
+    {
+      "question": "Co kdyby opravný firmware vyšel o měsíc dřív?",
+      "rationale": "Oprava (sp2) posunuta na 29. 6. – 10. 7., plošná výměna v září beze změny.",
+      "curves": [
+        {
+          "id": "outage_prob",
+          "baseline": 0.08,
+          "scope": { "field": "source.router_model", "ids": ["NetVlna Box 5G"] },
+          "segments": [
+            { "kind": "ramp", "start": "2026-06-15", "end": "2026-06-22", "to": 0.85, "storyPointId": "sp1" },
+            { "kind": "ramp", "start": "2026-06-29", "end": "2026-07-10", "to": 0.3, "storyPointId": "sp2" },
+            { "kind": "ramp", "start": "2026-09-07", "end": "2026-09-28", "to": 0.08, "storyPointId": "sp3" }
+          ],
+          "clamp": [0, 1]
+        }
+      ]
+    },
+    {
+      "question": "Co kdyby nový firmware způsoboval jen poloviční výpadky?",
+      "rationale": "Pravděpodobnost výpadku po aktualizaci (sp1) snížena z 85 % na 45 %, po opravě (sp2) z 30 % na 20 %.",
+      "curves": [
+        {
+          "id": "outage_prob",
+          "baseline": 0.08,
+          "scope": { "field": "source.router_model", "ids": ["NetVlna Box 5G"] },
+          "segments": [
+            { "kind": "ramp", "start": "2026-06-15", "end": "2026-06-22", "to": 0.45, "storyPointId": "sp1" },
+            { "kind": "ramp", "start": "2026-07-27", "end": "2026-08-07", "to": 0.2, "storyPointId": "sp2" },
+            { "kind": "ramp", "start": "2026-09-07", "end": "2026-09-28", "to": 0.08, "storyPointId": "sp3" }
+          ],
+          "clamp": [0, 1]
+        }
+      ]
+    }
+  ],
+  "detective": {
+    "dat1": {
+      "narrative": "Od poloviny června se výpadky soustředí na jediný model routeru, NetVlna Box 5G: z asi 33 týdně na 350, tedy desetkrát víc, zatímco ostatní modely zůstávají kolem 50 týdně. Hned nato se přetíží zákaznická linka: průměrné čekání vyskočí z 85 sekund na 10 minut a nepřijatých hovorů je přes 100 týdně místo pěti. V červenci a srpnu přichází čtyřikrát víc výpovědí, hlavně kvůli opakovaným výpadkům a nespokojenosti s podporou. Začátkem srpna výpadky Box 5G klesnou zhruba na třetinu a od poloviny září jsou zpět na jarní úrovni. Krátké přetížení linky v týdnu od 19. října z dat jednoznačně vysvětlit nejde.",
+      "findings": [
+        {
+          "claim": "Od 15. června přibývá výpadků u routerů NetVlna Box 5G desetkrát (z ~33 na ~350 týdně); ostatní modely beze změny.",
+          "entities": ["NetVlna Box 5G"],
+          "start": "2026-06-15",
+          "end": "2026-08-02",
+          "supportingSql": "SELECT date_trunc('week', start_date) AS week, router_model, count(*) AS outages FROM outage GROUP BY 1, 2 ORDER BY 1, 2"
+        },
+        {
+          "claim": "Začátkem srpna klesají výpadky NetVlna Box 5G na ~130 týdně, pořád ale čtyřikrát nad jarní úrovní.",
+          "entities": ["NetVlna Box 5G"],
+          "start": "2026-08-03",
+          "end": "2026-09-13",
+          "supportingSql": "SELECT date_trunc('week', start_date) AS week, count(*) AS outages FROM outage WHERE router_model = 'NetVlna Box 5G' AND start_date >= DATE '2026-07-01' GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "claim": "Ve druhé polovině září se výpadky NetVlna Box 5G vracejí na úroveň před červnem.",
+          "entities": ["NetVlna Box 5G"],
+          "start": "2026-09-14",
+          "end": "2026-10-04",
+          "supportingSql": "SELECT date_trunc('week', start_date) AS week, count(*) AS outages FROM outage WHERE router_model = 'NetVlna Box 5G' AND start_date >= DATE '2026-08-15' GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "claim": "Zákaznická linka je od poloviny června přetížená: čekání z ~85 s na ~10 min, nepřijatých hovorů přes 100 týdně.",
+          "entities": [],
+          "start": "2026-06-15",
+          "end": "2026-08-09",
+          "supportingSql": "SELECT date_trunc('week', call_date) AS week, count(*) AS answered, round(avg(wait_sec)) AS avg_wait_sec, (SELECT count(*) FROM missed_call m WHERE date_trunc('week', m.call_date) = date_trunc('week', s.call_date)) AS missed FROM support_call s GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "claim": "V červenci a srpnu je čtyřikrát víc výpovědí, nejčastěji kvůli opakovaným výpadkům.",
+          "entities": [],
+          "start": "2026-07-01",
+          "end": "2026-08-31",
+          "supportingSql": "SELECT date_trunc('month', request_date) AS month, reason, count(*) AS terminations FROM contract_termination GROUP BY 1, 2 ORDER BY 1, 3 DESC"
+        },
+        {
+          "claim": "V týdnu od 19. října je linka krátce znovu přetížená (čekání ~280 s), bez zjevné souvislosti s výpadky.",
+          "entities": [],
+          "start": "2026-10-19",
+          "end": "2026-10-25",
+          "supportingSql": "SELECT call_date, count(*) AS answered, round(avg(wait_sec)) AS avg_wait_sec FROM support_call WHERE call_date >= DATE '2026-10-05' GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    }
+  }
+}

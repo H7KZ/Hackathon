@@ -435,15 +435,41 @@ function rolling(points: Series["points"], window = 7): { day: string; value: nu
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
-/**
- * How much a series moves after the first story point. Damped by +1 so rare events (0.1 complaints a
- * day before) do not outrank everything on a tiny base; sums of large values behave like a relative change.
- */
-function movement(s: Series, cut: string | undefined): number {
-  const before = mean(s.points.filter((p) => !cut || p.day < cut).map((p) => p.value));
-  const after = mean(s.points.filter((p) => cut && p.day >= cut).map((p) => p.value));
-  return Math.abs(after - before) / (Math.abs(before) + 1);
+/** Weekly sums (7-day buckets from the first point), so day-of-week and Poisson noise average out. */
+function weekly(values: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 7 <= values.length; i += 7) out.push(values.slice(i, i + 7).reduce((a, b) => a + b, 0));
+  return out;
 }
+
+const sd = (xs: number[]) => {
+  const m = mean(xs);
+  return xs.length > 1 ? Math.sqrt(xs.reduce((a, x) => a + (x - m) ** 2, 0) / (xs.length - 1)) : 0;
+};
+
+/**
+ * How clearly a series moves after the first story point: the largest shift of a 4-week mean against
+ * the weeks before, in units of the pre-story week-to-week noise. A series that only wiggles (a sum of
+ * random discounts) scores low even when its wiggles are large; demo run: such lines buried the story.
+ * Damped by 5 % of the level + 1, so a noiseless or rare series does not divide by zero.
+ */
+export function movement(s: Series, cut: string | undefined): number {
+  const before = weekly(s.points.filter((p) => !cut || p.day < cut).map((p) => p.value));
+  const after = weekly(s.points.filter((p) => cut && p.day >= cut).map((p) => p.value));
+  if (before.length === 0 || after.length === 0) return 0;
+  const base = mean(before);
+  const noise = sd(before) / 2 + 0.05 * Math.abs(base) + 1;
+  let best = 0;
+  for (let i = 0; i < after.length; i++) {
+    const window = after.slice(i, i + 4);
+    if (window.length < Math.min(4, after.length)) break;
+    best = Math.max(best, Math.abs(mean(window) - base) / noise);
+  }
+  return best;
+}
+
+/** Below this a line is noise, not a story (always at least one line is kept). */
+const MIN_MOVEMENT = 3;
 
 /**
  * The series worth plotting: the ones that move most after the story starts, one per table, each
@@ -465,7 +491,8 @@ export function pickSeries(series: Series[], cut: string | undefined, max = 5) {
   const ranked = usable
     .map((s) => ({ s, score: movement(s, cut) }))
     .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score)
+    .filter((x, i) => i === 0 || x.score >= MIN_MOVEMENT);
   const seen = new Set<string>();
   const picked: typeof ranked = [];
   for (const x of ranked) {

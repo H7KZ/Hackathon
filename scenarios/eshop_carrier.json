@@ -1,0 +1,1202 @@
+{
+  "meta": {
+    "id": "eshop_carrier",
+    "name": "Dopravce nestíhá doručovat",
+    "company": "VoltMarket.cz, e-shop se spotřební elektronikou. Dva sklady (Praha, Brno), 4 smluvní dopravci, zhruba 2 400 aktivních zákazníků.",
+    "story": "Od dubna přestává dopravce CAR-002 (vozí přes 40 % zásilek) stíhat doručovat. Zásilky chodí se zpožděním, zákazníci se ptají, kde je jejich balík, píšou horší recenze a vracejí zboží. Kdo jednou čekal, nakupuje méně. V květnových slevách je to nejhorší, v červenci dopravce posílí depo a situace se zlepší.",
+    "seed": 42,
+    "start": "2026-01-05",
+    "end": "2026-09-27",
+    "locale": "cs-CZ"
+  },
+  "entities": [
+    {
+      "name": "carrier",
+      "count": 4,
+      "idPrefix": "CAR",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "companyName"
+        },
+        "depot_city": {
+          "gen": "fake",
+          "kind": "city"
+        },
+        "sla_days": {
+          "gen": "uniformInt",
+          "min": 1,
+          "max": 2
+        },
+        "price_per_parcel": {
+          "gen": "normal",
+          "mean": 84,
+          "sd": 12,
+          "min": 59,
+          "round": true
+        }
+      }
+    },
+    {
+      "name": "product",
+      "count": 90,
+      "idPrefix": "PRD",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "category": {
+          "gen": "categorical",
+          "values": [
+            "telefony",
+            "notebooky",
+            "televize",
+            "audio",
+            "příslušenství",
+            "chytrá domácnost",
+            "herní konzole"
+          ],
+          "weights": [0.2, 0.14, 0.1, 0.16, 0.22, 0.1, 0.08]
+        },
+        "name": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.category",
+            "value": "telefony"
+          },
+          "then": {
+            "gen": "categorical",
+            "values": [
+              "Samsung Galaxy A55",
+              "Samsung Galaxy S24",
+              "iPhone 15",
+              "iPhone 16 Pro",
+              "Xiaomi Redmi Note 13",
+              "Motorola moto g84",
+              "Google Pixel 8a",
+              "Honor Magic6 Lite",
+              "Nothing Phone (2a)",
+              "Xiaomi 14T"
+            ]
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.category",
+              "value": "notebooky"
+            },
+            "then": {
+              "gen": "categorical",
+              "values": [
+                "Lenovo IdeaPad Slim 5",
+                "ASUS Vivobook 15",
+                "HP Pavilion 15",
+                "Acer Aspire 5",
+                "MacBook Air 13 M3",
+                "Dell Inspiron 14",
+                "Lenovo ThinkPad E14",
+                "ASUS Zenbook 14 OLED",
+                "HP Victus 16",
+                "Acer Nitro V 15"
+              ]
+            },
+            "else": {
+              "gen": "if",
+              "cond": {
+                "kind": "fieldEq",
+                "path": "self.category",
+                "value": "televize"
+              },
+              "then": {
+                "gen": "categorical",
+                "values": [
+                  "Samsung 55\" Crystal UHD",
+                  "LG 55\" OLED C4",
+                  "Philips 50\" Ambilight",
+                  "Sony Bravia 65\" X80L",
+                  "TCL 43\" QLED",
+                  "Hisense 50\" 4K UHD",
+                  "LG 43\" UHD",
+                  "Samsung 65\" QLED Q70"
+                ]
+              },
+              "else": {
+                "gen": "if",
+                "cond": {
+                  "kind": "fieldEq",
+                  "path": "self.category",
+                  "value": "audio"
+                },
+                "then": {
+                  "gen": "categorical",
+                  "values": [
+                    "Sony WH-1000XM5",
+                    "JBL Flip 6",
+                    "Apple AirPods Pro 2",
+                    "Marshall Emberton II",
+                    "JBL Tune 520BT",
+                    "Samsung Galaxy Buds FE",
+                    "Bose QuietComfort Ultra",
+                    "Sencor SSS 6300"
+                  ]
+                },
+                "else": {
+                  "gen": "if",
+                  "cond": {
+                    "kind": "fieldEq",
+                    "path": "self.category",
+                    "value": "příslušenství"
+                  },
+                  "then": {
+                    "gen": "categorical",
+                    "values": [
+                      "USB-C kabel 1 m",
+                      "Nabíječka GaN 65 W",
+                      "Ochranné sklo na displej",
+                      "Powerbanka 20 000 mAh",
+                      "Silikonový kryt na telefon",
+                      "Bezdrátová myš Logitech M185",
+                      "Klávesnice Logitech K380",
+                      "HDMI kabel 2 m",
+                      "Paměťová karta microSD 128 GB",
+                      "Magnetický držák do auta",
+                      "Brašna na notebook 15,6\"",
+                      "USB hub 4 porty"
+                    ]
+                  },
+                  "else": {
+                    "gen": "if",
+                    "cond": {
+                      "kind": "fieldEq",
+                      "path": "self.category",
+                      "value": "chytrá domácnost"
+                    },
+                    "then": {
+                      "gen": "categorical",
+                      "values": [
+                        "Robotický vysavač Roborock Q7",
+                        "Chytrá žárovka Philips Hue E27",
+                        "Wi-Fi kamera TP-Link Tapo C200",
+                        "Chytrá zásuvka Tapo P110",
+                        "Reproduktor Google Nest Mini",
+                        "Termostat Netatmo",
+                        "Videozvonek Ring"
+                      ]
+                    },
+                    "else": {
+                      "gen": "categorical",
+                      "values": [
+                        "PlayStation 5 Slim",
+                        "Xbox Series S",
+                        "Nintendo Switch OLED",
+                        "Ovladač DualSense",
+                        "Herní sluchátka HyperX Cloud III",
+                        "Steam Deck OLED"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "variant": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.category",
+            "value": "telefony"
+          },
+          "then": {
+            "gen": "categorical",
+            "values": [
+              "128 GB, černá",
+              "256 GB, černá",
+              "128 GB, modrá",
+              "256 GB, stříbrná",
+              "512 GB, titanová"
+            ]
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.category",
+              "value": "notebooky"
+            },
+            "then": {
+              "gen": "categorical",
+              "values": ["8 GB / 256 GB", "16 GB / 512 GB", "16 GB / 1 TB", "32 GB / 1 TB"]
+            },
+            "else": {
+              "gen": "categorical",
+              "values": ["černá", "bílá", "šedá", "standard"],
+              "weights": [0.35, 0.25, 0.15, 0.25]
+            }
+          }
+        },
+        "price": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.category",
+            "value": "telefony"
+          },
+          "then": {
+            "gen": "normal",
+            "mean": 11990,
+            "sd": 6000,
+            "min": 3490,
+            "round": true
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.category",
+              "value": "notebooky"
+            },
+            "then": {
+              "gen": "normal",
+              "mean": 21990,
+              "sd": 7500,
+              "min": 9990,
+              "round": true
+            },
+            "else": {
+              "gen": "if",
+              "cond": {
+                "kind": "fieldEq",
+                "path": "self.category",
+                "value": "televize"
+              },
+              "then": {
+                "gen": "normal",
+                "mean": 15990,
+                "sd": 8000,
+                "min": 5490,
+                "round": true
+              },
+              "else": {
+                "gen": "if",
+                "cond": {
+                  "kind": "fieldEq",
+                  "path": "self.category",
+                  "value": "herní konzole"
+                },
+                "then": {
+                  "gen": "normal",
+                  "mean": 8990,
+                  "sd": 4000,
+                  "min": 1490,
+                  "round": true
+                },
+                "else": {
+                  "gen": "if",
+                  "cond": {
+                    "kind": "fieldEq",
+                    "path": "self.category",
+                    "value": "příslušenství"
+                  },
+                  "then": {
+                    "gen": "normal",
+                    "mean": 490,
+                    "sd": 280,
+                    "min": 129,
+                    "round": true
+                  },
+                  "else": {
+                    "gen": "normal",
+                    "mean": 2490,
+                    "sd": 1600,
+                    "min": 399,
+                    "round": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "popularity": {
+          "gen": "normal",
+          "mean": 10,
+          "sd": 5,
+          "min": 1,
+          "round": true
+        }
+      }
+    },
+    {
+      "name": "customer",
+      "count": 2400,
+      "idPrefix": "CUS",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "personName"
+        },
+        "city": {
+          "gen": "fake",
+          "kind": "city"
+        },
+        "segment": {
+          "gen": "categorical",
+          "values": ["běžný", "věrnostní program", "firemní"],
+          "weights": [0.68, 0.27, 0.05]
+        },
+        "newsletter": {
+          "gen": "bernoulli",
+          "p": 0.42
+        }
+      }
+    }
+  ],
+  "curves": [
+    {
+      "id": "late_prob",
+      "baseline": 0.05,
+      "scope": {
+        "field": "self.carrier_id",
+        "ids": ["CAR-002"]
+      },
+      "segments": [
+        {
+          "kind": "ramp",
+          "start": "2026-04-06",
+          "end": "2026-04-27",
+          "to": 0.55,
+          "storyPointId": "sp1"
+        },
+        {
+          "kind": "spike",
+          "start": "2026-05-18",
+          "end": "2026-06-08",
+          "to": 0.75,
+          "storyPointId": "sp2"
+        },
+        {
+          "kind": "ramp",
+          "start": "2026-07-06",
+          "end": "2026-07-27",
+          "to": 0.12,
+          "storyPointId": "sp3"
+        }
+      ],
+      "clamp": [0, 1]
+    }
+  ],
+  "flows": [
+    {
+      "id": "bad_experience",
+      "keys": ["customer"],
+      "initial": {
+        "gen": "const",
+        "value": 0
+      },
+      "min": 0
+    }
+  ],
+  "processes": [
+    {
+      "type": "arrival",
+      "id": "order_attempt",
+      "table": "order_attempt",
+      "per": ["customer"],
+      "rate": 0.0145,
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "key.customer"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "channel": {
+          "gen": "categorical",
+          "values": ["web", "mobilní aplikace", "telefonicky"],
+          "weights": [0.56, 0.36, 0.08]
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "order",
+      "source": "order_attempt",
+      "cond": {
+        "kind": "or",
+        "conds": [
+          {
+            "kind": "not",
+            "cond": {
+              "kind": "flowGt",
+              "flow": "bad_experience",
+              "keys": {
+                "customer": "source.customer_id"
+              },
+              "value": 0
+            }
+          },
+          {
+            "kind": "bernoulli",
+            "p": 0.3
+          }
+        ]
+      },
+      "then": {
+        "table": "orders",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "order_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "channel": {
+            "gen": "ref",
+            "path": "source.channel"
+          },
+          "payment_method": {
+            "gen": "categorical",
+            "values": [
+              "karta online",
+              "Apple Pay / Google Pay",
+              "bankovní převod",
+              "dobírka",
+              "nákup na splátky"
+            ],
+            "weights": [0.52, 0.17, 0.09, 0.16, 0.06]
+          },
+          "coupon": {
+            "gen": "categorical",
+            "values": ["", "VITEJ10", "JARO5", "NEWSLETTER"],
+            "weights": [0.86, 0.05, 0.05, 0.04]
+          }
+        }
+      },
+      "else": {
+        "table": "lost_order",
+        "visibility": "ground_truth",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "attempt_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "line",
+      "table": "order_item",
+      "source": "order:then",
+      "p": 1,
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "order_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "product_id": {
+          "gen": "pick",
+          "entity": "product",
+          "weightBy": "popularity"
+        },
+        "quantity": {
+          "gen": "if",
+          "cond": {
+            "kind": "bernoulli",
+            "p": 0.14
+          },
+          "then": {
+            "gen": "uniformInt",
+            "min": 2,
+            "max": 3
+          },
+          "else": {
+            "gen": "const",
+            "value": 1
+          }
+        },
+        "unit_price": {
+          "gen": "lookup",
+          "entity": "product",
+          "key": "self.product_id",
+          "field": "price"
+        },
+        "discount_pct": {
+          "gen": "if",
+          "cond": {
+            "kind": "bernoulli",
+            "p": 0.14
+          },
+          "then": {
+            "gen": "uniformInt",
+            "min": 5,
+            "max": 20
+          },
+          "else": {
+            "gen": "const",
+            "value": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "line_b",
+      "table": "order_item",
+      "source": "order:then",
+      "p": 0.38,
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "order_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "product_id": {
+          "gen": "pick",
+          "entity": "product",
+          "weightBy": "popularity"
+        },
+        "quantity": {
+          "gen": "if",
+          "cond": {
+            "kind": "bernoulli",
+            "p": 0.2
+          },
+          "then": {
+            "gen": "uniformInt",
+            "min": 2,
+            "max": 3
+          },
+          "else": {
+            "gen": "const",
+            "value": 1
+          }
+        },
+        "unit_price": {
+          "gen": "lookup",
+          "entity": "product",
+          "key": "self.product_id",
+          "field": "price"
+        },
+        "discount_pct": {
+          "gen": "if",
+          "cond": {
+            "kind": "bernoulli",
+            "p": 0.14
+          },
+          "then": {
+            "gen": "uniformInt",
+            "min": 5,
+            "max": 20
+          },
+          "else": {
+            "gen": "const",
+            "value": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "line_c",
+      "table": "order_item",
+      "source": "order:then",
+      "p": 0.12,
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "order_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "product_id": {
+          "gen": "pick",
+          "entity": "product",
+          "weightBy": "popularity"
+        },
+        "quantity": {
+          "gen": "if",
+          "cond": {
+            "kind": "bernoulli",
+            "p": 0.15
+          },
+          "then": {
+            "gen": "uniformInt",
+            "min": 2,
+            "max": 2
+          },
+          "else": {
+            "gen": "const",
+            "value": 1
+          }
+        },
+        "unit_price": {
+          "gen": "lookup",
+          "entity": "product",
+          "key": "self.product_id",
+          "field": "price"
+        },
+        "discount_pct": {
+          "gen": "const",
+          "value": 0
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "shipment",
+      "table": "shipment",
+      "source": "order:then",
+      "p": 1,
+      "lag": {
+        "min": 0,
+        "max": 1
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "order_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "warehouse": {
+          "gen": "categorical",
+          "values": ["Praha – Zličín", "Brno – Slatina"],
+          "weights": [0.64, 0.36]
+        },
+        "carrier_id": {
+          "gen": "categorical",
+          "values": ["CAR-001", "CAR-002", "CAR-003", "CAR-004"],
+          "weights": [0.27, 0.43, 0.18, 0.12]
+        },
+        "shipped_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "sla_days": {
+          "gen": "lookup",
+          "entity": "carrier",
+          "key": "self.carrier_id",
+          "field": "sla_days"
+        },
+        "expected_date": {
+          "gen": "dateOffset",
+          "base": "self.shipped_date",
+          "days": "self.sla_days"
+        },
+        "delay_days": {
+          "gen": "if",
+          "cond": {
+            "kind": "bernoulli",
+            "p": {
+              "curve": "late_prob"
+            }
+          },
+          "then": {
+            "gen": "uniformInt",
+            "min": 2,
+            "max": 6
+          },
+          "else": {
+            "gen": "const",
+            "value": 0
+          }
+        },
+        "delivered_date": {
+          "gen": "dateOffset",
+          "base": "self.expected_date",
+          "days": "self.delay_days"
+        },
+        "weight_g": {
+          "gen": "uniformInt",
+          "min": 150,
+          "max": 12000
+        }
+      },
+      "effects": [
+        {
+          "flow": "bad_experience",
+          "keys": {
+            "customer": "self.customer_id"
+          },
+          "delta": "self.delay_days",
+          "sign": 1,
+          "on": "self.delivered_date"
+        }
+      ]
+    },
+    {
+      "type": "derive",
+      "id": "experience_fade",
+      "table": "experience_fade",
+      "source": "shipment",
+      "p": 1,
+      "lag": {
+        "min": 60,
+        "max": 75
+      },
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "shipment_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "delay_days": {
+          "gen": "ref",
+          "path": "source.delay_days"
+        }
+      },
+      "effects": [
+        {
+          "flow": "bad_experience",
+          "keys": {
+            "customer": "self.customer_id"
+          },
+          "delta": "self.delay_days",
+          "sign": -1
+        }
+      ]
+    },
+    {
+      "type": "branch",
+      "id": "case",
+      "source": "shipment",
+      "lag": {
+        "min": 3,
+        "max": 5
+      },
+      "cond": {
+        "kind": "and",
+        "conds": [
+          {
+            "kind": "fieldGt",
+            "path": "source.delay_days",
+            "value": 0
+          },
+          {
+            "kind": "bernoulli",
+            "p": 0.45
+          }
+        ]
+      },
+      "then": {
+        "table": "support_ticket",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.order_id"
+          },
+          "shipment_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "created_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "topic": {
+            "gen": "const",
+            "value": "kde je moje zásilka"
+          },
+          "channel": {
+            "gen": "categorical",
+            "values": ["telefon", "e-mail", "chat"],
+            "weights": [0.45, 0.3, 0.25]
+          },
+          "priority": {
+            "gen": "categorical",
+            "values": ["normální", "vysoká"],
+            "weights": [0.7, 0.3]
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "ticket",
+      "table": "support_ticket",
+      "source": "order:then",
+      "p": 0.06,
+      "lag": {
+        "min": 1,
+        "max": 20
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "order_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "created_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "topic": {
+          "gen": "categorical",
+          "values": [
+            "faktura a platba",
+            "změna adresy",
+            "technický dotaz",
+            "záruka a servis",
+            "kde je moje zásilka"
+          ],
+          "weights": [0.28, 0.12, 0.3, 0.22, 0.08]
+        },
+        "channel": {
+          "gen": "categorical",
+          "values": ["telefon", "e-mail", "chat"],
+          "weights": [0.35, 0.4, 0.25]
+        },
+        "priority": {
+          "gen": "categorical",
+          "values": ["normální", "vysoká"],
+          "weights": [0.88, 0.12]
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "review",
+      "table": "review",
+      "source": "shipment",
+      "p": 0.21,
+      "lag": {
+        "min": 4,
+        "max": 12
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "order_id": {
+          "gen": "ref",
+          "path": "source.order_id"
+        },
+        "created_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "rating": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldGt",
+            "path": "source.delay_days",
+            "value": 0
+          },
+          "then": {
+            "gen": "normal",
+            "mean": 2.3,
+            "sd": 1,
+            "min": 1,
+            "max": 5,
+            "round": true
+          },
+          "else": {
+            "gen": "normal",
+            "mean": 4.5,
+            "sd": 0.7,
+            "min": 1,
+            "max": 5,
+            "round": true
+          }
+        },
+        "comment": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldGt",
+            "path": "source.delay_days",
+            "value": 0
+          },
+          "then": {
+            "gen": "categorical",
+            "values": [
+              "Zboží v pořádku, ale na doručení jsem čekal skoro týden.",
+              "Zásilka přišla pozdě a nikdo mi nedal vědět.",
+              "Dopravce termín nedodržel, kurýr nezvedal telefon.",
+              "Produkt super, doprava tragédie.",
+              "Balík několik dní ležel v depu.",
+              ""
+            ]
+          },
+          "else": {
+            "gen": "categorical",
+            "values": [
+              "Rychlé doručení, vše v pořádku.",
+              "Spokojenost, objednám znovu.",
+              "Dobrá cena, doručeno druhý den.",
+              "Bez problémů.",
+              "Výborná komunikace e-shopu.",
+              ""
+            ],
+            "weights": [0.2, 0.15, 0.15, 0.15, 0.1, 0.25]
+          }
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "rma",
+      "source": "shipment",
+      "lag": {
+        "min": 3,
+        "max": 14
+      },
+      "cond": {
+        "kind": "or",
+        "conds": [
+          {
+            "kind": "and",
+            "conds": [
+              {
+                "kind": "fieldGt",
+                "path": "source.delay_days",
+                "value": 2
+              },
+              {
+                "kind": "bernoulli",
+                "p": 0.16
+              }
+            ]
+          },
+          {
+            "kind": "bernoulli",
+            "p": 0.025
+          }
+        ]
+      },
+      "then": {
+        "table": "return_request",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.order_id"
+          },
+          "shipment_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "created_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "reason": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldGt",
+              "path": "source.delay_days",
+              "value": 2
+            },
+            "then": {
+              "gen": "categorical",
+              "values": ["pozdní doručení", "pozdní doručení", "už nepotřebuji", "nevyhovuje"]
+            },
+            "else": {
+              "gen": "categorical",
+              "values": ["nevyhovuje", "vadný kus", "poškozeno při přepravě", "už nepotřebuji", "jiné"],
+              "weights": [0.34, 0.24, 0.14, 0.18, 0.1]
+            }
+          },
+          "refund_method": {
+            "gen": "categorical",
+            "values": ["na účet", "dobropis"],
+            "weights": [0.8, 0.2]
+          }
+        }
+      }
+    }
+  ],
+  "storyPoints": [
+    {
+      "id": "sp0",
+      "phase": 0,
+      "title": "Běžný provoz",
+      "description": "Dopravci doručují v termínu, zpoždění má jen zhruba každá dvacátá zásilka.",
+      "start": "2026-01-05",
+      "end": "2026-04-05"
+    },
+    {
+      "id": "sp1",
+      "phase": 1,
+      "title": "Dopravce CAR-002 přestává stíhat",
+      "description": "Depo dopravce CAR-002 nemá dost řidičů. Podíl zpožděných zásilek roste během tří týdnů z 5 % na 55 %.",
+      "entity": {
+        "name": "carrier",
+        "ids": ["CAR-002"]
+      },
+      "start": "2026-04-06",
+      "end": "2026-04-27"
+    },
+    {
+      "id": "sp2",
+      "phase": 2,
+      "title": "Květnové slevy: nejhorší týdny",
+      "description": "Slevová akce zvedne objem zásilek a CAR-002 nestíhá úplně, zpožděné jsou tři ze čtyř zásilek. Do začátku června se vrací na úroveň dubna.",
+      "entity": {
+        "name": "carrier",
+        "ids": ["CAR-002"]
+      },
+      "start": "2026-05-18",
+      "end": "2026-06-08"
+    },
+    {
+      "id": "sp3",
+      "phase": 3,
+      "title": "Dopravce posílí depo",
+      "description": "CAR-002 nabere řidiče a otevře druhou směnu. Podíl zpožděných zásilek klesá na 12 %, zákazníci se ale vracejí pomalu.",
+      "entity": {
+        "name": "carrier",
+        "ids": ["CAR-002"]
+      },
+      "start": "2026-07-06",
+      "end": "2026-07-27"
+    }
+  ],
+  "expectations": [
+    {
+      "id": "e1",
+      "storyPointId": "sp1",
+      "description": "Podíl zpožděných zásilek dopravce CAR-002 vzroste nejméně čtyřnásobně",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-04-06' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN delay_days > 0 THEN 1.0 ELSE 0.0 END) AS value FROM (SELECT shipped_date AS d, delay_days FROM main.shipment WHERE carrier_id = 'CAR-002') WHERE (d BETWEEN DATE '2026-01-05' AND DATE '2026-04-05' OR d BETWEEN DATE '2026-04-27' AND DATE '2026-07-05') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 3
+      }
+    },
+    {
+      "id": "e2",
+      "storyPointId": "sp1",
+      "description": "Tiketů „kde je moje zásilka“ přibude nejméně o 100 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-04-06' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT created_date AS d FROM main.support_ticket WHERE topic = 'kde je moje zásilka') WHERE (d BETWEEN DATE '2026-01-05' AND DATE '2026-04-05' OR d BETWEEN DATE '2026-04-27' AND DATE '2026-07-05') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 1
+      }
+    },
+    {
+      "id": "e3",
+      "storyPointId": "sp1",
+      "description": "Průměrné hodnocení v recenzích klesne nejméně o 5 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-04-06' THEN 'before' ELSE 'after' END AS period, AVG(rating) AS value FROM (SELECT created_date AS d, rating FROM main.review WHERE rating IS NOT NULL) WHERE (d BETWEEN DATE '2026-01-05' AND DATE '2026-04-05' OR d BETWEEN DATE '2026-04-27' AND DATE '2026-07-05') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "decrease",
+        "minRelChange": 0.05
+      }
+    },
+    {
+      "id": "e4",
+      "storyPointId": "sp1",
+      "description": "Denní počet objednávek klesne nejméně o 4 % (kdo čekal, nakupuje méně)",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-04-06' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT DISTINCT id, order_date AS d FROM main.orders) WHERE (d BETWEEN DATE '2026-01-05' AND DATE '2026-04-05' OR d BETWEEN DATE '2026-05-11' AND DATE '2026-07-19') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "decrease",
+        "minRelChange": 0.04
+      }
+    },
+    {
+      "id": "e5",
+      "storyPointId": "sp1",
+      "description": "Doba doručení u ostatních dopravců se nezmění (±10 %)",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-04-06' THEN 'before' ELSE 'after' END AS period, AVG(date_diff('day', d, delivered_date)) AS value FROM (SELECT shipped_date AS d, delivered_date FROM main.shipment WHERE carrier_id <> 'CAR-002') WHERE (d BETWEEN DATE '2026-01-05' AND DATE '2026-04-05' OR d BETWEEN DATE '2026-04-27' AND DATE '2026-07-05') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "stable",
+        "minRelChange": 0.1
+      }
+    },
+    {
+      "id": "e6",
+      "storyPointId": "sp1",
+      "description": "Vratek s důvodem „pozdní doručení“ přibude nejméně o 100 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-04-06' THEN 'before' ELSE 'after' END AS period, COUNT(*) AS value FROM (SELECT created_date AS d FROM main.return_request WHERE reason = 'pozdní doručení') WHERE (d BETWEEN DATE '2026-01-05' AND DATE '2026-04-05' OR d BETWEEN DATE '2026-04-27' AND DATE '2026-07-26') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 1
+      }
+    },
+    {
+      "id": "e7",
+      "storyPointId": "sp3",
+      "description": "Po posílení depa klesne podíl zpožděných zásilek CAR-002 nejméně o polovinu",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-07-06' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN delay_days > 0 THEN 1.0 ELSE 0.0 END) AS value FROM (SELECT shipped_date AS d, delay_days FROM main.shipment WHERE carrier_id = 'CAR-002') WHERE (d BETWEEN DATE '2026-04-27' AND DATE '2026-07-05' OR d BETWEEN DATE '2026-07-27' AND DATE '2026-09-27') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "decrease",
+        "minRelChange": 0.5
+      }
+    }
+  ]
+}

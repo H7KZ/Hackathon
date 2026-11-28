@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "id": "card_fraud",
+      "title": "Banka: vlna zneužitých karet",
+      "summary": "Neobanka s 2 600 kartami. Útočníci testují kradené karty malými platbami a pak nakupují elektroniku: víc zamítnutí, hlášení klientů, blokací a chargebacků, dokud banka nezavede 3-D Secure.",
+      "tags": [
+        "finance",
+        "podvody",
+        "platby kartou"
+      ],
+      "input": {
+        "story": "Začátkem srpna začnou útočníci zkoušet kradená čísla našich karet malými platbami u zahraničních digitálních služeb. Když testovací platba projde, za pár dní následuje velký nákup elektroniky nebo letenek. Zamítáme víc plateb, klienti hlásí neznámé platby a o pár týdnů později chodí chargebacky. Koncem srpna útok vrcholí, od poloviny září vyžadujeme 3-D Secure u všech online plateb.",
+        "company": "Fintio a.s., česká neobanka. 2 200 klientů, 2 600 platebních karet Visa a Mastercard, platby u zhruba 70 obchodníků."
+      },
+      "stats": {
+        "tables": 7,
+        "rows": 45145,
+        "start": "2026-04-13",
+        "end": "2026-11-08"
+      }
+    },
+    {
+      "id": "eshop_carrier",
+      "title": "E-shop: dopravce nestíhá",
+      "summary": "E-shop s elektronikou. Hlavní dopravce od dubna doručuje pozdě: přibývají dotazy na zásilky, horší recenze a vratky, zákazníci, kteří čekali, nakupují méně.",
+      "tags": [
+        "e-commerce",
+        "logistika",
+        "zákaznická zkušenost"
+      ],
+      "input": {
+        "story": "Od dubna přestává náš hlavní dopravce stíhat doručovat. Zásilky chodí pozdě, zákazníci se ptají, kde je jejich balík, píšou horší recenze a vracejí zboží. Kdo jednou čekal, nakupuje méně. Nejhorší je to v květnových slevách, v červenci dopravce posílí depo.",
+        "company": "VoltMarket.cz, e-shop se spotřební elektronikou. Dva sklady (Praha, Brno), 4 smluvní dopravci, zhruba 2 400 aktivních zákazníků."
+      },
+      "stats": {
+        "tables": 9,
+        "rows": 36042,
+        "start": "2026-01-05",
+        "end": "2026-09-27"
+      }
+    },
+    {
+      "id": "isp_firmware",
+      "title": "Internet: aktualizace shodí routery",
+      "summary": "Regionální poskytovatel internetu. Nový firmware rozbije jeden model routeru: výpadky, přetížená linka, nepřijaté hovory, výjezdy techniků, dobropisy a výpovědi.",
+      "tags": [
+        "telekomunikace",
+        "zákaznická linka",
+        "odchod zákazníků"
+      ],
+      "input": {
+        "story": "V polovině června nasadíme nový firmware na náš router NetVlna Box 5G. Routery začnou padat, lidé volají na linku, čeká se dlouho a část hovorů nikdo nevezme. Technici jezdí měnit routery, rozdáváme dobropisy a zákazníci s opakovanými výpadky odcházejí. Opravný firmware koncem července pomůže, v září routery plošně vyměníme.",
+        "company": "NetVlna s.r.o., regionální poskytovatel internetu na Vysočině. 3 200 domácností, vlastní zákaznická linka s 18 operátory a 6 servisních techniků."
+      },
+      "stats": {
+        "tables": 11,
+        "rows": 41506,
+        "start": "2026-03-02",
+        "end": "2026-10-25"
+      }
+    }
+  ]
+}

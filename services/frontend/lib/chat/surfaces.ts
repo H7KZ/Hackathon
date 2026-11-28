@@ -184,6 +184,9 @@ export function storySurface(
   /** live: every further curve the story bends, each with its own editor under the main one */
   levers: LeverEdit[] = [],
 ): A2uiMessage {
+  // a recorded demo session: the story is fixed because its data already exists, so every curve is
+  // read-only and the settings that would change the data are left out
+  const replay = demo && live;
   const section = (sid: string, title: string, children: string[]): ComponentNode[] => [
     { id: sid, component: "Column", gap: "sm", children: [`${sid}-t`, ...children] },
     { id: `${sid}-t`, component: "Text", variant: "label", text: title },
@@ -201,18 +204,18 @@ export function storySurface(
           "intro",
           // several levers: one tab per lever, one chart at a time (stacked charts read as one long form)
           ...(levers.length > 0 ? ["leverTabs"] : ["curve", ...(live ? ["curveHelp"] : [])]),
-          "basic",
-          "advanced",
+          ...(replay ? ["s-exp"] : ["basic", "advanced"]),
           "actions",
         ],
       },
-      ...(levers.length > 0 ? leverNodes(levers.length) : []),
+      ...(levers.length > 0 ? leverNodes(levers.length, replay) : []),
       {
         id: "intro",
         component: "Text",
         variant: "muted",
-        text:
-          levers.length > 0
+        text: replay
+          ? "Ukázka přehrává skutečný běh: scénář místo jazykového modelu napsal člověk, data z něj vygeneroval deterministický engine a hypotézy ověřila DuckDB. Příběh je proto pevný; vlastní příběh upravíte v novém chatu."
+          : levers.length > 0
             ? `Příběh pohání ${String(levers.length + 1)} ${levers.length + 1 < 5 ? "páky" : "pák"}, každá má svou záložku. Body táhněte v grafu, dvojklikem přidáte nový. Data vzniknou až po vygenerování.`
             : "Body příběhu ohýbají křivku parametru. Táhněte je v grafu, dvojklikem přidáte nový. Data vzniknou až po vygenerování.",
       },
@@ -230,7 +233,7 @@ export function storySurface(
         max: path("/config/curve/max"),
         label: path("/config/curve/label"),
         unit: path("/config/curve/unit"),
-        locked: path("/locked"),
+        locked: replay ? true : path("/locked"),
         ...(live && { live: true }),
       },
       { id: "basic", component: "Column", gap: "md", children: ["time", "basicRow"] },
@@ -368,7 +371,9 @@ export function storySurface(
       },
       ...section("s-exp", "Ověřované hypotézy", ["expList"]),
       { id: "expList", component: "List", children: { componentId: "exp", path: "/expectations" } },
-      { id: "exp", component: "CheckBox", label: path("description"), value: path("enabled") },
+      replay
+        ? { id: "exp", component: "Text", variant: "caption", text: path("description") }
+        : { id: "exp", component: "CheckBox", label: path("description"), value: path("enabled") },
       { id: "actions", component: "Row", justify: "end", children: ["generate"] },
       {
         id: "generate",
@@ -399,12 +404,18 @@ export function storySurface(
  * Tabs over every lever: the main one (`/points`, `/config/curve`) first, then each of `/levers`.
  * Each tab is the same panel: its draggable curve, what it is, and its value before the story.
  */
-function leverNodes(count: number): ComponentNode[] {
+function leverNodes(count: number, frozen = false): ComponentNode[] {
   const panel = (
     id: string,
     at: { points: string; curve: string; label: string; help: string },
   ): ComponentNode[] => [
-    { id, component: "Column", gap: "sm", children: [`${id}Curve`, `${id}Help`, `${id}Base`] },
+    // frozen (demo replay): read-only curves and no baseline slider
+    {
+      id,
+      component: "Column",
+      gap: "sm",
+      children: [`${id}Curve`, `${id}Help`, ...(frozen ? [] : [`${id}Base`])],
+    },
     {
       id: `${id}Curve`,
       component: "CurveEditor",
@@ -416,7 +427,7 @@ function leverNodes(count: number): ComponentNode[] {
       min: path(`${at.curve}/min`),
       max: path(`${at.curve}/max`),
       label: path(at.label),
-      locked: path("/locked"),
+      locked: frozen ? true : path("/locked"),
       live: true,
     },
     { id: `${id}Help`, component: "Text", variant: "caption", text: path(at.help) },
@@ -504,9 +515,12 @@ export function datasetSurface(
   demo = false,
   /** a what-if dataset: the comparison with its parent becomes a tab of this panel */
   compare?: CompareView,
+  /** export formats offered (default: all live, none in the demo); a recorded demo has its own files */
+  formats?: readonly string[],
 ): A2uiMessage {
   const passed = d.expectations.filter((e) => e.pass).length;
-  const exportNodes: ComponentNode[] = demo
+  const offered = EXPORT_FORMATS.filter((f) => (formats ? formats.includes(f.format) : !demo));
+  const exportNodes: ComponentNode[] = !offered.length
     ? []
     : [
         {
@@ -514,10 +528,10 @@ export function datasetSurface(
           component: "Row",
           gap: "sm",
           align: "center",
-          children: ["dlT", ...EXPORT_FORMATS.map((f) => `dl-${f.format}`)],
+          children: ["dlT", ...offered.map((f) => `dl-${f.format}`)],
         },
         { id: "dlT", component: "Text", variant: "label", text: "Stáhnout:" },
-        ...EXPORT_FORMATS.map((f) => ({
+        ...offered.map((f) => ({
           id: `dl-${f.format}`,
           component: "Button",
           variant: "secondary",
@@ -545,7 +559,12 @@ export function datasetSurface(
     `Dataset ${d.datasetId}`,
     "canvas",
     [
-      { id: "root", component: "Column", gap: "lg", children: ["kpis", ...(demo ? [] : ["dl"]), "tabs"] },
+      {
+        id: "root",
+        component: "Column",
+        gap: "lg",
+        children: ["kpis", ...(offered.length ? ["dl"] : []), "tabs"],
+      },
       ...exportNodes,
       {
         id: "kpis",

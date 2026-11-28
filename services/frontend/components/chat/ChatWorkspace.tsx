@@ -2,6 +2,7 @@
 
 import type { ChatSource } from "../../lib/chat/types";
 import { AppShell } from "./AppShell";
+import { DemoSwitch } from "./DemoPicker";
 import { InspectorLayout, SplitLayout, ThreadLayout, type Layout } from "./layouts";
 import { useChatSession } from "./useChatSession";
 
@@ -18,6 +19,7 @@ export function ChatWorkspace({
   layout = "thread",
   sessionId,
   switcher = false,
+  demoCase,
 }: {
   source: ChatSource;
   title: string;
@@ -25,6 +27,8 @@ export function ChatWorkspace({
   sessionId?: string;
   /** show links to the other layouts (the /lab routes) */
   switcher?: boolean;
+  /** a recorded demo case: the topbar offers the other cases */
+  demoCase?: string;
 }) {
   const s = useChatSession(source);
   return (
@@ -34,6 +38,7 @@ export function ChatWorkspace({
         <>
           <h1 className="topbar-title">{title}</h1>
           {source.demo && <span className="demo-badge">Demo data</span>}
+          {demoCase && <DemoSwitch current={demoCase} />}
           {switcher && (
             <nav className="seg layout-switch" aria-label="Rozložení">
               {(Object.keys(LABEL) as Layout[]).map((l) => (

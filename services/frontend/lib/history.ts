@@ -1,6 +1,14 @@
 /** Chat history in localStorage (the API has no session list). Newest first, max 20. */
 
-export type HistoryEntry = { id: string; company: string; story: string; createdAt: string; demo: boolean };
+export type HistoryEntry = {
+  id: string;
+  company: string;
+  story: string;
+  createdAt: string;
+  demo: boolean;
+  /** which recorded demo case it replays (public/demo/<case>.json) */
+  demoCase?: string;
+};
 
 const KEY = "jojo.sessions";
 const MAX = 20;
@@ -34,6 +42,8 @@ export function findEntry(id: string): HistoryEntry | undefined {
   return loadHistory().find((e) => e.id === id);
 }
 
-/** URL of a chat: demo sessions replay the script, real ones reconnect to the API. */
-export const chatHref = (e: Pick<HistoryEntry, "id" | "demo">) =>
-  e.demo ? `/chat?demo=1&s=${encodeURIComponent(e.id)}` : `/chat?s=${encodeURIComponent(e.id)}`;
+/** URL of a chat: demo sessions replay their recorded case, real ones reconnect to the API. */
+export const chatHref = (e: Pick<HistoryEntry, "id" | "demo" | "demoCase">) =>
+  e.demo
+    ? `/chat?demo=${encodeURIComponent(e.demoCase ?? "1")}&s=${encodeURIComponent(e.id)}`
+    : `/chat?s=${encodeURIComponent(e.id)}`;

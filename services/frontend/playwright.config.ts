@@ -5,10 +5,16 @@ import { defineConfig } from "@playwright/test";
  * Own ports (API 4310, UI 3310) so a dev server already running on 4000/3000 is never reused by mistake.
  * API_FAKE defaults to "all" (no LLM, no DuckDB). `E2E_REAL=1` runs the real services instead
  * (tests/e2e/real.spec.ts; offline from the LLM cache unless LLM_OFFLINE is unset).
+ * `E2E_UI=start` serves a production build (next build + next start) instead of `next dev`: Next allows
+ * one dev server per folder, so this is how e2e runs while `pnpm dev` is up.
  */
 const API_PORT = Number(process.env.E2E_API_PORT ?? 4310);
 const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 3310);
 const real = process.env.E2E_REAL === "1";
+const ui =
+  process.env.E2E_UI === "start"
+    ? `pnpm exec next build && pnpm exec next start --port ${String(WEB_PORT)}`
+    : `pnpm exec next dev --port ${String(WEB_PORT)}`;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -38,11 +44,11 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `pnpm exec next dev --port ${String(WEB_PORT)}`,
+      command: ui,
       env: { NEXT_PUBLIC_API_URL: `http://localhost:${String(API_PORT)}` },
       url: `http://localhost:${String(WEB_PORT)}`,
       reuseExistingServer: false,
-      timeout: 180_000,
+      timeout: 400_000,
     },
   ],
 });

@@ -3,6 +3,7 @@
  *   gen <scenario.json> [--seed N] [--scale X]
  *   cascade "<story>" "<company>"
  *   evidence <db> | detective <db> | compare <dbA> <dbB>
+ *   demo-record [id...]   (offline UI demo bundles, docs/demo-data.md)
  */
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -10,6 +11,7 @@ import { createLlm } from "@s2d/llm";
 import { runCascade, storyGate } from "@s2d/cascade";
 import { loadConfig } from "../config";
 import { dataerPort } from "../adapters/dataer";
+import { recordDemo } from "../demo/record";
 import { gen } from "./gen";
 import { compareCmd, detectiveCmd, evidenceCmd } from "./inspect";
 
@@ -90,8 +92,16 @@ async function main(): Promise<number> {
       await detectiveCmd(dataerPort(), resolve(cfg.root, db));
       return 0;
     }
+    case "demo-record": {
+      await recordDemo({
+        scenariosDir: cfg.scenariosDir,
+        publicDir: resolve(cfg.root, "services/frontend/public"),
+        ids: rest,
+      });
+      return 0;
+    }
     default:
-      return usage("<gen|cascade|evidence|detective|compare> ...");
+      return usage("<gen|cascade|evidence|detective|compare|demo-record> ...");
   }
 }
 

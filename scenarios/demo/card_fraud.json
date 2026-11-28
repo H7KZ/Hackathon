@@ -1,0 +1,172 @@
+{
+  "id": "card_fraud",
+  "scenario": "card_fraud.json",
+  "title": "Banka: vlna zneužitých karet",
+  "summary": "Neobanka s 2 600 kartami. Útočníci testují kradené karty malými platbami a pak nakupují elektroniku: víc zamítnutí, hlášení klientů, blokací a chargebacků, dokud banka nezavede 3-D Secure.",
+  "tags": ["finance", "podvody", "platby kartou"],
+  "input": {
+    "company": "Fintio a.s., česká neobanka. 2 200 klientů, 2 600 platebních karet Visa a Mastercard, platby u zhruba 70 obchodníků.",
+    "story": "Začátkem srpna začnou útočníci zkoušet kradená čísla našich karet malými platbami u zahraničních digitálních služeb. Když testovací platba projde, za pár dní následuje velký nákup elektroniky nebo letenek. Zamítáme víc plateb, klienti hlásí neznámé platby a o pár týdnů později chodí chargebacky. Koncem srpna útok vrcholí, od poloviny září vyžadujeme 3-D Secure u všech online plateb."
+  },
+  "company": {
+    "industry": "Neobanka (běžné účty a platební karty)",
+    "size": "2 200 klientů, 2 600 karet, ~70 obchodníků s pravidelnými platbami",
+    "actors": [
+      {
+        "kind": "customer",
+        "name": "Klienti banky",
+        "description": "Studenti, běžní a prémioví klienti s debetními i kreditními kartami."
+      },
+      {
+        "kind": "partner",
+        "name": "Obchodníci",
+        "description": "Potraviny, restaurace, čerpací stanice, e-shopy s elektronikou, cestovky a zahraniční digitální služby."
+      },
+      {
+        "kind": "partner",
+        "name": "Karetní asociace Visa a Mastercard",
+        "description": "Zprostředkují autorizace a reklamace plateb (chargebacky)."
+      },
+      {
+        "kind": "other",
+        "name": "Útočníci",
+        "description": "Skupiny, které zkoušejí kradená čísla karet automatizovanými platbami."
+      }
+    ],
+    "keyProcesses": ["autorizace plateb", "hlášení klientů", "blokace karet", "chargebacky"]
+  },
+  "influences": {
+    "edges": [
+      {
+        "from": "card_test.rate",
+        "to": "card_payment",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Každý pokus útočníka je online platba kartou, kterou banka schválí, nebo zamítne."
+      },
+      {
+        "from": "pay_web",
+        "to": "cashout",
+        "direction": "positive",
+        "weight": 0.55,
+        "delayDays": 2,
+        "rationale": "Když testovací platba projde, útočník kartu do pár dní zkusí použít na velký nákup."
+      },
+      {
+        "from": "cashout",
+        "to": "card_payment",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 0,
+        "rationale": "Velký nákup elektroniky nebo letenek z nového zařízení."
+      },
+      {
+        "from": "pay_ecom",
+        "to": "report",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 3,
+        "rationale": "Klient si v aplikaci všimne platby, kterou neprovedl, a nahlásí ji."
+      },
+      {
+        "from": "report",
+        "to": "block",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Nahlášenou kartu banka hned zablokuje a vydá novou."
+      },
+      {
+        "from": "pay_ecom",
+        "to": "chargeback",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 25,
+        "rationale": "Neautorizovanou platbu banka po několika týdnech reklamuje u obchodníka (kód 10.4)."
+      }
+    ]
+  },
+  "whatIfs": [
+    {
+      "question": "Co kdyby banka zavedla 3-D Secure už v polovině srpna?",
+      "rationale": "Povinné 3-D Secure (sp3) posunuto na 17. srpna; vrchol útoku koncem srpna je pak slabší, protože útočníci už odcházejí.",
+      "curves": [
+        {
+          "id": "fraud_rate",
+          "baseline": 0.25,
+          "segments": [
+            { "kind": "ramp", "start": "2026-08-03", "end": "2026-08-10", "to": 8, "storyPointId": "sp1" },
+            { "kind": "ramp", "start": "2026-08-17", "end": "2026-08-31", "to": 0.6, "storyPointId": "sp3" },
+            { "kind": "spike", "start": "2026-08-24", "end": "2026-09-07", "to": 6, "storyPointId": "sp2" }
+          ],
+          "clamp": [0, 40]
+        },
+        {
+          "id": "fraud_pass_prob",
+          "baseline": 0.72,
+          "segments": [{ "kind": "step", "start": "2026-08-17", "to": 0.12, "storyPointId": "sp3" }],
+          "clamp": [0, 1]
+        }
+      ]
+    },
+    {
+      "question": "Co kdyby byl útok dvakrát silnější?",
+      "rationale": "Počet pokusů útočníků v bodech sp1 a sp2 zdvojnásoben (16 a 32 denně na botnet), 3-D Secure beze změny.",
+      "curves": [
+        {
+          "id": "fraud_rate",
+          "baseline": 0.25,
+          "segments": [
+            { "kind": "ramp", "start": "2026-08-03", "end": "2026-08-10", "to": 16, "storyPointId": "sp1" },
+            { "kind": "spike", "start": "2026-08-24", "end": "2026-09-07", "to": 32, "storyPointId": "sp2" },
+            { "kind": "ramp", "start": "2026-09-14", "end": "2026-09-28", "to": 0.6, "storyPointId": "sp3" }
+          ],
+          "clamp": [0, 40]
+        }
+      ]
+    }
+  ],
+  "detective": {
+    "dat1": {
+      "narrative": "Od 3. srpna se v platbách objevuje vzorec typický pro testování kradených karet: stovky malých online plateb (9–95 Kč) z nových zařízení, soustředěných na šest digitálních služeb, většinou v zahraničí. Několik dní po úspěšné testovací platbě následuje na stejné kartě nákup elektroniky nebo letenek za 4–30 tisíc Kč, opět z nového zařízení. Podíl zamítnutých plateb roste z 2 % na 4–6 %, klienti hlásí neznámé platby, banka blokuje karty a od konce srpna přibývají chargebacky s kódem 10.4 s vrcholem koncem září. Od 14. září velké schválené platby z nových zařízení téměř mizí a testovacích plateb rychle ubývá; banka zřejmě zpřísnila ověřování online plateb. Platby na terminálech se celou dobu nemění.",
+      "findings": [
+        {
+          "claim": "Od 3. srpna prudce přibývá malých online plateb (9–95 Kč) z nových zařízení u šesti digitálních služeb, typické testování kradených karet.",
+          "entities": ["digitální služby", "MER-023", "MER-018", "MER-048", "MER-069", "MER-057", "MER-055"],
+          "start": "2026-08-03",
+          "end": "2026-09-13",
+          "supportingSql": "SELECT date_trunc('week', payment_date) AS week, merchant_id, count(*) AS small_payments FROM card_payment WHERE amount_czk < 100 AND device = 'nové zařízení' GROUP BY 1, 2 ORDER BY 1, 3 DESC"
+        },
+        {
+          "claim": "Několik dní po úspěšné testovací platbě následuje na stejné kartě nákup elektroniky nebo letenek za 4–30 tisíc Kč z nového zařízení.",
+          "entities": ["elektronika", "cestování"],
+          "start": "2026-08-05",
+          "end": "2026-09-16",
+          "supportingSql": "SELECT b.card_id, min(s.payment_date) AS first_test, min(b.payment_date) AS first_big, max(b.amount_czk) AS max_amount FROM card_payment b JOIN card_payment s ON s.card_id = b.card_id AND s.amount_czk < 100 AND s.device = 'nové zařízení' AND s.payment_date < b.payment_date WHERE b.device = 'nové zařízení' AND b.amount_czk > 3000 GROUP BY 1 ORDER BY 3 LIMIT 50"
+        },
+        {
+          "claim": "Podíl zamítnutých plateb roste z ~2 % na 4–6 %, v týdnu od 14. září krátce vyskočí na 9 %.",
+          "entities": [],
+          "start": "2026-08-10",
+          "end": "2026-09-20",
+          "supportingSql": "SELECT date_trunc('week', payment_date) AS week, round(avg(CASE WHEN status = 'zamítnuto' THEN 1 ELSE 0 END), 3) AS declined_share, count(*) AS payments FROM card_payment GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "claim": "Chargebacky s kódem 10.4 (neautorizovaná transakce) rostou od konce srpna, vrchol koncem září (~35 týdně).",
+          "entities": [],
+          "start": "2026-08-24",
+          "end": "2026-10-11",
+          "supportingSql": "SELECT date_trunc('week', opened_date) AS week, reason_code, count(*) AS chargebacks FROM chargeback GROUP BY 1, 2 ORDER BY 1"
+        },
+        {
+          "claim": "Od 14. září schválené velké platby z nových zařízení téměř mizí a testovacích plateb u digitálních služeb rychle ubývá: banka zpřísnila ověřování.",
+          "entities": ["digitální služby"],
+          "start": "2026-09-14",
+          "end": "2026-09-27",
+          "supportingSql": "SELECT date_trunc('week', payment_date) AS week, count(*) FILTER (WHERE amount_czk > 3000 AND status = 'schváleno') AS big_approved, count(*) FILTER (WHERE amount_czk < 100) AS small_tests FROM card_payment WHERE device = 'nové zařízení' AND payment_date >= DATE '2026-08-01' GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    }
+  }
+}

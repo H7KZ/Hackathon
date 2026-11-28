@@ -1,0 +1,1189 @@
+{
+  "meta": {
+    "id": "card_fraud",
+    "name": "Vlna zneužitých platebních karet",
+    "company": "Fintio a.s., česká neobanka. 2 200 klientů, 2 600 platebních karet Visa a Mastercard, platby u zhruba 70 obchodníků.",
+    "story": "Začátkem srpna začnou útočníci zkoušet kradená čísla karet malými platbami u zahraničních digitálních služeb. Projde-li testovací platba, následuje za pár dní velký nákup elektroniky nebo letenek. Banka zamítá víc plateb, klienti hlásí neznámé platby a o několik týdnů později přicházejí chargebacky. Koncem srpna útok vrcholí, od poloviny září banka vyžaduje 3-D Secure u všech online plateb a útok utichne.",
+    "seed": 42,
+    "start": "2026-04-13",
+    "end": "2026-11-08",
+    "locale": "cs-CZ"
+  },
+  "entities": [
+    {
+      "name": "customer",
+      "count": 2200,
+      "idPrefix": "CLI",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "personName"
+        },
+        "city": {
+          "gen": "fake",
+          "kind": "city"
+        },
+        "segment": {
+          "gen": "categorical",
+          "values": ["student", "standard", "prémium"],
+          "weights": [0.18, 0.67, 0.15]
+        },
+        "age_band": {
+          "gen": "categorical",
+          "values": ["18–25", "26–35", "36–50", "51–65", "65+"],
+          "weights": [0.16, 0.3, 0.3, 0.17, 0.07]
+        }
+      }
+    },
+    {
+      "name": "card",
+      "count": 2600,
+      "idPrefix": "CRD",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "pick",
+          "entity": "customer"
+        },
+        "network": {
+          "gen": "categorical",
+          "values": ["Visa", "Mastercard"],
+          "weights": [0.55, 0.45]
+        },
+        "card_type": {
+          "gen": "categorical",
+          "values": ["debetní", "kreditní"],
+          "weights": [0.78, 0.22]
+        },
+        "form": {
+          "gen": "categorical",
+          "values": ["plastová", "virtuální"],
+          "weights": [0.7, 0.3]
+        },
+        "daily_limit_czk": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.card_type",
+            "value": "kreditní"
+          },
+          "then": {
+            "gen": "const",
+            "value": 50000
+          },
+          "else": {
+            "gen": "const",
+            "value": 30000
+          }
+        }
+      }
+    },
+    {
+      "name": "merchant",
+      "count": 70,
+      "idPrefix": "MER",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "companyName"
+        },
+        "category": {
+          "gen": "categorical",
+          "values": [
+            "potraviny",
+            "restaurace",
+            "elektronika",
+            "oblečení",
+            "cestování",
+            "čerpací stanice",
+            "digitální služby",
+            "lékárna"
+          ],
+          "weights": [0.2, 0.17, 0.1, 0.12, 0.07, 0.1, 0.14, 0.1]
+        },
+        "country": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.category",
+            "value": "digitální služby"
+          },
+          "then": {
+            "gen": "categorical",
+            "values": ["IE", "NL", "CZ", "US", "CY"],
+            "weights": [0.3, 0.2, 0.2, 0.2, 0.1]
+          },
+          "else": {
+            "gen": "categorical",
+            "values": ["CZ", "SK", "DE"],
+            "weights": [0.93, 0.05, 0.02]
+          }
+        },
+        "popularity": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.category",
+            "value": "potraviny"
+          },
+          "then": {
+            "gen": "normal",
+            "mean": 30,
+            "sd": 8,
+            "min": 5,
+            "round": true
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.category",
+              "value": "restaurace"
+            },
+            "then": {
+              "gen": "normal",
+              "mean": 15,
+              "sd": 5,
+              "min": 3,
+              "round": true
+            },
+            "else": {
+              "gen": "normal",
+              "mean": 9,
+              "sd": 4,
+              "min": 1,
+              "round": true
+            }
+          }
+        },
+        "fraud_exposure": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.category",
+            "value": "digitální služby"
+          },
+          "then": {
+            "gen": "const",
+            "value": 10
+          },
+          "else": {
+            "gen": "const",
+            "value": 0
+          }
+        },
+        "cashout_exposure": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.category",
+            "value": "elektronika"
+          },
+          "then": {
+            "gen": "const",
+            "value": 10
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.category",
+              "value": "cestování"
+            },
+            "then": {
+              "gen": "const",
+              "value": 5
+            },
+            "else": {
+              "gen": "const",
+              "value": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "attacker",
+      "count": 2,
+      "idPrefix": "ATK",
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "label": {
+          "gen": "categorical",
+          "values": ["botnet A", "botnet B"]
+        }
+      }
+    }
+  ],
+  "curves": [
+    {
+      "id": "fraud_rate",
+      "baseline": 0.25,
+      "segments": [
+        {
+          "kind": "ramp",
+          "start": "2026-08-03",
+          "end": "2026-08-10",
+          "to": 8,
+          "storyPointId": "sp1"
+        },
+        {
+          "kind": "spike",
+          "start": "2026-08-24",
+          "end": "2026-09-07",
+          "to": 16,
+          "storyPointId": "sp2"
+        },
+        {
+          "kind": "ramp",
+          "start": "2026-09-14",
+          "end": "2026-09-28",
+          "to": 0.6,
+          "storyPointId": "sp3"
+        }
+      ],
+      "clamp": [0, 40]
+    },
+    {
+      "id": "fraud_pass_prob",
+      "baseline": 0.72,
+      "segments": [
+        {
+          "kind": "step",
+          "start": "2026-09-14",
+          "to": 0.12,
+          "storyPointId": "sp3"
+        }
+      ],
+      "clamp": [0, 1]
+    }
+  ],
+  "flows": [],
+  "processes": [
+    {
+      "type": "arrival",
+      "id": "pay",
+      "table": "card_payment",
+      "per": ["card"],
+      "rate": 0.07,
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "key.card"
+        },
+        "customer_id": {
+          "gen": "lookup",
+          "entity": "card",
+          "key": "key.card",
+          "field": "customer_id"
+        },
+        "merchant_id": {
+          "gen": "pick",
+          "entity": "merchant",
+          "weightBy": "popularity"
+        },
+        "payment_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "mcc_category": {
+          "gen": "lookup",
+          "entity": "merchant",
+          "key": "self.merchant_id",
+          "field": "category"
+        },
+        "amount_czk": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.mcc_category",
+            "value": "potraviny"
+          },
+          "then": {
+            "gen": "normal",
+            "mean": 620,
+            "sd": 450,
+            "min": 19,
+            "round": true
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.mcc_category",
+              "value": "restaurace"
+            },
+            "then": {
+              "gen": "normal",
+              "mean": 380,
+              "sd": 240,
+              "min": 39,
+              "round": true
+            },
+            "else": {
+              "gen": "if",
+              "cond": {
+                "kind": "fieldEq",
+                "path": "self.mcc_category",
+                "value": "elektronika"
+              },
+              "then": {
+                "gen": "normal",
+                "mean": 3900,
+                "sd": 3200,
+                "min": 199,
+                "round": true
+              },
+              "else": {
+                "gen": "if",
+                "cond": {
+                  "kind": "fieldEq",
+                  "path": "self.mcc_category",
+                  "value": "cestování"
+                },
+                "then": {
+                  "gen": "normal",
+                  "mean": 5200,
+                  "sd": 3800,
+                  "min": 300,
+                  "round": true
+                },
+                "else": {
+                  "gen": "if",
+                  "cond": {
+                    "kind": "fieldEq",
+                    "path": "self.mcc_category",
+                    "value": "digitální služby"
+                  },
+                  "then": {
+                    "gen": "normal",
+                    "mean": 290,
+                    "sd": 160,
+                    "min": 49,
+                    "round": true
+                  },
+                  "else": {
+                    "gen": "if",
+                    "cond": {
+                      "kind": "fieldEq",
+                      "path": "self.mcc_category",
+                      "value": "čerpací stanice"
+                    },
+                    "then": {
+                      "gen": "normal",
+                      "mean": 1350,
+                      "sd": 600,
+                      "min": 100,
+                      "round": true
+                    },
+                    "else": {
+                      "gen": "normal",
+                      "mean": 900,
+                      "sd": 700,
+                      "min": 25,
+                      "round": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "merchant_country": {
+          "gen": "lookup",
+          "entity": "merchant",
+          "key": "self.merchant_id",
+          "field": "country"
+        },
+        "channel": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.mcc_category",
+            "value": "digitální služby"
+          },
+          "then": {
+            "gen": "const",
+            "value": "online"
+          },
+          "else": {
+            "gen": "categorical",
+            "values": ["terminál", "online", "Apple Pay / Google Pay"],
+            "weights": [0.6, 0.2, 0.2]
+          }
+        },
+        "device": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.channel",
+            "value": "terminál"
+          },
+          "then": {
+            "gen": "const",
+            "value": "platební terminál"
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "bernoulli",
+              "p": 0.04
+            },
+            "then": {
+              "gen": "const",
+              "value": "nové zařízení"
+            },
+            "else": {
+              "gen": "const",
+              "value": "známé zařízení"
+            }
+          }
+        },
+        "status": {
+          "gen": "if",
+          "cond": {
+            "kind": "bernoulli",
+            "p": 0.018
+          },
+          "then": {
+            "gen": "const",
+            "value": "zamítnuto"
+          },
+          "else": {
+            "gen": "const",
+            "value": "schváleno"
+          }
+        },
+        "decline_reason": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.status",
+            "value": "zamítnuto"
+          },
+          "then": {
+            "gen": "categorical",
+            "values": ["nedostatek prostředků", "chybný PIN", "překročený limit"],
+            "weights": [0.5, 0.3, 0.2]
+          },
+          "else": {
+            "gen": "const",
+            "value": ""
+          }
+        }
+      }
+    },
+    {
+      "type": "arrival",
+      "id": "card_test",
+      "table": "card_test",
+      "per": ["attacker"],
+      "rate": {
+        "curve": "fraud_rate"
+      },
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "attacker_id": {
+          "gen": "ref",
+          "path": "key.attacker"
+        },
+        "card_id": {
+          "gen": "pick",
+          "entity": "card"
+        },
+        "customer_id": {
+          "gen": "lookup",
+          "entity": "card",
+          "key": "self.card_id",
+          "field": "customer_id"
+        },
+        "merchant_id": {
+          "gen": "pick",
+          "entity": "merchant",
+          "weightBy": "fraud_exposure"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "amount_czk": {
+          "gen": "uniformInt",
+          "min": 9,
+          "max": 95
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "pay_web",
+      "source": "card_test",
+      "cond": {
+        "kind": "bernoulli",
+        "p": {
+          "curve": "fraud_pass_prob"
+        }
+      },
+      "then": {
+        "table": "card_payment",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "card_id": {
+            "gen": "ref",
+            "path": "source.card_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "merchant_id": {
+            "gen": "ref",
+            "path": "source.merchant_id"
+          },
+          "payment_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "mcc_category": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "category"
+          },
+          "amount_czk": {
+            "gen": "ref",
+            "path": "source.amount_czk"
+          },
+          "merchant_country": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "country"
+          },
+          "channel": {
+            "gen": "const",
+            "value": "online"
+          },
+          "device": {
+            "gen": "const",
+            "value": "nové zařízení"
+          },
+          "status": {
+            "gen": "const",
+            "value": "schváleno"
+          },
+          "decline_reason": {
+            "gen": "const",
+            "value": ""
+          }
+        }
+      },
+      "else": {
+        "table": "card_payment",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "card_id": {
+            "gen": "ref",
+            "path": "source.card_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "merchant_id": {
+            "gen": "ref",
+            "path": "source.merchant_id"
+          },
+          "payment_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "mcc_category": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "category"
+          },
+          "amount_czk": {
+            "gen": "ref",
+            "path": "source.amount_czk"
+          },
+          "merchant_country": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "country"
+          },
+          "channel": {
+            "gen": "const",
+            "value": "online"
+          },
+          "device": {
+            "gen": "const",
+            "value": "nové zařízení"
+          },
+          "status": {
+            "gen": "const",
+            "value": "zamítnuto"
+          },
+          "decline_reason": {
+            "gen": "categorical",
+            "values": ["podezřelá transakce", "3-D Secure neověřeno"],
+            "weights": [0.6, 0.4]
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "cashout",
+      "table": "cashout_attempt",
+      "source": "pay_web:then",
+      "p": 0.55,
+      "lag": {
+        "min": 1,
+        "max": 4
+      },
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "test_payment_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "source.card_id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "merchant_id": {
+          "gen": "pick",
+          "entity": "merchant",
+          "weightBy": "cashout_exposure"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "amount_czk": {
+          "gen": "normal",
+          "mean": 14500,
+          "sd": 6000,
+          "min": 3900,
+          "max": 29900,
+          "round": true
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "pay_ecom",
+      "source": "cashout",
+      "cond": {
+        "kind": "bernoulli",
+        "p": {
+          "curve": "fraud_pass_prob"
+        }
+      },
+      "then": {
+        "table": "card_payment",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "card_id": {
+            "gen": "ref",
+            "path": "source.card_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "merchant_id": {
+            "gen": "ref",
+            "path": "source.merchant_id"
+          },
+          "payment_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "mcc_category": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "category"
+          },
+          "amount_czk": {
+            "gen": "ref",
+            "path": "source.amount_czk"
+          },
+          "merchant_country": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "country"
+          },
+          "channel": {
+            "gen": "const",
+            "value": "online"
+          },
+          "device": {
+            "gen": "const",
+            "value": "nové zařízení"
+          },
+          "status": {
+            "gen": "const",
+            "value": "schváleno"
+          },
+          "decline_reason": {
+            "gen": "const",
+            "value": ""
+          }
+        }
+      },
+      "else": {
+        "table": "card_payment",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "card_id": {
+            "gen": "ref",
+            "path": "source.card_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "merchant_id": {
+            "gen": "ref",
+            "path": "source.merchant_id"
+          },
+          "payment_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "mcc_category": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "category"
+          },
+          "amount_czk": {
+            "gen": "ref",
+            "path": "source.amount_czk"
+          },
+          "merchant_country": {
+            "gen": "lookup",
+            "entity": "merchant",
+            "key": "source.merchant_id",
+            "field": "country"
+          },
+          "channel": {
+            "gen": "const",
+            "value": "online"
+          },
+          "device": {
+            "gen": "const",
+            "value": "nové zařízení"
+          },
+          "status": {
+            "gen": "const",
+            "value": "zamítnuto"
+          },
+          "decline_reason": {
+            "gen": "categorical",
+            "values": ["podezřelá transakce", "3-D Secure neověřeno", "překročený limit"],
+            "weights": [0.45, 0.4, 0.15]
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "report",
+      "table": "client_report",
+      "source": "pay_ecom:then",
+      "p": 0.62,
+      "lag": {
+        "min": 1,
+        "max": 6
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "source.card_id"
+        },
+        "payment_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "reported_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "channel": {
+          "gen": "categorical",
+          "values": ["mobilní aplikace", "telefon", "pobočka"],
+          "weights": [0.6, 0.35, 0.05]
+        },
+        "topic": {
+          "gen": "const",
+          "value": "neznámá platba"
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "report_other",
+      "table": "client_report",
+      "source": "pay",
+      "p": 0.0028,
+      "lag": {
+        "min": 0,
+        "max": 10
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "source.card_id"
+        },
+        "payment_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "reported_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "channel": {
+          "gen": "categorical",
+          "values": ["mobilní aplikace", "telefon", "pobočka"],
+          "weights": [0.6, 0.35, 0.05]
+        },
+        "topic": {
+          "gen": "categorical",
+          "values": ["dvojí stržení platby", "zboží nedorazilo", "neznámá platba", "chybná částka"],
+          "weights": [0.35, 0.3, 0.15, 0.2]
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "block",
+      "table": "card_block",
+      "source": "report",
+      "p": 0.95,
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "source.card_id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "block_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "reason": {
+          "gen": "const",
+          "value": "podezření na zneužití"
+        },
+        "replacement_card": {
+          "gen": "bernoulli",
+          "p": 0.9
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "block_other",
+      "table": "card_block",
+      "source": "pay",
+      "p": 0.0006,
+      "lag": {
+        "min": 0,
+        "max": 20
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "source.card_id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "block_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "reason": {
+          "gen": "categorical",
+          "values": ["ztráta karty", "krádež karty", "podezření na zneužití"],
+          "weights": [0.6, 0.25, 0.15]
+        },
+        "replacement_card": {
+          "gen": "bernoulli",
+          "p": 0.95
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "chargeback",
+      "table": "chargeback",
+      "source": "pay_ecom:then",
+      "p": 0.85,
+      "lag": {
+        "min": 15,
+        "max": 40
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "payment_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "source.card_id"
+        },
+        "merchant_id": {
+          "gen": "ref",
+          "path": "source.merchant_id"
+        },
+        "opened_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "amount_czk": {
+          "gen": "ref",
+          "path": "source.amount_czk"
+        },
+        "reason_code": {
+          "gen": "const",
+          "value": "10.4 neautorizovaná transakce"
+        },
+        "status": {
+          "gen": "categorical",
+          "values": ["uznáno", "v řešení", "zamítnuto"],
+          "weights": [0.7, 0.22, 0.08]
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "chargeback_other",
+      "table": "chargeback",
+      "source": "pay",
+      "p": 0.0009,
+      "lag": {
+        "min": 10,
+        "max": 40
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "payment_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "card_id": {
+          "gen": "ref",
+          "path": "source.card_id"
+        },
+        "merchant_id": {
+          "gen": "ref",
+          "path": "source.merchant_id"
+        },
+        "opened_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "amount_czk": {
+          "gen": "ref",
+          "path": "source.amount_czk"
+        },
+        "reason_code": {
+          "gen": "categorical",
+          "values": ["13.1 zboží nedodáno", "12.6 duplicitní platba", "13.3 neodpovídá popisu"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "status": {
+          "gen": "categorical",
+          "values": ["uznáno", "v řešení", "zamítnuto"],
+          "weights": [0.55, 0.25, 0.2]
+        }
+      }
+    }
+  ],
+  "storyPoints": [
+    {
+      "id": "sp0",
+      "phase": 0,
+      "title": "Běžný provoz",
+      "description": "Klienti platí hlavně na terminálech v Česku, zamítá se necelé 2 % plateb.",
+      "start": "2026-04-13",
+      "end": "2026-08-02"
+    },
+    {
+      "id": "sp1",
+      "phase": 1,
+      "title": "Útočníci testují kradené karty",
+      "description": "Dva botnety zkoušejí čísla karet malými online platbami (do 100 Kč) u zahraničních digitálních služeb. Během týdne roste počet pokusů z jednoho za dva dny na 16 denně.",
+      "segment": {
+        "field": "merchant.category",
+        "values": ["digitální služby"]
+      },
+      "start": "2026-08-03",
+      "end": "2026-08-10"
+    },
+    {
+      "id": "sp2",
+      "phase": 2,
+      "title": "Vrchol útoku",
+      "description": "Na konci srpna útočníci zdvojnásobí počet pokusů. Po úspěšném testu následují velké nákupy elektroniky a letenek z nových zařízení.",
+      "segment": {
+        "field": "merchant.category",
+        "values": ["digitální služby"]
+      },
+      "start": "2026-08-24",
+      "end": "2026-09-07"
+    },
+    {
+      "id": "sp3",
+      "phase": 3,
+      "title": "Povinné 3-D Secure",
+      "description": "Banka začne u všech online plateb vyžadovat ověření 3-D Secure. Projde jen 12 % podvodných plateb a útočníci se během dvou týdnů stáhnou.",
+      "segment": {
+        "field": "merchant.category",
+        "values": ["digitální služby"]
+      },
+      "start": "2026-09-14",
+      "end": "2026-09-28"
+    }
+  ],
+  "expectations": [
+    {
+      "id": "e1",
+      "storyPointId": "sp1",
+      "description": "Podíl zamítnutých plateb vzroste nejméně dvojnásobně",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-08-03' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN status = 'zamítnuto' THEN 1.0 ELSE 0.0 END) AS value FROM (SELECT payment_date AS d, status FROM main.card_payment WHERE status IS NOT NULL) WHERE (d BETWEEN DATE '2026-04-13' AND DATE '2026-08-02' OR d BETWEEN DATE '2026-08-10' AND DATE '2026-09-13') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 1
+      }
+    },
+    {
+      "id": "e2",
+      "storyPointId": "sp1",
+      "description": "Malých online plateb (do 100 Kč) u zahraničních obchodníků přibude nejméně čtyřnásobně",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-08-03' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT payment_date AS d FROM main.card_payment WHERE amount_czk < 100 AND merchant_country <> 'CZ') WHERE (d BETWEEN DATE '2026-04-13' AND DATE '2026-08-02' OR d BETWEEN DATE '2026-08-10' AND DATE '2026-09-13') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 3
+      }
+    },
+    {
+      "id": "e3",
+      "storyPointId": "sp1",
+      "description": "Chargebacků přibude nejméně čtyřnásobně (se zpožděním několika týdnů)",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-08-03' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / (CASE WHEN MIN(d) < DATE '2026-08-03' THEN 112 ELSE 42 END) AS value FROM (SELECT opened_date AS d FROM main.chargeback) WHERE (d BETWEEN DATE '2026-04-13' AND DATE '2026-08-02' OR d BETWEEN DATE '2026-08-24' AND DATE '2026-10-04') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 3
+      }
+    },
+    {
+      "id": "e4",
+      "storyPointId": "sp1",
+      "description": "Hlášení „neznámá platba“ od klientů přibude nejméně trojnásobně",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-08-03' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / (CASE WHEN MIN(d) < DATE '2026-08-03' THEN 112 ELSE 35 END) AS value FROM (SELECT reported_date AS d FROM main.client_report WHERE topic = 'neznámá platba') WHERE (d BETWEEN DATE '2026-04-13' AND DATE '2026-08-02' OR d BETWEEN DATE '2026-08-10' AND DATE '2026-09-13') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 2
+      }
+    },
+    {
+      "id": "e5",
+      "storyPointId": "sp1",
+      "description": "Platby na terminálech v obchodech se nezmění (±10 %)",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-08-03' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT payment_date AS d FROM main.card_payment WHERE channel = 'terminál') WHERE (d BETWEEN DATE '2026-04-13' AND DATE '2026-08-02' OR d BETWEEN DATE '2026-08-10' AND DATE '2026-09-13') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "stable",
+        "minRelChange": 0.1
+      }
+    },
+    {
+      "id": "e6",
+      "storyPointId": "sp3",
+      "description": "Po zavedení 3-D Secure ubude schválených plateb nad 3 000 Kč z nových zařízení nejméně o 70 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-09-14' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / (CASE WHEN MIN(d) < DATE '2026-09-14' THEN 35 ELSE 42 END) AS value FROM (SELECT payment_date AS d FROM main.card_payment WHERE status = 'schváleno' AND device = 'nové zařízení' AND amount_czk > 3000) WHERE (d BETWEEN DATE '2026-08-10' AND DATE '2026-09-13' OR d BETWEEN DATE '2026-09-28' AND DATE '2026-11-08') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "decrease",
+        "minRelChange": 0.7
+      }
+    },
+    {
+      "id": "e7",
+      "storyPointId": "sp1",
+      "description": "Blokací karet pro podezření na zneužití přibude nejméně trojnásobně",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-08-03' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / (CASE WHEN MIN(d) < DATE '2026-08-03' THEN 112 ELSE 35 END) AS value FROM (SELECT block_date AS d FROM main.card_block WHERE reason = 'podezření na zneužití') WHERE (d BETWEEN DATE '2026-04-13' AND DATE '2026-08-02' OR d BETWEEN DATE '2026-08-10' AND DATE '2026-09-13') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 2
+      }
+    }
+  ]
+}

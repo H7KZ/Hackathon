@@ -14,7 +14,6 @@ import type {
 import type { MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { Step } from "../a2ui/catalog";
 import { a2ui } from "../a2ui/protocol";
-import { apiUrl } from "../api";
 import { plural } from "../format";
 import {
   attemptDetail,
@@ -50,15 +49,10 @@ import {
   type StoryConfig,
   type StoryPointEdit,
 } from "./surfaces";
+import { httpTransport, type Transport } from "./transport";
 import type { ChatSource, Emit, UserInput } from "./types";
 
 export { editToStory, evidenceToView, storyToEdit } from "./liveMapping";
-
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${apiUrl()}${path}`);
-  if (!res.ok) throw new Error(`GET ${path}: HTTP ${String(res.status)}`);
-  return (await res.json()) as T;
-}
 
 /** Server errors in words a user can act on (the raw text stays in the server log). */
 export function humanError(message: string): string {
@@ -101,7 +95,22 @@ const PREVIEW_ROWS = 8;
 /** A5 / what-if repair attempts per run (services/cascade repairLoop). */
 const A5_ATTEMPTS = 5;
 
-export function createLiveSource(sessionId: string): ChatSource {
+export interface LiveSourceOptions {
+  /** default: the API over HTTP + SSE; the demo replays a recorded session (demoTransport.ts) */
+  transport?: Transport;
+  /** demo replay: a fixed story (no edits), demo badges, only the recorded downloads */
+  demo?: boolean;
+  /** what-if questions offered after each dataset */
+  suggestions?: readonly string[];
+  /** downloadable export formats per dataset id (demo); live offers every format */
+  exports?: Readonly<Record<string, readonly string[]>>;
+}
+
+export function createLiveSource(sessionId: string, opts: LiveSourceOptions = {}): ChatSource {
+  const transport = opts.transport ?? httpTransport;
+  const demo = opts.demo ?? false;
+  const suggestions = [...(opts.suggestions ?? LIVE_SUGGESTIONS)];
+  const getJson = <T>(path: string) => transport.getJson<T>(path);
   let emit: Emit = () => undefined;
   let story: StoryArtifact | null = null;
   let lastDataset: string | null = null;
@@ -166,13 +175,9 @@ export function createLiveSource(sessionId: string): ChatSource {
 
   /** Sends a command; false when it did not start (API down, busy, or rejected with a reason). */
   const command = async (cmd: SessionCommand): Promise<boolean> => {
-    let res: Response;
+    let res: Awaited<ReturnType<Transport["send"]>>;
     try {
-      res = await fetch(`${apiUrl()}${base}/commands`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cmd),
-      });
+      res = await transport.send("POST", `${base}/commands`, cmd);
     } catch {
       say("API je nedostupné. Zkontrolujte, že běží.");
       return false;
@@ -180,7 +185,9 @@ export function createLiveSource(sessionId: string): ChatSource {
     if (res.status === 409) say("Ještě běží předchozí krok. Zkuste to za chvilku.");
     else if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null;
-      say(`Příkaz se nepodařilo odeslat: ${body?.errors?.[0]?.message ?? `HTTP ${String(res.status)}`}`);
+      const reason = body?.errors?.[0]?.message ?? `HTTP ${String(res.status)}`;
+      // the demo refuses only what was not recorded, and says why in a full sentence
+      say(demo ? reason : `Příkaz se nepodařilo odeslat: ${reason}`);
     }
     return res.ok;
   };
@@ -191,7 +198,7 @@ export function createLiveSource(sessionId: string): ChatSource {
     progressId = `progress-${String(++runs)}`;
     progressGrows = keys === DRAFT_KEYS;
     progress = keys.map((id) => ({ id, label: STEP_LABELS[id], state: "pending" }));
-    emit({ type: "a2ui", message: progressSurface(progressId, title, progress) });
+    emit({ type: "a2ui", message: progressSurface(progressId, title, progress, demo) });
   };
   const mark = (
     key: string,
@@ -245,7 +252,7 @@ export function createLiveSource(sessionId: string): ChatSource {
       );
       if (!companyShown) {
         companyShown = true;
-        emit({ type: "a2ui", message: companySurface("company", c) });
+        emit({ type: "a2ui", message: companySurface("company", c, demo) });
       }
     } else if (step === "02_model") {
       const m = await get<{ entities: unknown[]; processes: unknown[] }>("02_model");
@@ -306,13 +313,17 @@ export function createLiveSource(sessionId: string): ChatSource {
         edit.points,
         edit.config,
         edit.expectations,
-        false,
+        demo,
         true,
         edit.levers,
       ),
     });
     if (storyLocked) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
-    say("Návrh příběhu je připravený. Body posuňte přímo v grafu, pak klikněte **Generovat data**.");
+    say(
+      demo
+        ? "Návrh příběhu je připravený. V ukázce je pevný, data k němu už vygeneroval engine: klikněte **Generovat data**."
+        : "Návrh příběhu je připravený. Body posuňte přímo v grafu, pak klikněte **Generovat data**.",
+    );
   }
 
   /** Observed tables (totals + Tabulky tab); a nicety, so a failure only leaves the tab out. */
@@ -372,12 +383,14 @@ export function createLiveSource(sessionId: string): ChatSource {
       message: datasetSurface(
         `dataset-${datasetId}`,
         humanizeDataset(evidenceToView(datasetId, ev, own, tables), labels),
-        false,
+        demo,
         compare,
+        demo ? (opts.exports?.[datasetId] ?? []) : undefined,
       ),
     });
-    emit({ type: "a2ui", message: readySurface(`ready-${datasetId}`, datasetId, false, true) });
-    emit({ type: "suggest", items: LIVE_SUGGESTIONS });
+    // demo: no "Upravit křivky" (a new dataset needs the engine, the replay has only what was recorded)
+    emit({ type: "a2ui", message: readySurface(`ready-${datasetId}`, datasetId, demo, !demo) });
+    emit({ type: "suggest", items: suggestions });
     if (info?.parent) {
       const passed = ev.expectations.filter((e) => e.pass).length;
       say(
@@ -419,6 +432,7 @@ export function createLiveSource(sessionId: string): ChatSource {
           },
           labels,
         ),
+        demo,
       ),
     });
     say(`Detektiv data neznal a našel ${String(Math.round(result.score.recall * 100))} % bodů příběhu.`);
@@ -623,7 +637,8 @@ export function createLiveSource(sessionId: string): ChatSource {
     };
     const approveCmd: SessionCommand = { type: "approve", settings };
     const edited = context.points as StoryPointEdit[] | undefined;
-    if (story && edited) {
+    // the demo story is fixed (its data was recorded): nothing to save, approve replays the recording
+    if (!demo && story && edited) {
       const levers = (context.levers as LeverEdit[] | undefined) ?? [];
       const next = editToStory(story, edited, config?.curve.baseline, levers);
       // compare normalized forms: mapping alone (key order, phases) must not count as an edit
@@ -632,11 +647,7 @@ export function createLiveSource(sessionId: string): ChatSource {
       if (JSON.stringify(next) !== JSON.stringify(unchanged)) {
         pendingApprove = approveCmd; // sent once the edited story is re-drafted (awaiting_refinement)
         story = next; // markers on the dataset chart follow the edited story
-        void fetch(`${apiUrl()}${base}/artifacts/04_story`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(next),
-        }).then(async (res) => {
+        void transport.send("PUT", `${base}/artifacts/04_story`, next).then(async (res) => {
           if (res.ok) return;
           pendingApprove = null;
           if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", false) });
@@ -658,10 +669,13 @@ export function createLiveSource(sessionId: string): ChatSource {
   }
 
   return {
-    demo: false,
-    cancel() {
-      void command({ type: "cancel" });
-    },
+    demo,
+    // a replay cannot be stopped halfway: no "Zrušit" in the demo
+    ...(!demo && {
+      cancel() {
+        void command({ type: "cancel" });
+      },
+    }),
     start(next) {
       const run = ++generation;
       reset();
@@ -670,23 +684,27 @@ export function createLiveSource(sessionId: string): ChatSource {
         if (run === generation) next(e);
       };
       let queue = Promise.resolve();
-      const source = new EventSource(`${apiUrl()}${base}/events`);
-      source.onmessage = (m: MessageEvent<string>) => {
-        connected = true;
-        const e = JSON.parse(m.data) as SessionEvent;
-        queue = queue.then(() => onEvent(e)).catch(() => undefined);
-      };
-      source.onerror = () => {
-        emit({ type: "busy", step: null });
-        // EventSource retries by itself; say it once if the very first connection fails (blank page before)
-        if (!connected) {
+      const close = transport.events(
+        `${base}/events`,
+        (data) => {
           connected = true;
-          say(`Nepodařilo se připojit k API (${apiUrl()}). Zkontrolujte, že běží; spojení se obnoví samo.`);
-        }
-      };
+          const e = JSON.parse(data) as SessionEvent;
+          queue = queue.then(() => onEvent(e)).catch(() => undefined);
+        },
+        () => {
+          emit({ type: "busy", step: null });
+          // EventSource retries by itself; say it once if the very first connection fails (blank page before)
+          if (!connected) {
+            connected = true;
+            say(
+              `Nepodařilo se připojit k API (${transport.where}). Zkontrolujte, že běží; spojení se obnoví samo.`,
+            );
+          }
+        },
+      );
       return () => {
         generation++;
-        source.close();
+        close();
       };
     },
     send(msg: UserInput) {
@@ -704,12 +722,8 @@ export function createLiveSource(sessionId: string): ChatSource {
         void startRegen(action.context.regenFrom);
       if (action.name === "detect")
         void command({ type: "detect", datasetId: String(action.context.datasetId) });
-      if (
-        action.name === "download" &&
-        typeof action.context.path === "string" &&
-        typeof window !== "undefined"
-      )
-        window.location.assign(`${apiUrl()}${base}${action.context.path}`);
+      if (action.name === "download" && typeof action.context.path === "string")
+        transport.download(`${base}${action.context.path}`);
       if (action.name === "resume") {
         const id = action.context.surfaceId;
         if (typeof id === "string") emit({ type: "a2ui", message: a2ui.data(id, "/locked", true) });
