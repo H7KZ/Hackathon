@@ -60,8 +60,17 @@ describe("aiSdkGenerate", () => {
     await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).rejects.toThrow(/cut off/);
   });
 
-  it("throws when Anthropic text has no JSON", async () => {
-    generateText.mockResolvedValueOnce({ text: "Sorry.", finishReason: "stop" });
+  it("asks once more when the answer has no JSON (live detective step), then throws", async () => {
+    generateText
+      .mockResolvedValueOnce({ text: "I will now look at the data.", finishReason: "stop" })
+      .mockResolvedValueOnce({ text: '{"a":4}', finishReason: "stop" });
+    await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).resolves.toEqual({ a: 4 });
+    const retry = generateText.mock.lastCall?.[0] as { messages?: { role: string; content: string }[] };
+    expect(retry.messages?.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(retry.messages?.[1]?.content).toBe("I will now look at the data.");
+    generateText
+      .mockResolvedValueOnce({ text: "Sorry.", finishReason: "stop" })
+      .mockResolvedValueOnce({ text: "Still no.", finishReason: "stop" });
     await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).rejects.toThrow(/no JSON/);
   });
 

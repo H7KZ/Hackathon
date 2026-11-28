@@ -19,7 +19,7 @@ export function Row({ node }: NodeProps) {
   const justify = (node.justify as string | undefined) ?? "start";
   return (
     <div
-      className={`a2-row ${gapClass(node.gap)} justify-${justify} ${node.wrap === false ? "" : "wrap"}`}
+      className={`a2-row ${gapClass(node.gap)} justify-${justify} ${node.align === "center" ? "align-center" : ""} ${node.wrap === false ? "" : "wrap"}`}
       style={{ flexGrow: node.weight }}
     >
       <Children node={node} />

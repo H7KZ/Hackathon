@@ -27,6 +27,7 @@ import { a5Detail } from "./a5_detail";
 import { seedRobust } from "./gate";
 import { checkCausalMap } from "./causal/map";
 import { finishCausal } from "./causal/assemble";
+import { scopeOverlay } from "./causal/curves";
 import { deriveHypotheses } from "./causal/hypotheses";
 import { checkOverlayScenario } from "./causal/overlay";
 import { a4bExpectations, causalStory, checkQueries } from "./causal/sql";
@@ -192,12 +193,17 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       );
     });
     if (!shouldRun("04a_overlay")) return { dir, company, model, causalMap, processes };
-    const overlay = await step("04a_overlay", StoryOverlay, () =>
-      a4Overlay(
-        llm("04a_overlay", (v) =>
-          checkOverlayScenario(input, opts.runId, causalMap, processes, StoryOverlay.parse(v)),
+    // the scope code derives from story point entities becomes part of the overlay (run 4: unscoped)
+    const overlay = await step("04a_overlay", StoryOverlay, async () =>
+      scopeOverlay(
+        causalMap,
+        await a4Overlay(
+          llm("04a_overlay", (v) =>
+            checkOverlayScenario(input, opts.runId, causalMap, processes, StoryOverlay.parse(v)),
+          ),
+          { input, map: causalMap, plan: processes },
         ),
-        { input, map: causalMap, plan: processes },
+        processes,
       ),
     );
     if (!shouldRun("04b_expectations")) return { dir, company, model, causalMap, processes, overlay };

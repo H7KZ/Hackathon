@@ -117,16 +117,28 @@ async function anthropicJsonText({
   const directive =
     "Answer with exactly one JSON object and nothing else (no prose, no code fence). " +
     `It must validate against this JSON Schema:\n${js}`;
-  const result = await generateText({
+  const system = instructions ? `${instructions}\n\n${directive}` : directive;
+  const read = (r: { text: string; finishReason: string }) => {
+    if (r.finishReason === "length")
+      throw new Error(`LLM output was cut off (token limit) for ${model}; the JSON is incomplete.`);
+    return parseJson(r.text);
+  };
+  const first = await generateText({ model: resolveModel(model), instructions: system, prompt });
+  const raw = read(first);
+  if (raw !== undefined) return raw;
+  // a live detective step answered with prose only: show the model its answer and ask once more
+  const again = await generateText({
     model: resolveModel(model),
-    instructions: instructions ? `${instructions}\n\n${directive}` : directive,
-    prompt,
+    instructions: system,
+    messages: [
+      { role: "user", content: prompt },
+      { role: "assistant", content: first.text },
+      { role: "user", content: "Your answer contained no JSON object. Reply with only the JSON object." },
+    ],
   });
-  if (result.finishReason === "length")
-    throw new Error(`LLM output was cut off (token limit) for ${model}; the JSON is incomplete.`);
-  const raw = parseJson(result.text);
-  if (raw === undefined) throw new Error(`LLM answer for ${model} contained no JSON object.`);
-  return raw;
+  const retried = read(again);
+  if (retried === undefined) throw new Error(`LLM answer for ${model} contained no JSON object.`);
+  return retried;
 }
 
 /**

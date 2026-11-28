@@ -72,6 +72,27 @@ export function entityScope(
   return used ? { field: `self.${field}`, ids: [...first.ids] } : undefined;
 }
 
+/**
+ * 04a_overlay with the scope code derives (`entityScope`) written into each unscoped lever row, so the
+ * curves, the hypotheses (in-scope effects + out-of-scope controls) and their SQL agree on it.
+ */
+export function scopeOverlay(
+  map: CausalMap,
+  overlay: StoryOverlay,
+  plan: Pick<ProcessesPlan, "processes">,
+): StoryOverlay {
+  const levers = overlay.levers.map((row) => {
+    if (row.scope) return row;
+    const baseline = map.nodes.find((n) => n.id === row.lever)?.baseline ?? 0;
+    const moved = leverPeriods(row, overlay.storyPoints)
+      .filter((p) => p.value !== baseline)
+      .map((p) => p.storyPoint);
+    const scope = moved.length > 0 ? entityScope(row.lever, moved, plan) : undefined;
+    return scope ? { ...row, scope } : row;
+  });
+  return levers.every((r, i) => r === overlay.levers[i]) ? overlay : { ...overlay, levers };
+}
+
 const isProbability = (xs: number[]) => xs.every((x) => x >= 0 && x <= 1);
 
 /** One curve per lever of the map (flat at baseline when the overlay does not move it). */

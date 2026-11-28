@@ -35,11 +35,17 @@ Changed by the run-3 follow-up (run 4):
 - Segment story points (`segment: {field, values}`) replace invented entity ids for group stories.
 - Causal: hypotheses on a branch's success outcome (sales) need 5 % (`MIN_CHANGE_DILUTED`), others 10 %.
 
+Changed by the run-4 follow-up (run 5, [report](../runs/2026-11-28-live-e2e-5.md)):
+
+- Causal: an unscoped lever whose story points name entity ids is scoped to them by code (`entityScope` in `causal/curves.ts`, field `self.<entity>_id`); if the records using the lever lack that field, the overlay check asks for a scope. Run 4's lever moved every supplier while the answer key named one.
+- A4 and the compiler reject `decay` to the baseline (`checkCurveShapes`): decay jumps to `to` and climbs back to the level before it. The compiler also rejects p > 1 and one curve as the p of several bernoulli fields in a record.
+- The v1 A5 gate is `seedRobust` too (≥ 4/5 of seeds 1..5).
+- `@s2d/llm` sends Anthropic the schema in the system prompt and reads JSON from text (no forced tool, no warning); cache keys unchanged.
+
 Open:
 
-- Run 4 ([report](../runs/2026-11-28-live-e2e-4.md)): all 4 v1 prompts ready on the first approve; causal passes its seed-robust gate. Its detective scored recall 0 on its own run.
 - The detective (eval gate 4) is not part of the cascade evals.
-- v1 keeps a single-seed story gate (causal checks seeds 1..5 too).
+- Segment kinds are not explained in `SHARED_RULES` (changing it changes every v1 cache key); the compiler messages teach them when an answer misuses one.
 
 ## Where it sits
 

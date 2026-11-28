@@ -423,6 +423,7 @@ export function datasetSurface(
           id: "dl",
           component: "Row",
           gap: "sm",
+          align: "center",
           children: ["dlT", ...EXPORT_FORMATS.map((f) => `dl-${f.format}`)],
         },
         { id: "dlT", component: "Text", variant: "label", text: "Stáhnout:" },
