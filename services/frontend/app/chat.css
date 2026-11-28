@@ -353,6 +353,27 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+/* quick replies at the end of the thread (not pinned above the composer) */
+.suggest.in-thread {
+  align-items: center;
+  margin-top: 4px;
+}
+.suggest.in-thread > span {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+.panel.flash {
+  animation: panel-flash 1.4s ease-out;
+}
+@keyframes panel-flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 3px rgb(0 149 125 / 35%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(0 149 125 / 0%);
+  }
+}
 .suggest button {
   padding: 4px 10px;
   border: 1px solid var(--color-line);
@@ -378,6 +399,13 @@
 }
 .composer-box:focus-within {
   border-color: var(--color-green);
+  /* the ring follows the box's rounded corners; the textarea's own (square) outline is off below */
+  box-shadow:
+    0 0 0 3px rgb(0 149 125 / 18%),
+    0 4px 16px rgb(0 32 27 / 6%);
+}
+.shell .composer-box textarea:focus-visible {
+  outline: none;
 }
 .composer-box textarea {
   flex: 1;

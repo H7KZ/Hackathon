@@ -17,7 +17,24 @@ export type TimeConfig = {
   granularity: Granularity;
   from: string;
   to: string;
+  /**
+   * live sessions only: true = the agent picks the period (nothing is sent), false = the user's
+   * from..to goes to the API as `settings.period`.
+   */
+  auto?: boolean;
 };
+
+/** Live sessions: the engine writes one date per record; "hour" adds a time of day (`ts` column). */
+export const LIVE_GRANULARITY_LABEL: Partial<Record<Granularity, string>> = {
+  day: "dnech (jen datum)",
+  hour: "dnech s časem",
+};
+export const LIVE_PRESETS: { label: string; length: number; unit: Unit }[] = [
+  { label: "3 měsíce", length: 3, unit: "months" },
+  { label: "6 měsíců", length: 6, unit: "months" },
+  { label: "1 rok", length: 1, unit: "years" },
+  { label: "2 roky", length: 2, unit: "years" },
+];
 
 export const UNIT_LABEL: Record<Unit, string> = {
   days: "dní",
@@ -56,8 +73,10 @@ export function makeTime(start: string, length: number, unit: Unit, granularity:
 }
 
 /** Recompute derived fields (and clamp) after any edit. */
-export const normalizeTime = (t: TimeConfig): TimeConfig =>
-  makeTime(t.start, t.length, t.unit, t.granularity);
+export const normalizeTime = (t: TimeConfig): TimeConfig => ({
+  ...makeTime(t.start, t.length, t.unit, t.granularity),
+  ...(t.auto !== undefined && { auto: t.auto }),
+});
 
 export const daysIn = (t: TimeConfig) => daysBetween(t.from, t.to) + 1;
 

@@ -23,6 +23,7 @@ export function useChatSession(source: ChatSource) {
   const [busy, setBusy] = useState<string | null>("Připojuji se");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [focus, setFocus] = useState<string | null>(null);
+  const [jump, setJump] = useState<{ surfaceId: string } | null>(null);
   const seq = useRef(0);
   const runs = useRef(0);
 
@@ -60,7 +61,10 @@ export function useChatSession(source: ChatSource) {
   const onAction = useCallback(
     (action: A2uiAction) => {
       if (action.name === "open_canvas" && typeof action.context.surfaceId === "string") {
-        setFocus(action.context.surfaceId);
+        const surfaceId = action.context.surfaceId;
+        setFocus(surfaceId);
+        // a new object every click: the thread layout scrolls to the panel even if it is focused already
+        setJump({ surfaceId });
       }
       source.send({ kind: "action", action });
     },
@@ -91,6 +95,8 @@ export function useChatSession(source: ChatSource) {
     canvasIds,
     focused,
     setFocus,
+    /** last "open this panel" request (Otevřít data); layouts without tabs scroll to it */
+    jump,
     onAction,
     send,
   };

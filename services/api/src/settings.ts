@@ -4,7 +4,7 @@
  * scenario.json holds the applied version. Story curves are never changed here (hard rule 3).
  */
 import type { Scenario } from "@s2d/schema/scenario";
-import type { GenerationSettings } from "@s2d/schema/api";
+import type { CompileError, GenerationSettings } from "@s2d/schema/api";
 
 /** Value-like fields that may go missing; keys, references and dates never do. */
 const MISSABLE_GENS = new Set(["normal", "poisson", "uniformInt", "categorical", "fake", "lookup"]);
@@ -58,10 +58,42 @@ export function applySettings(scenario: Scenario, settings: GenerationSettings |
     const keep = new Set(settings.expectations);
     next.expectations = next.expectations.filter((e) => keep.has(e.id));
   }
+  if (settings.period) {
+    next.meta.start = settings.period.start;
+    next.meta.end = settings.period.end;
+  }
   if (settings.noise) {
     const noise = noiseOf(next, settings.noise);
     if (noise && Object.keys(noise).length > 0) next.noise = noise;
     else delete next.noise;
   }
   return next;
+}
+
+type StoryDates = {
+  storyPoints: { id: string; start: string; end?: string | undefined }[];
+  curves: { id: string; segments: { start: string; end?: string | undefined }[] }[];
+};
+
+/**
+ * A user period must contain the story: every story point and curve segment date. Checked against
+ * 04_story when approve arrives (before any LLM call) and against the scenario before the engine.
+ */
+export function periodErrors(
+  story: StoryDates,
+  period: NonNullable<GenerationSettings["period"]>,
+): CompileError[] {
+  const dates = [
+    ...story.storyPoints.flatMap((p) => [p.start, ...(p.end ? [p.end] : [])]),
+    ...story.curves.flatMap((c) => c.segments.flatMap((g) => [g.start, ...(g.end ? [g.end] : [])])),
+  ].sort();
+  const first = dates[0];
+  const last = dates.at(-1);
+  if (!first || !last || (first >= period.start && last <= period.end)) return [];
+  return [
+    {
+      path: "settings.period",
+      message: `Zvolené období ${period.start} – ${period.end} nepokrývá celý příběh: ten běží od ${first} do ${last}. Zvolte období, které obsahuje všechny body příběhu (nejlépe s pár měsíci před a po).`,
+    },
+  ];
 }

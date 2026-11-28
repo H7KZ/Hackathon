@@ -88,4 +88,15 @@ export function validateComponents(surfaceId: string, nodes: ComponentNode[]): A
 
 /** Data shape bound to `Steps.steps`. */
 export type StepState = "pending" | "running" | "done" | "failed";
-export type Step = { id: string; label: string; state: StepState; detail?: string };
+export type Step = {
+  id: string;
+  label: string;
+  state: StepState;
+  detail?: string;
+  /** plain-words explanation shown while the step runs */
+  hint?: string;
+  /** epoch ms the step started running: the renderer shows the elapsed time while it runs */
+  startedAt?: number;
+  /** repair attempts: `n` of `max` (a small bar under the step) */
+  attempt?: { n: number; max: number };
+};

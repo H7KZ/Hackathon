@@ -30,10 +30,26 @@ export type StoryArtifact = {
   curves: {
     id: string;
     baseline: number;
+    scope?: { field: string; ids: string[] };
     segments: { kind: string; start: string; end?: string; to: number; storyPointId?: string }[];
   }[];
   expectations: { id: string; description: string }[];
+  /** present on a dataset's scenario (05), not on 04_story */
+  meta?: { start: string; end: string };
 };
+
+/**
+ * Keeps only days inside the scenario period. Derived dates can run past it (a delivery ordered on
+ * the last day arrives weeks later; a live run had 90–150-day delays), which stretched the shared
+ * x-axis to November and made every other series look cut off at the period end.
+ */
+export function clipToPeriod(series: Series[], period: { start: string; end: string } | undefined): Series[] {
+  if (!period) return series;
+  return series.map((s) => ({
+    ...s,
+    points: s.points.filter((p) => p.day >= period.start && p.day <= period.end),
+  }));
+}
 
 type Series = DatasetEvidence["series"][number];
 
@@ -57,6 +73,86 @@ const knotIds = (story: StoryArtifact): Set<string> => {
   const curve = story.curves[editedCurveIndex(story)];
   return new Set(curve?.segments.flatMap((s) => (s.storyPointId ? [s.storyPointId] : [])) ?? []);
 };
+
+/** What kind of number a curve id holds (its head noun) and the subject words, both in Czech. */
+const CURVE_KIND: [RegExp, string][] = [
+  [/^(prob|probability|p|chance|likelihood)$/, "Pravděpodobnost"],
+  [/^(rate|freq|frequency|intensity|lambda)$/, "Četnost"],
+  [/^(mult|multiplier|factor|boost|uplift|scale)$/, "Násobek"],
+  [/^(share|pct|percent|ratio|fraction)$/, "Podíl"],
+  [/^(days|delay|lag|lead)$/, "Zpoždění (dny)"],
+  [/^(level|index|score)$/, "Úroveň"],
+  [/^(price|cost)$/, "Cena"],
+];
+const CURVE_SUBJECT: [RegExp, string][] = [
+  [/^late(ness)?$/, "pozdní dodávky"],
+  [/^delays?$/, "zpoždění"],
+  [/^demand$/, "poptávky"],
+  [/^orders?$/, "objednávek"],
+  [/^complaints?$/, "stížností"],
+  [/^churn$/, "odchodu zákazníků"],
+  [/^returns?$/, "vrácení zboží"],
+  [/^defects?$/, "vad"],
+  [/^outages?$/, "výpadků"],
+  [/^(tickets?|support)$/, "požadavků na podporu"],
+  [/^(visits?|traffic)$/, "návštěv"],
+  [/^conversion$/, "konverze"],
+  [/^campaign$/, "kampaně"],
+  [/^purchases?$/, "nákupů"],
+  [/^repeat$/, "opakovaného nákupu"],
+  [/^sales?$/, "prodejů"],
+  [/^stock(out)?s?$/, "zásob"],
+  [/^(failures?|fail)$/, "selhání"],
+  [/^errors?$/, "chyb"],
+  [/^calls?$/, "hovorů"],
+  [/^(signups?|registrations?)$/, "registrací"],
+  [/^(cancel|cancellations?)$/, "storen"],
+  [/^supplier$/, "dodavatele"],
+  [/^customers?$/, "zákazníků"],
+  [/^(delivery|deliveries)$/, "dodávek"],
+  [/^quality$/, "kvality"],
+  [/^discount$/, "slevy"],
+];
+
+/**
+ * A curve id the user can read: "late_prob" → "Pravděpodobnost pozdní dodávky". Known English words
+ * only (ids are snake_case English by convention); anything else stays quoted, so the label never
+ * claims a meaning the scenario does not have.
+ */
+export function curveLabel(id: string): string {
+  const words = id
+    .toLowerCase()
+    .split(/[_\-\s]+/)
+    .filter(Boolean);
+  let head = "";
+  const rest: string[] = [];
+  for (const w of words) {
+    const kind = CURVE_KIND.find(([re]) => re.test(w))?.[1];
+    if (kind && !head) head = kind;
+    else rest.push(w);
+  }
+  const known = rest.map((w) => CURVE_SUBJECT.find(([re]) => re.test(w))?.[1]);
+  if (known.length > 0 && known.every(Boolean)) return `${head || "Intenzita"} ${known.join(" ")}`;
+  const raw = rest.join(" ") || id;
+  return head ? `${head} „${raw}“` : `Páka příběhu „${raw}“`;
+}
+
+/** One sentence under the curve: what it is, what bends it, where it applies. */
+function curveHelp(story: StoryArtifact, curve: StoryArtifact["curves"][number] | undefined): string {
+  if (!curve) return "";
+  const label = curveLabel(curve.id);
+  const lower = label.charAt(0).toLowerCase() + label.slice(1);
+  const scope = curve.scope?.ids.length
+    ? ` Platí jen pro ${curve.scope.ids.slice(0, 4).join(", ")}${curve.scope.ids.length > 4 ? "…" : ""}.`
+    : "";
+  const prob =
+    curve.baseline <= 1 && /prob|_p$|^p_|share|rate/.test(curve.id) ? " Hodnota 0,3 znamená 30 %." : "";
+  const points = story.storyPoints.filter((p) => curve.segments.some((s) => s.storyPointId === p.id));
+  const bends = points.length
+    ? ` Ohýbají ji body příběhu (${points.map((p) => `„${p.title}“`).join(", ")}).`
+    : "";
+  return `Křivka ukazuje, jak se v čase mění ${lower} (v datech „${curve.id}“), z výchozí hodnoty ${String(curve.baseline).replace(".", ",")}.${prob}${scope}${bends} Výsledné metriky nikdo nepřepisuje: změny prodejů, zásob nebo stížností vzniknou samy přes procesy.`;
+}
 
 /** Days a curve value is shown with: 0.05 → 0.01, 3 → 0.1, 120 → 5. */
 function niceStep(range: number): number {
@@ -105,10 +201,12 @@ export function storyToEdit(story: StoryArtifact): {
     points,
     config: normalize({
       ...DEFAULT_CONFIG,
-      time: makeTime(from, days, "days", "day"),
+      // auto: the agent picks the period; "hour" = records carry a time of day (noise hourJitter, on by default)
+      time: { ...makeTime(from, days, "days", DEFAULT_CONFIG.noise.hourJitter ? "hour" : "day"), auto: true },
       curve: {
         ...DEFAULT_CONFIG.curve,
-        label: curve ? `Parametr ${curve.id.replace(/_/g, " ")}` : DEFAULT_CONFIG.curve.label,
+        label: curve ? curveLabel(curve.id) : DEFAULT_CONFIG.curve.label,
+        help: curveHelp(story, curve),
         unit: "",
         baseline,
         min,
@@ -172,9 +270,44 @@ export function settingsFrom(config: StoryConfig | undefined, expectations: Expe
     settings.seed = Math.round(config.seed);
     settings.scale = config.scale;
     settings.noise = { ...config.noise };
+    // live (time.auto is set): the period picker decides the time of day and, if set, the period
+    if (config.time.auto !== undefined) {
+      settings.noise.hourJitter = config.time.granularity === "hour";
+      if (!config.time.auto) settings.period = { start: config.time.from, end: config.time.to };
+    }
   }
   if (expectations?.length) settings.expectations = expectations.filter((e) => e.enabled).map((e) => e.id);
   return settings;
+}
+
+// ---------- repair attempts → plain words ----------
+
+const czNum = (s: string) => s.replace("-", "−").replace(".", ",");
+const EXPECTATION_FAIL =
+  /Expectation "[^"]+" \((.+?)\) failed: before (\S+), after (\S+) \(change ([-+\d.]+)%\); it needs an? (increase|decrease) of at least \+?([\d.]+)%/;
+
+/**
+ * What a failed A5 / what-if attempt means for the user: the first failed hypothesis with its numbers
+ * ("−4,8 % místo +30 %"), else how many problems the agent is fixing. Feedback text is the English the
+ * agent reads (compiler / story gate); the UI never shows it raw.
+ */
+export function attemptDetail(n: number, ok: boolean, feedback: unknown[]): string {
+  if (ok) return n > 1 ? `příběh v datech sedí (${String(n)}. pokus)` : "příběh v datech sedí";
+  const messages = feedback.map((f) => {
+    if (typeof f === "string") return f;
+    const m = (f as { message?: unknown }).message;
+    return typeof m === "string" ? m : "";
+  });
+  for (const m of messages) {
+    const x = EXPECTATION_FAIL.exec(m);
+    if (!x) continue;
+    const [, desc = "", , , change = "0", dir, need = "0"] = x;
+    const short = desc.length > 70 ? `${desc.slice(0, 68).trimEnd()}…` : desc;
+    return `pokus ${String(n)}: hypotéza „${short}“ zatím nevychází (změna ${czNum(change)} %, potřeba ${dir === "decrease" ? "−" : "+"}${czNum(need)} %). Agent zesiluje řetězec příčin.`;
+  }
+  const k = messages.length;
+  const what = k === 1 ? "1 chybu" : k >= 2 && k <= 4 ? `${String(k)} chyby` : `${String(k)} chyb`;
+  return `pokus ${String(n)}: agent opravuje ${what} ve scénáři`;
 }
 
 // ---------- evidence → dataset view ----------
@@ -306,8 +439,9 @@ export function evidenceToView(
   tables: { previews: TablePreview[]; rows: number; count: number } | null = null,
 ): DatasetView {
   const markers = storyMarkers(story);
-  const lines = pickSeries(ev.series, markers[0]?.date);
-  const days = new Set(ev.series.flatMap((s) => s.points.map((p) => p.day))).size;
+  const series = clipToPeriod(ev.series, story?.meta);
+  const lines = pickSeries(series, markers[0]?.date);
+  const days = new Set(series.flatMap((s) => s.points.map((p) => p.day))).size;
   const describe = new Map(story?.expectations.map((e) => [e.id, e.description]));
   return {
     datasetId,
@@ -347,8 +481,9 @@ export function compareToView(
     .sort((x, y) => Math.abs(y.relChange ?? 0) - Math.abs(x.relChange ?? 0));
   // the plotted metric: the most changed one that has a daily series
   const top = changed.find((d) => evB.series.some((s) => metricOf(s) === d.metric));
-  const sB = top ? evB.series.find((s) => metricOf(s) === top.metric) : evB.series[0];
-  const sA = sB && evA.series.find((s) => seriesKey(s) === seriesKey(sB));
+  const seriesB = clipToPeriod(evB.series, story?.meta);
+  const sB = top ? seriesB.find((s) => metricOf(s) === top.metric) : seriesB[0];
+  const sA = sB && clipToPeriod(evA.series, story?.meta).find((s) => seriesKey(s) === seriesKey(sB));
   const base = new Map(rolling(sA?.points ?? []).map((p) => [p.day, p.value]));
   return {
     a,

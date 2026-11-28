@@ -42,7 +42,7 @@ test("story → timeline → data → detective → what-if → comparison", asy
   expect(body.settings?.seed).toBe(42);
   await expect(page.getByText("Generování dat")).toBeVisible();
 
-  const dataset = page.getByRole("region", { name: "Dataset d1" });
+  const dataset = page.getByRole("region", { name: "Dataset dat1" });
   await expect(dataset).toBeVisible();
   await expect(dataset.getByText("Důkazy splněny")).toBeVisible();
   await expect(dataset.getByText("Řádků")).toBeVisible();
@@ -60,17 +60,19 @@ test("story → timeline → data → detective → what-if → comparison", asy
   await shot(page, "detective");
 
   await page.getByRole("button", { name: "Co kdyby byl dopad poloviční?" }).click();
-  const compare = page.getByRole("region", { name: "Porovnání d1 ↔ d2" });
+  // the comparison is a tab of the what-if dataset, not its own panel
+  const compare = page.getByRole("region", { name: "Dataset dat2" });
   await expect(compare).toBeVisible();
+  await compare.getByRole("tab", { name: "Porovnání s dat1" }).click();
   await expect(compare.getByText("objednavky.count")).toBeVisible();
-  await expect(page.getByText(/Hotovo: \*?\*?d2|Hotovo: d2/)).toBeVisible();
+  await expect(page.getByText(/Hotovo: \*?\*?dat2|Hotovo: dat2/)).toBeVisible();
   await shot(page, "compare");
   await shot(page, "full-thread", true);
 
   // reload: the thread is rebuilt from the SSE replay, without duplicates
   await page.reload();
-  await expect(page.getByRole("region", { name: "Porovnání d1 ↔ d2" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Dataset d1" })).toHaveCount(1);
+  await expect(page.getByRole("region", { name: "Dataset dat2" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Dataset dat1" })).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 

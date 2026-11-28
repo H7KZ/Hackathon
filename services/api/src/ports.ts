@@ -9,6 +9,10 @@ import type { RunResult } from "@s2d/schema/run";
 import type { Scenario } from "@s2d/schema/scenario";
 import type { DatasetEvidence, DetectiveResult, SessionInput } from "@s2d/schema/api";
 
+export const EXPORT_FORMATS = ["xlsx", "csv", "parquet", "duckdb"] as const;
+export type ExportFormat = (typeof EXPORT_FORMATS)[number];
+export type ExportFile = { file: string; filename: string; contentType: string };
+
 export interface JobOptions {
   onEvent: (e: CascadeEvent) => void;
   signal: AbortSignal;
@@ -35,5 +39,7 @@ export interface Ports {
     tables(dbPath: string): Promise<TableInfo[]>;
     /** First `limit` rows of one observed table; rejects unknown and ground-truth tables. */
     preview(dbPath: string, table: string, limit: number): Promise<TablePreview>;
+    /** Download of the observed tables (never truth) as one file written into `outDir`. */
+    export(dbPath: string, format: ExportFormat, outDir: string): Promise<ExportFile>;
   };
 }

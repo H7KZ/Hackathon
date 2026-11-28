@@ -37,18 +37,18 @@ describe("mock demo workflow", () => {
 
     source.send(action("approve", { points: undefined }));
     await vi.waitFor(() => {
-      expect(ids(events)).toContain("ready-d1");
+      expect(ids(events)).toContain("ready-dat1");
     });
-    expect(ids(events)).toContain("dataset-d1");
+    expect(ids(events)).toContain("dataset-dat1");
 
-    source.send(action("detect", { datasetId: "d1" }));
+    source.send(action("detect", { datasetId: "dat1" }));
     await vi.waitFor(() => {
-      expect(ids(events)).toContain("detective-d1");
+      expect(ids(events)).toContain("detective-dat1");
     });
 
     source.send({ kind: "text", text: "Co kdyby dodavatel zpožďoval jen 2 týdny?" });
     await vi.waitFor(() => {
-      expect(ids(events)).toContain("compare-d1-d2");
+      expect(ids(events)).toContain("dataset-dat2");
     });
     stop();
 
@@ -80,7 +80,7 @@ describe("chat workspace", () => {
     expect(screen.getByText("Demo data")).toBeInTheDocument();
     expect(await screen.findByRole("region", { name: "Návrh příběhu" })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Generovat data" }));
-    expect(await screen.findByRole("region", { name: "Dataset d1" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Dataset dat1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Spustit detektiva" })).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "Historie chatů" })).toBeInTheDocument();
   });
@@ -129,5 +129,36 @@ describe("history and loading copy", () => {
     const seen = Array.from({ length: LOADING_PHRASES.length }, (_, i) => phraseAt(i));
     expect(new Set(seen).size).toBe(LOADING_PHRASES.length);
     expect(phraseAt(0)).not.toBe(phraseAt(1));
+  });
+});
+
+describe("thread extras (run-4 follow-up)", () => {
+  it("quick replies sit at the end of the thread, not in the composer; what-if adds a compare tab", async () => {
+    const { container } = render(
+      <ChatWorkspace source={createMockSource(input, { speed: 0 })} title={input.company} />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Generovat data" }));
+    await screen.findByRole("region", { name: "Dataset dat1" });
+    const [quick] = await screen.findAllByRole("button", { name: /Co kdyby/ });
+    if (!quick) throw new Error("no quick reply");
+    expect(container.querySelector(".thread-col")?.contains(quick)).toBe(true);
+    expect(container.querySelector(".composer")?.querySelector(".suggest")).toBeNull();
+    expect(screen.getByText(/Detektiv\*\*|druhý agent/)).toBeInTheDocument();
+    fireEvent.click(quick);
+    const ds2 = await screen.findByRole("region", { name: "Dataset dat2" });
+    expect(ds2.querySelector('[role="tab"]:last-child')?.textContent).toBe("Porovnání s dat1");
+  });
+
+  it("Otevřít data scrolls to and flashes the dataset panel", async () => {
+    const { container } = render(
+      <ChatWorkspace source={createMockSource(input, { speed: 0 })} title={input.company} />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Generovat data" }));
+    const panel = await screen.findByRole("region", { name: "Dataset dat1" });
+    fireEvent.click(screen.getByRole("button", { name: "Otevřít data" }));
+    await vi.waitFor(() => {
+      expect(panel.classList.contains("flash")).toBe(true);
+    });
+    expect(container).toBeTruthy();
   });
 });

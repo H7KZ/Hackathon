@@ -249,28 +249,30 @@ export function mockCompare(
   question: string,
   points: StoryPointEdit[],
   config: StoryConfig = DEFAULT_CONFIG,
+  a = "dat1",
+  b = "dat2",
 ): CompareView {
   const cutoff = addDays(firstStart(points), 14);
   const changed = points
     .filter((p) => p.start < cutoff)
     .map((p) => ({ ...p, end: p.end && p.end < cutoff ? p.end : cutoff }));
-  const a = mockSeries(points, config);
-  const b = mockSeries(changed, config);
+  const sa = mockSeries(points, config);
+  const sb = mockSeries(changed, config);
   const c = normalize(config);
   const step = stepDays(c);
   const from = Math.floor(daysBetween(c.time.from, cutoff) / step);
   const rel = (x: number, y: number) => round((y - x) / x, 3);
   const metric = (label: string, key: string) => {
-    const va = avg(a, key, from, a.length);
-    const vb = avg(b, key, from, b.length);
+    const va = avg(sa, key, from, sa.length);
+    const vb = avg(sb, key, from, sb.length);
     return { metric: label, a: va, b: vb, relChange: rel(va, vb) };
   };
   return {
-    a: "d1",
-    b: "d2",
+    a,
+    b,
     question,
     metric: "Zpoždění dodávky (dny), týdně",
-    series: a.map((row, i) => ({ day: row.day, a: Number(row.delay), b: Number(b[i]?.delay ?? 0) })),
+    series: sa.map((row, i) => ({ day: row.day, a: Number(row.delay), b: Number(sb[i]?.delay ?? 0) })),
     markers: [{ date: bucketOf(c.time.from, cutoff, step), label: "Dodavatel se vrací k normálu" }],
     diff: [
       metric("Zpoždění dodávky (dny)", "delay"),

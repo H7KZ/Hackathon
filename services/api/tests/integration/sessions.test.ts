@@ -85,7 +85,7 @@ describe("sessions REST", () => {
     const res = await client.sessions[":id"].commands.$post({ param: { id }, json: { type: "approve" } });
     expect(res.status).toBe(202);
     await orch.idle(id);
-    const ev = await client.sessions[":id"].datasets[":d"].evidence.$get({ param: { id, d: "d1" } });
+    const ev = await client.sessions[":id"].datasets[":d"].evidence.$get({ param: { id, d: "dat1" } });
     expect(ev.status).toBe(200);
   });
 
@@ -94,12 +94,12 @@ describe("sessions REST", () => {
     const id = await create(client, orch);
     await client.sessions[":id"].commands.$post({ param: { id }, json: { type: "approve" } });
     await orch.idle(id);
-    const list = await client.sessions[":id"].datasets[":d"].tables.$get({ param: { id, d: "d1" } });
+    const list = await client.sessions[":id"].datasets[":d"].tables.$get({ param: { id, d: "dat1" } });
     expect(list.status).toBe(200);
     const { tables } = await list.json();
     expect(tables.map((t) => t.name)).toContain("objednavky");
     const prev = await client.sessions[":id"].datasets[":d"].tables[":t"].$get({
-      param: { id, d: "d1", t: "objednavky" },
+      param: { id, d: "dat1", t: "objednavky" },
       query: { limit: "3" },
     });
     expect(prev.status).toBe(200);
@@ -107,13 +107,34 @@ describe("sessions REST", () => {
     expect(body.rowsShown).toHaveLength(3);
     expect(body.rows).toBeGreaterThan(3);
     const missing = await client.sessions[":id"].datasets[":d"].tables[":t"].$get({
-      param: { id, d: "d1", t: "truth_table" },
+      param: { id, d: "dat1", t: "truth_table" },
       query: {},
     });
     expect(missing.status).toBe(404);
-    const sc = await client.sessions[":id"].datasets[":d"].scenario.$get({ param: { id, d: "d1" } });
+    const sc = await client.sessions[":id"].datasets[":d"].scenario.$get({ param: { id, d: "dat1" } });
     expect(sc.status).toBe(200);
     expect(((await sc.json()) as { scenario: { meta: { seed: number } } }).scenario.meta.seed).toBe(42);
+  });
+
+  it("GET export sends the dataset as an attachment named after session and dataset", async () => {
+    const { client, orch } = setup();
+    const id = await create(client, orch);
+    await client.sessions[":id"].commands.$post({ param: { id }, json: { type: "approve" } });
+    await orch.idle(id);
+    const res = await client.sessions[":id"].datasets[":d"].export.$get({
+      param: { id, d: "dat1" },
+      query: { format: "csv" },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toBe(
+      `attachment; filename="jojo-${id.slice(0, 8)}-dat1.csv"`,
+    );
+    expect(await res.text()).toBe("fake csv export");
+    const bad = await client.sessions[":id"].datasets[":d"].export.$get({
+      param: { id, d: "dat1" },
+      query: { format: "exe" as "csv" },
+    });
+    expect(bad.status).toBe(400);
   });
 
   it("a command while busy → 409, cancel always accepted", async () => {

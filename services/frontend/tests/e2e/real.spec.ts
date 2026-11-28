@@ -28,7 +28,7 @@ test("real pipeline in the browser: story → data → detective → what-if", a
   await shot(page, "story-editor");
   await editor.getByRole("button", { name: "Generovat data" }).click();
 
-  const dataset = page.getByRole("region", { name: "Dataset d1" });
+  const dataset = page.getByRole("region", { name: "Dataset dat1" });
   await expect(dataset).toBeVisible();
   await expect(dataset.locator(".recharts-line").first()).toBeVisible();
   await shot(page, "dataset-overview");
@@ -44,7 +44,9 @@ test("real pipeline in the browser: story → data → detective → what-if", a
   await shot(page, "detective");
 
   await page.getByRole("button", { name: WHAT_IF }).click();
-  await expect(page.getByRole("region", { name: /Porovnání d1 ↔ d2/ })).toBeVisible();
+  const whatIf = page.getByRole("region", { name: "Dataset dat2" });
+  await expect(whatIf).toBeVisible();
+  await whatIf.getByRole("tab", { name: "Porovnání s dat1" }).click();
   await shot(page, "compare");
   await shot(page, "full-thread", true);
   expect(errors.filter((e) => !/EventSource|ERR_INCOMPLETE_CHUNKED/.test(e))).toEqual([]);

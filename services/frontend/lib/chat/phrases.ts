@@ -1,18 +1,26 @@
-/** Loading copy (docs/design/brand.md "Loading phrases"). Czech, short, a little playful. */
+/**
+ * Loading copy (docs/design/brand.md "Loading phrases"). Czech, short, cozy and gently funny, in the
+ * spirit of Claude Code's spinner verbs (claudionary.com): one small warm activity, never a joke about
+ * the user or a fake technical claim.
+ */
 
 export const LOADING_PHRASES = [
-  "Vyslýchám dodavatele…",
-  "Učím křivky, kdy mají zatočit…",
-  "Domlouvám se s cizími klíči…",
-  "Sypu do dat špetku šumu…",
-  "Vařím kafe pro agenta A3…",
-  "Přesvědčuju tabulky, aby spolu mluvily…",
-  "Hledám, kde se to v březnu pokazilo…",
-  "Kontroluju, že každá objednávka má svého zákazníka…",
-  "Ladím příběh, aby měl pointu…",
-  "Počítám zákazníky. Zase jich je víc než minule…",
-  "Zametám duplicity pod koberec… ne, mažu je.",
-  "Ptám se DuckDB, jestli má chvilku…",
+  "Přemítám…",
+  "Kutím…",
+  "Nechávám data vykynout…",
+  "Míchám tabulky do hladka…",
+  "Probublávám…",
+  "Hnětu čísla…",
+  "Přikládám pod kotel…",
+  "Spřádám vazby mezi tabulkami…",
+  "Rovnám řádky do latě…",
+  "Vařím na mírném ohni…",
+  "Pošťuchuju křivky…",
+  "Ladím detaily…",
+  "Usrkávám čaj a počítám…",
+  "Skládám střípky dohromady…",
+  "Šustím papíry…",
+  "Klubíčkuju souvislosti…",
 ] as const;
 
 /** Fixed labels per pipeline step (never rotated). Keys match ArtifactName + pipeline stages. */
@@ -36,11 +44,26 @@ export const STEP_LABELS = {
 } as const;
 export type StepKey = keyof typeof STEP_LABELS;
 
+/** What a running step is doing, in plain words, with a rough duration (shown under the step). */
+export const STEP_HINTS: Partial<Record<StepKey, string>> = {
+  "01_company": "Agent si z popisu skládá, kdo ve firmě co dělá.",
+  "02_model": "Navrhuje tabulky a jak spolu souvisí.",
+  "04_story": "Rozvrhuje příběh do bodů v čase.",
+  "05_scenario":
+    "Agent převádí příběh na procesy a pravidla. Každý pokus trvá asi minutu, pak ho stroj nanečisto vygeneruje a zkontroluje, že příběh v datech opravdu je.",
+  engine: "Deterministický stroj vyrábí řádky den po dni. Pár sekund.",
+  evidence: "Ověřuji hypotézy dotazy nad hotovou databází.",
+  detective:
+    "Druhý agent dostal jen tabulky, scénář nezná. Píše vlastní SQL dotazy a hledá, co se v datech stalo. Asi minuta.",
+  whatIf: "Agent upravuje křivky podle otázky, struktura firmy zůstává.",
+};
+
 /** Phrase for tick `n`: walks a fixed shuffle so neighbours never repeat and tests stay deterministic. */
 export function phraseAt(n: number): string {
-  const order = [0, 6, 2, 9, 4, 1, 11, 7, 3, 10, 5, 8];
+  const order = [0, 6, 2, 9, 4, 13, 1, 11, 7, 15, 3, 10, 5, 14, 8, 12];
   const i = order[((n % order.length) + order.length) % order.length] ?? 0;
   return LOADING_PHRASES[i] ?? LOADING_PHRASES[0];
 }
 
-export const PHRASE_MS = 2800;
+/** 1.75 × the first version (2.8 s): phrases were read as flicker, not as company. */
+export const PHRASE_MS = 4900;

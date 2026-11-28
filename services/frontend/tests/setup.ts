@@ -15,3 +15,6 @@ Object.assign(HTMLDialogElement.prototype, {
     this.open = false;
   },
 });
+
+// jsdom has no layout: "Otevřít data" scrolls with scrollIntoView
+Element.prototype.scrollIntoView = function scrollIntoView() {};
