@@ -10,7 +10,7 @@ import {
   storyToEdit,
   type StoryArtifact,
 } from "../../lib/chat/liveMapping";
-import { humanError } from "../../lib/chat/liveSource";
+import { humanError, saveError } from "../../lib/chat/liveSource";
 import { DEFAULT_CONFIG } from "../../lib/chat/config";
 
 /** Shape of a real 04_story (live run): a baseline phase, one driving point, two outcome points. */
@@ -130,6 +130,27 @@ describe("humanError: provider billing (live run 6: credits ran out mid-run)", (
     expect(
       humanError("Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing"),
     ).toMatch(/došel kredit/);
+  });
+});
+
+describe("saveError: a rejected story edit (user run: raw English compiler text in the chat)", () => {
+  const points = [{ title: "Běžný provoz" }, { title: "Nový bod" }];
+
+  it("says it is our fault, names the point and what to do", () => {
+    const text = saveError(
+      [{ path: "storyPoints[1].entity", message: 'Story point "sp1" drives a curve but names no entity' }],
+      points,
+    );
+    expect(text).toMatch(/chyba na naší straně/);
+    expect(text).toContain("„Nový bod“");
+    expect(text).toMatch(/Smažte/);
+    expect(text).not.toMatch(/Story point|storyPoints/);
+  });
+
+  it("does not claim whose fault other problems are, and hides the compiler text", () => {
+    const text = saveError([{ path: "curves[0].scope.ids[0]", message: "Curve x: bad id" }], points);
+    expect(text).toMatch(/Úpravu nešlo uložit/);
+    expect(text).not.toMatch(/naší straně|Curve|curves/);
   });
 });
 
