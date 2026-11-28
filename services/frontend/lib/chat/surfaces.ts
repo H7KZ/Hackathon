@@ -268,9 +268,8 @@ export function storySurface(
           : ["s-points", "s-curve", "s-noise", "s-size", "s-exp"],
       },
       ...section("s-points", "Body příběhu", ["pointList"]),
-      { id: "pointList", component: "List", children: { componentId: "pt", path: "/points" } },
-      { id: "pt", component: "Card", child: "ptCol" },
-      { id: "ptCol", component: "Column", gap: "sm", children: ["ptRow1", "ptRow2"] },
+      { id: "pointList", component: "List", divided: true, children: { componentId: "pt", path: "/points" } },
+      { id: "pt", component: "Column", gap: "sm", children: ["ptRow1", "ptRow2"] },
       { id: "ptRow1", component: "Row", gap: "md", children: ["ptBadge", "ptTitle", "ptLevel"] },
       { id: "ptBadge", component: "Badge", tone: "story", text: path("id") },
       { id: "ptTitle", component: "TextField", label: "Název", value: path("title"), weight: 2 },
@@ -545,7 +544,14 @@ export function datasetSurface(
         })),
       ];
   const tableNodes: ComponentNode[] = d.tables.flatMap((t, i) => [
-    { id: `tcard${String(i)}`, component: "Card", title: t.label, child: `table${String(i)}` },
+    // no Card around it: the table already looks like one
+    {
+      id: `tsec${String(i)}`,
+      component: "Column",
+      gap: "sm",
+      children: [`tname${String(i)}`, `table${String(i)}`],
+    },
+    { id: `tname${String(i)}`, component: "Text", variant: "label", text: t.label },
     {
       id: `table${String(i)}`,
       component: "Table",
@@ -621,7 +627,7 @@ export function datasetSurface(
         ],
         rows: path("/expectations"),
       },
-      { id: "tables", component: "Column", gap: "md", children: d.tables.map((_, i) => `tcard${String(i)}`) },
+      { id: "tables", component: "Column", gap: "xl", children: d.tables.map((_, i) => `tsec${String(i)}`) },
       ...tableNodes,
     ],
     {

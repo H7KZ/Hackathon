@@ -61,8 +61,10 @@ describe("demo replay (recorded session, no API)", () => {
     expect(dat1.map((c) => c.id)).toContain("dl-xlsx");
     expect(dat1.map((c) => c.id)).not.toContain("dl-csv");
     // real tables from the recording: 9 observed tables, rows from DuckDB
-    const tables = dat1.filter((c) => c.component === "Card" && c.id.startsWith("tcard"));
+    const tables = dat1.filter((c) => c.component === "Table" && c.id.startsWith("table"));
     expect(tables.length).toBe(6);
+    // a table already looks like a card, so it is not wrapped in another one
+    expect(dat1.filter((c) => c.component === "Card")).toEqual([]);
 
     source.send(action("detect", { datasetId: "dat1" }));
     await vi.waitFor(() => {

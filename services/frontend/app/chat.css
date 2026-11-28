@@ -57,9 +57,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  /* same inset as the text of the history items below */
+  padding-left: 10px;
 }
 .sb-brand img {
-  height: 26px;
+  height: 32px;
   width: auto;
 }
 .sb-brand span {
@@ -213,8 +215,8 @@
 }
 .topbar-title {
   overflow: hidden;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -488,8 +490,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 14px;
-  border-bottom: 1px solid var(--color-line);
+  padding: 12px 22px 0;
   font-size: 0.9rem;
 }
 .panel-meta {
@@ -515,7 +516,7 @@
   color: var(--color-fis-dark);
 }
 .panel-body {
-  padding: 20px 22px;
+  padding: 12px 22px 20px;
 }
 
 /* B. inspector */
@@ -538,7 +539,6 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--color-line);
 }
 .insp-body {
   flex: 1;

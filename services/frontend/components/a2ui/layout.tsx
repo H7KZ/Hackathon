@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useResolve } from "./context";
 import { Children, Node, str, type NodeProps } from "./tree";
 
-type Gap = "sm" | "md" | "lg";
+type Gap = "sm" | "md" | "lg" | "xl";
 const gapClass = (gap: unknown) => `gap-${(gap as Gap | undefined) ?? "md"}`;
 
 export function Column({ node }: NodeProps) {
@@ -41,7 +41,10 @@ export function Card({ node }: NodeProps) {
 
 export function List({ node }: NodeProps) {
   return (
-    <div className={`a2-list ${node.direction === "horizontal" ? "horizontal" : ""}`} role="list">
+    <div
+      className={`a2-list ${node.direction === "horizontal" ? "horizontal" : ""} ${node.divided === true ? "divided" : ""}`}
+      role="list"
+    >
       <Children node={node} />
     </div>
   );

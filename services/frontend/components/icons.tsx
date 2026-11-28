@@ -23,6 +23,7 @@ export const ICONS = {
   menu: "M4 6h16M4 12h16M4 18h16",
   close: "M18 6 6 18M6 6l12 12",
   plus: "M12 5v14M5 12h14",
+  trash: "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5",
   chat: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
   canvas: "M3 3h18v18H3zM3 9h18M9 21V9",
   sidebar: "M3 4h18v16H3zM9 4v16",

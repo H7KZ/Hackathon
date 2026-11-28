@@ -13,6 +13,7 @@ import {
   type Knot,
 } from "../../lib/chat/curve";
 import { formatDate, toText } from "../../lib/format";
+import { Icon, ICONS } from "../icons";
 import { useBinding, useResolve } from "./context";
 import type { NodeProps } from "./tree";
 
@@ -83,7 +84,11 @@ export function CurveEditor({ node }: NodeProps) {
   const [hover, setHover] = useState<{ px: number; py: number } | null>(null);
   const drag = useRef<Drag | null>(null);
   const [dragging, setDragging] = useState(false);
-  const history = useRef<{ past: CurvePoint[][]; future: CurvePoint[][] }>({ past: [], future: [] });
+  const [history, setHistory] = useState<{ past: CurvePoint[][]; future: CurvePoint[][] }>({
+    past: [],
+    future: [],
+  });
+  const confirm = useRef<HTMLDialogElement>(null);
   const base = useId();
 
   const span = Math.max(1, daysBetween(from, to));
@@ -135,8 +140,7 @@ export function CurveEditor({ node }: NodeProps) {
     setPoints([...next].sort(byStart));
   };
   const commit = (next: CurvePoint[], snapshot: CurvePoint[] = points) => {
-    history.current.past.push(snapshot);
-    history.current.future = [];
+    setHistory((h) => ({ past: [...h.past, snapshot], future: [] }));
     write(next);
   };
   const patch = (id: string, change: Partial<CurvePoint>, live = false) => {
@@ -158,15 +162,15 @@ export function CurveEditor({ node }: NodeProps) {
     setSelected(id);
   };
   const undo = () => {
-    const prev = history.current.past.pop();
+    const prev = history.past.at(-1);
     if (!prev) return;
-    history.current.future.push(points);
+    setHistory({ past: history.past.slice(0, -1), future: [...history.future, points] });
     write(prev);
   };
   const redo = () => {
-    const next = history.current.future.pop();
+    const next = history.future.at(-1);
     if (!next) return;
-    history.current.past.push(points);
+    setHistory({ past: [...history.past, points], future: history.future.slice(0, -1) });
     write(next);
   };
 
@@ -219,8 +223,7 @@ export function CurveEditor({ node }: NodeProps) {
   const endDrag = () => {
     const d = drag.current;
     if (d?.moved) {
-      history.current.past.push(d.snapshot);
-      history.current.future = [];
+      setHistory((h) => ({ past: [...h.past, d.snapshot], future: [] }));
     }
     drag.current = null;
     setDragging(false);
@@ -311,10 +314,22 @@ export function CurveEditor({ node }: NodeProps) {
                 >
                   + Bod
                 </button>
-                <button type="button" aria-label="Zpět" title="Zpět (Ctrl+Z)" onClick={undo}>
+                <button
+                  type="button"
+                  aria-label="Zpět"
+                  title="Zpět (Ctrl+Z)"
+                  disabled={history.past.length === 0}
+                  onClick={undo}
+                >
                   ↶
                 </button>
-                <button type="button" aria-label="Znovu" title="Znovu (Ctrl+Shift+Z)" onClick={redo}>
+                <button
+                  type="button"
+                  aria-label="Znovu"
+                  title="Znovu (Ctrl+Shift+Z)"
+                  disabled={history.future.length === 0}
+                  onClick={redo}
+                >
                   ↷
                 </button>
               </div>
@@ -532,25 +547,44 @@ export function CurveEditor({ node }: NodeProps) {
               />
             </label>
           )}
-          <label className="wide">
-            Popis
-            <input
-              type="text"
-              value={sel.description ?? ""}
-              onChange={(e) => {
-                patch(sel.id, { description: e.target.value }, true);
-              }}
-            />
-          </label>
-          <button
-            type="button"
-            className="danger"
-            onClick={() => {
-              remove(sel.id);
-            }}
-          >
-            Smazat bod
-          </button>
+          {/* its own row, so toggling the end date above never moves it */}
+          <div className="a2-curve-edit-row">
+            <label className="wide">
+              Popis
+              <input
+                type="text"
+                value={sel.description ?? ""}
+                onChange={(e) => {
+                  patch(sel.id, { description: e.target.value }, true);
+                }}
+              />
+            </label>
+            <button type="button" className="danger" onClick={() => confirm.current?.showModal()}>
+              <Icon path={ICONS.trash} />
+              Smazat bod
+            </button>
+          </div>
+          {/* native dialog: focus trap and Esc for free; "Ponechat" comes first = the safe default */}
+          <dialog ref={confirm} className="a2-confirm" aria-labelledby={`${base}-confirm`}>
+            <h2 id={`${base}-confirm`}>Smazat bod?</h2>
+            <p>Bod „{sel.title}“ se z křivky odstraní.</p>
+            <div>
+              <button type="button" onClick={() => confirm.current?.close()}>
+                Ponechat
+              </button>
+              <button
+                type="button"
+                className="confirm-delete"
+                onClick={() => {
+                  confirm.current?.close();
+                  remove(sel.id);
+                }}
+              >
+                <Icon path={ICONS.trash} />
+                Smazat
+              </button>
+            </div>
+          </dialog>
         </div>
       )}
     </>
