@@ -3,6 +3,7 @@
  * Each artifact is an editable JSON file in runs/<runId>/NN_name.json.
  */
 import { z } from "zod";
+import { CompileError } from "./errors";
 import { Expectation, ExpectationCheck } from "./evidence";
 import { CurveDef, EntityDef, FlowDef, Ident, IsoDate, ProcessDef, Scenario, StoryPoint } from "./scenario";
 
@@ -181,3 +182,18 @@ export const ArtifactSchemas: Record<ArtifactName, z.ZodType> = {
   "04_story": StoryPlan,
   "05_scenario": Scenario,
 };
+
+/** Cascade progress events for the UI timeline (forwarded by the API as `SessionEvent` type "cascade"). */
+export const CascadeEvent = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("step.started"), step: ArtifactName }),
+  z.object({ type: z.literal("step.done"), step: ArtifactName, cached: z.boolean() }),
+  z.object({
+    type: z.literal("loop.iteration"),
+    step: ArtifactName,
+    n: z.number().int().positive(),
+    ok: z.boolean(),
+    feedback: z.array(z.union([CompileError, z.string()])),
+  }),
+  z.object({ type: z.literal("log"), message: z.string() }),
+]);
+export type CascadeEvent = z.infer<typeof CascadeEvent>;

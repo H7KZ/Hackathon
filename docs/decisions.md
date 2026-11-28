@@ -12,6 +12,14 @@ Template:
 - **Affects:** <workspaces / files>
 ```
 
+
+## 2026-11-28 — Session contract moved to `@s2d/schema/api`
+
+- **Decision:** `SessionStatus`, `SessionInput`, `DatasetInfo`, `SessionState`, `GenerationSettings`, `SessionCommand`, `SessionEvent`, `DatasetEvidence`, `DetectiveResult` moved unchanged from `services/api/src/contract.draft.ts` (deleted) to `packages/schema/src/api.ts`; `CascadeEvent` to `artifacts.ts` (cascade imports it instead of its mirror type). `CompileError` lives in `errors.ts` and `/api` re-exports it, so `api.ts` ↔ `artifacts.ts` has no import cycle. The frontend imports the types from `@s2d/schema/api`.
+- **Why:** one source of truth (hard rule 6); the draft was waiting only for this move.
+- **Who:** integration (agent), item 6 of the run-3 follow-up.
+- **Affects:** `packages/schema`, `services/api`, `services/cascade/src/events.ts`, `services/frontend/lib`.
+
 ## 2026-11-28 — Integration: UI settings travel with approve; e2e on own ports; live harness and offline demo
 
 - **Decision:** (1) The story editor sends `approve.settings` (seed, scale, noise %, kept hypotheses); the API applies them to the dataset copy of `05_scenario` (`services/api/src/settings.ts`), never to curves. In live mode the editor hides what the API cannot apply (period, company size, ramp length). (2) Only story points that drive the edited curve are draggable; outcome points stay untouched on edit. (3) New port `dataer.tables/preview` + routes for the Data tab and totals. (4) `resume` also re-runs a failed or cancelled draft. (5) Playwright uses its own ports (API 4310, UI 3310) and never reuses a running server; `E2E_REAL=1` runs the real stack. (6) `pnpm e2e:live` (`scripts/live-e2e.mjs`) drives real sessions and writes a report; `pnpm demo` replays the committed cache with every LLM step pinned to one model.

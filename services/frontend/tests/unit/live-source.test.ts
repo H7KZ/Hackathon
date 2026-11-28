@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SessionEvent } from "@s2d/api";
+import type { SessionEvent } from "@s2d/schema/api";
 import { createLiveSource } from "../../lib/chat/liveSource";
 import type { SourceEvent } from "../../lib/chat/types";
 

@@ -2,7 +2,7 @@
  * Pure mappings between API data and the presenter's view models (live mode). No fetch, no state:
  * unit-testable without a browser. Numbers are only reshaped (averaged, indexed), never invented.
  */
-import type { DatasetEvidence, GenerationSettings } from "@s2d/api";
+import type { DatasetEvidence, GenerationSettings } from "@s2d/schema/api";
 import type { MetricDiff, TablePreview } from "@s2d/schema/evidence";
 import { DEFAULT_CONFIG, normalize } from "./config";
 import { addDays, daysBetween } from "./curve";

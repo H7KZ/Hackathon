@@ -4,7 +4,7 @@
  * scenario.json holds the applied version. Story curves are never changed here (hard rule 3).
  */
 import type { Scenario } from "@s2d/schema/scenario";
-import type { GenerationSettings } from "./contract.draft";
+import type { GenerationSettings } from "@s2d/schema/api";
 
 /** Value-like fields that may go missing; keys, references and dates never do. */
 const MISSABLE_GENS = new Set(["normal", "poisson", "uniformInt", "categorical", "fake", "lookup"]);

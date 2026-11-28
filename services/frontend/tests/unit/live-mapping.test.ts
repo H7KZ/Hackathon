@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DatasetEvidence } from "@s2d/api";
+import type { DatasetEvidence } from "@s2d/schema/api";
 import {
   compareToView,
   editToStory,

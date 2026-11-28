@@ -1,5 +1,5 @@
 /** What the landing prompt accepts. Pure, so it is testable without a browser. */
-import type { SessionInput } from "@s2d/api";
+import type { SessionInput } from "@s2d/schema/api";
 
 // the API has no upload route: only text files can be sent, appended to the story
 const TEXT_FILE = /\.(txt|md|csv|json)$/i;

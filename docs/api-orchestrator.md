@@ -100,6 +100,9 @@ GET  /sessions/:id/datasets/:d/evidence | /tables | /tables/:t?limit= | /compare
 
 ## Contract changes (need the `packages/schema` owner's approval)
 
+Done 2026-11-28: moved unchanged from `services/api/src/contract.draft.ts` (deleted) to the places below; `CompileError` moved to `packages/schema/src/errors.ts` (re-exported by `/api`) so `api.ts` and `artifacts.ts` do not import each other.
+
+
 - `@s2d/schema/api`: `SessionStatus`, `SessionState`, `SessionCommand`, `SessionEvent`, `DatasetEvidence`, `DetectiveResult`.
 - `@s2d/schema/artifacts`: `CascadeEvent`.
 - `@s2d/llm`: optional `abortSignal` in the request (cascade cancel).

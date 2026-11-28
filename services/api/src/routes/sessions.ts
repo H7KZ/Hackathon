@@ -7,7 +7,7 @@ import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { ArtifactName } from "@s2d/schema/artifacts";
-import { SessionCommand, SessionInput, type SessionEvent } from "../contract.draft";
+import { SessionCommand, SessionInput, type SessionEvent } from "@s2d/schema/api";
 import { BusyError, NotFoundError, type CommandResult, type Orchestrator } from "../orchestrator";
 
 const HEARTBEAT_MS = 15_000;

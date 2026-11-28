@@ -3,11 +3,11 @@
  * `createOrchestrator` gets them injected (fakes in tests, real adapters in server.ts).
  * Each service owns its own loops (atomic principle): the API only starts, observes and cancels.
  */
-import type { ArtifactName } from "@s2d/schema/artifacts";
+import type { ArtifactName, CascadeEvent } from "@s2d/schema/artifacts";
 import type { Expectation, MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { RunResult } from "@s2d/schema/run";
 import type { Scenario } from "@s2d/schema/scenario";
-import type { CascadeEvent, DatasetEvidence, DetectiveResult, SessionInput } from "./contract.draft";
+import type { DatasetEvidence, DetectiveResult, SessionInput } from "@s2d/schema/api";
 
 export interface JobOptions {
   onEvent: (e: CascadeEvent) => void;

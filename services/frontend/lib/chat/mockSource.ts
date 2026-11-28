@@ -3,7 +3,7 @@
  * the live source uses. States mirror the API session machine (docs/api-orchestrator.md):
  * drafting → awaiting_refinement → generating → ready ⟲ (detect | what-if).
  */
-import type { SessionInput } from "@s2d/api";
+import type { SessionInput } from "@s2d/schema/api";
 import { plural } from "../format";
 import type { Step } from "../a2ui/catalog";
 import { a2ui } from "../a2ui/protocol";

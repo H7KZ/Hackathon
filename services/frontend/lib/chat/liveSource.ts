@@ -4,7 +4,13 @@
  * it through the same presenter as the demo. User actions become SessionCommands.
  * Pure mappings live in liveMapping.ts.
  */
-import type { DatasetEvidence, DetectiveResult, SessionCommand, SessionEvent, SessionState } from "@s2d/api";
+import type {
+  DatasetEvidence,
+  DetectiveResult,
+  SessionCommand,
+  SessionEvent,
+  SessionState,
+} from "@s2d/schema/api";
 import type { MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { Step } from "../a2ui/catalog";
 import { a2ui } from "../a2ui/protocol";

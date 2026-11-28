@@ -7,20 +7,19 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
-import { ArtifactName, ArtifactSchemas } from "@s2d/schema/artifacts";
+import { ArtifactName, ArtifactSchemas, type CascadeEvent } from "@s2d/schema/artifacts";
 import { MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { Scenario } from "@s2d/schema/scenario";
 import {
   DatasetEvidence,
   DetectiveResult,
-  type CascadeEvent,
   type DatasetInfo,
   type SessionCommand,
   type SessionEvent,
   type SessionInput,
   type SessionState,
   type SessionStatus,
-} from "./contract.draft";
+} from "@s2d/schema/api";
 import type { Ports } from "./ports";
 import { applySettings } from "./settings";
 import { NotFoundError, sessionStore, type JobSpec } from "./sessionStore";

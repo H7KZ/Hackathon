@@ -37,8 +37,8 @@ You own your part of the API. Change it as your implementation needs, under thes
    - adjust the call site in `services/api/src/orchestrator.ts`,
    - add one line to "Port changes" at the bottom of [`docs/api-orchestrator.md`](../api-orchestrator.md).
 3. **These must stay green:** `pnpm vitest run services/api` (32 tests: goal loops L1–L7, routes/SSE, config). If you deliberately change a loop's behavior, change its test in the same commit and say why in the PR.
-4. **Shared hotspots** (`orchestrator.ts`, `contract.draft.ts`, `routes/sessions.ts`, `app.ts`): keep changes small and announce them in the team chat before you push.
-5. **Contract:** session types live in `services/api/src/contract.draft.ts` until the `packages/schema` owner approves them. Then they move unchanged to `@s2d/schema/api` (and `CascadeEvent` to `/artifacts`) and the draft file is deleted. Until then, extend the draft and **never** define types in parallel elsewhere.
+4. **Shared hotspots** (`orchestrator.ts`, `packages/schema/src/api.ts`, `routes/sessions.ts`, `app.ts`): keep changes small and announce them in the team chat before you push.
+5. **Contract:** session types live in `@s2d/schema/api` (`CascadeEvent` in `@s2d/schema/artifacts`). Change them there first and **never** define types in parallel elsewhere.
 
 ## Definition of done (every team)
 

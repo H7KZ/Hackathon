@@ -2,7 +2,7 @@
  * REST client for services/api: plain fetch, typed with the shared contract (@s2d/schema).
  * Only TYPE imports from the backend, so none of its code reaches the bundle.
  */
-import type { SessionInput } from "@s2d/api";
+import type { SessionInput } from "@s2d/schema/api";
 import type { Health } from "@s2d/schema/api";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";

@@ -93,7 +93,7 @@ The API validates `evidence` and `detective` results with zod before saving them
 | `GET /sessions/:id/datasets/:d/compare/:other` | `{ diff: MetricDiff[] }`, each `{ metric, a, b, delta, relChange }`; `a` is `:other` (the baseline), `b` is `:d` |
 | `GET /sessions/:id/datasets/:d/detective` | `{ result: null }` until a `detect` has finished, then `{ result: { report, score } }` |
 
-`DatasetEvidence` and `DetectiveResult` are exported as types from `@s2d/api` (use `import type`); `ExpectationResult` and `MetricDiff` are in `@s2d/schema/evidence`. They are defined in `services/api/src/contract.draft.ts` until the schema owner approves them.
+`DatasetEvidence` and `DetectiveResult` live in `@s2d/schema/api`; `ExpectationResult` and `MetricDiff` are in `@s2d/schema/evidence`.
 
 Events on `GET /sessions/:id/events`:
 

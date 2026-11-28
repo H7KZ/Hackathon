@@ -14,7 +14,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import { SessionCommand, SessionEvent, SessionState } from "./contract.draft";
+import { SessionCommand, SessionEvent, SessionState } from "@s2d/schema/api";
 
 const SESSION_ID = /^[0-9a-f-]{36}$/;
 const DATASET_ID = /^d[0-9]+$/;
