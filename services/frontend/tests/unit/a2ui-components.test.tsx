@@ -190,7 +190,12 @@ describe("CurveEditor: it just works", () => {
     expect(values(read)[0]?.end).toBe("2026-03-30");
     fireEvent.change(within(editor).getByLabelText(/Hodnota/), { target: { value: "8" } });
     expect(values(read)[0]?.level).toBe(8);
+    // deleting asks first: "Ponechat" keeps the point, "Smazat" removes it
     fireEvent.click(within(editor).getByRole("button", { name: "Smazat bod" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Ponechat" }));
+    expect(values(read)).toHaveLength(3);
+    fireEvent.click(within(editor).getByRole("button", { name: "Smazat bod" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Smazat" }));
     expect(values(read)).toHaveLength(2);
   });
 
@@ -249,6 +254,23 @@ describe("CurveEditor: it just works", () => {
     render(<A2uiSurface store={store} surfaceId="s" onAction={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "+ Bod" }));
     expect((store.read("s", "/points") as { level: number }[])[0]?.level).toBe(0.3);
+  });
+
+  it("undo / redo buttons are disabled while there is nothing to undo / redo", () => {
+    mount("CurveEditor");
+    const undo = screen.getByRole("button", { name: "Zpět" });
+    const redo = screen.getByRole("button", { name: "Znovu" });
+    expect(undo).toBeDisabled();
+    expect(redo).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "+ Bod" }));
+    expect(undo).toBeEnabled();
+    expect(redo).toBeDisabled();
+    fireEvent.click(undo);
+    expect(undo).toBeDisabled();
+    expect(redo).toBeEnabled();
+    fireEvent.click(redo);
+    expect(undo).toBeEnabled();
+    expect(redo).toBeDisabled();
   });
 
   it("double-click on empty chart adds a point where the pointer is", () => {

@@ -62,6 +62,14 @@
   display: grid;
   gap: 12px;
 }
+/* items separated by a line instead of each sitting in a card */
+.a2-list.divided {
+  gap: 28px;
+}
+.a2-list.divided > * + * {
+  padding-top: 28px;
+  border-top: 1px solid var(--color-line);
+}
 .a2-list.horizontal {
   grid-auto-flow: column;
   overflow-x: auto;
@@ -635,10 +643,6 @@
   padding: 6px 16px 18px;
   border-top: 1px solid var(--color-line);
 }
-.a2-collapsible-body .a2-card {
-  box-shadow: none;
-  background: #fafbfb;
-}
 
 /* curve editor */
 .a2-curve {
@@ -663,7 +667,11 @@
   background: #fff;
   font-size: 0.85rem;
 }
-.a2-curve-tools button:hover {
+.a2-curve-tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.a2-curve-tools button:hover:not(:disabled) {
   border-color: var(--color-green);
   color: var(--color-green-dark);
 }
@@ -788,6 +796,13 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
+.a2-curve-edit-row {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
 .a2-curve-edit label.wide {
   flex: 1;
   min-width: 200px;
@@ -825,6 +840,56 @@
 }
 .a2-curve-edit .danger:hover {
   background: #fdf1ee;
+}
+.a2-curve-edit .danger,
+.a2-confirm .confirm-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.a2-curve-edit .danger .icon,
+.a2-confirm .confirm-delete .icon {
+  width: 16px;
+  height: 16px;
+}
+/* confirmation before deleting a point */
+.a2-confirm {
+  width: min(380px, 100% - 32px);
+  margin: auto;
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius-card);
+  color: var(--color-fis-dark);
+  text-align: center;
+  box-shadow: 0 24px 60px rgb(0 32 27 / 28%);
+}
+.a2-confirm::backdrop {
+  background: rgb(0 32 27 / 35%);
+}
+.a2-confirm h2 {
+  margin-bottom: 6px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.a2-confirm p {
+  margin-bottom: 18px;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.a2-confirm div {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.a2-confirm button {
+  padding: 8px 20px;
+  border: 1px solid var(--color-line);
+  border-radius: 99px;
+}
+.a2-confirm .confirm-delete {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
 }
 .a2-row > .a2-badge {
   align-self: center;
