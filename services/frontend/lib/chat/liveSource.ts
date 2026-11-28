@@ -46,6 +46,7 @@ import {
   storySurface,
   type CompanyView,
   type ExpectationToggle,
+  type LeverEdit,
   type StoryConfig,
   type StoryPointEdit,
 } from "./surfaces";
@@ -272,6 +273,7 @@ export function createLiveSource(sessionId: string): ChatSource {
         curve: { ...raw.config.curve, help: humanizeIds(raw.config.curve.help ?? "", labels) },
       },
       expectations: humanizeToggles(raw.expectations, labels),
+      levers: raw.levers.map((l) => ({ ...l, help: humanizeIds(l.help, labels) })),
     };
     // one story surface per session: a replay (reload, reopened from history) or a re-run after an
     // edit updates it in place instead of stacking copies
@@ -282,6 +284,7 @@ export function createLiveSource(sessionId: string): ChatSource {
           points: edit.points,
           config: edit.config,
           expectations: edit.expectations,
+          levers: edit.levers,
           locked: storyLocked,
         }),
       });
@@ -290,7 +293,15 @@ export function createLiveSource(sessionId: string): ChatSource {
     storySurfaceId = "story";
     emit({
       type: "a2ui",
-      message: storySurface(storySurfaceId, edit.points, edit.config, edit.expectations, false, true),
+      message: storySurface(
+        storySurfaceId,
+        edit.points,
+        edit.config,
+        edit.expectations,
+        false,
+        true,
+        edit.levers,
+      ),
     });
     if (storyLocked) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
     say("Návrh příběhu je připravený. Body posuňte přímo v grafu, pak klikněte **Generovat data**.");
@@ -556,10 +567,11 @@ export function createLiveSource(sessionId: string): ChatSource {
     const approveCmd: SessionCommand = { type: "approve", settings };
     const edited = context.points as StoryPointEdit[] | undefined;
     if (story && edited) {
-      const next = editToStory(story, edited, config?.curve.baseline);
+      const levers = (context.levers as LeverEdit[] | undefined) ?? [];
+      const next = editToStory(story, edited, config?.curve.baseline, levers);
       // compare normalized forms: mapping alone (key order, phases) must not count as an edit
       const same = storyToEdit(story);
-      const unchanged = editToStory(story, same.points, same.config.curve.baseline);
+      const unchanged = editToStory(story, same.points, same.config.curve.baseline, same.levers);
       if (JSON.stringify(next) !== JSON.stringify(unchanged)) {
         pendingApprove = approveCmd; // sent once the edited story is re-drafted (awaiting_refinement)
         story = next; // markers on the dataset chart follow the edited story
