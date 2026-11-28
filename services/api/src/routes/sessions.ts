@@ -2,7 +2,8 @@
  * Session REST + SSE (variant A, docs/api-orchestrator.md).
  * Commands: typed JSON via hc. Events: SSE with Last-Event-ID replay from events.jsonl (D9).
  */
-import { readFileSync } from "node:fs";
+import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
@@ -77,7 +78,9 @@ export function sessionRoutes(orch: Orchestrator) {
     )
     .get("/:id/datasets/:d/export", zValidator("query", ExportQuery), async (c) => {
       const out = await orch.exportDataset(c.req.param("id"), c.req.param("d"), c.req.valid("query").format);
-      return c.body(new Uint8Array(readFileSync(out.file)), 200, {
+      // streamed: an xlsx of a large dataset is tens of MB
+      const body = Readable.toWeb(createReadStream(out.file)) as ReadableStream<Uint8Array>;
+      return c.body(body, 200, {
         "Content-Type": out.contentType,
         "Content-Disposition": `attachment; filename="${out.filename}"`,
       });

@@ -3,17 +3,27 @@
  * key stays out of every export). CSV and Parquet are written by DuckDB and zipped; xlsx is built
  * here (one sheet per table); "duckdb" is the sandbox copy.
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { exportSandbox, openStore, type Store } from "../store/duckdb";
 import { isNumericType, mainTables, quoteIdent } from "../store/columns";
-import { xlsx } from "./xlsx";
+import { XLSX_MAX_ROWS, xlsx } from "./xlsx";
 import { zip } from "./zip";
 
 export const EXPORT_FORMATS = ["csv", "parquet", "xlsx", "duckdb"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
 export type ExportResult = { file: string; filename: string; contentType: string };
+
+const DONE: Record<ExportFormat, Omit<ExportResult, "file">> = {
+  duckdb: { filename: "dataset.duckdb", contentType: "application/octet-stream" },
+  xlsx: {
+    filename: "dataset.xlsx",
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  },
+  csv: { filename: "dataset-csv.zip", contentType: "application/zip" },
+  parquet: { filename: "dataset-parquet.zip", contentType: "application/zip" },
+};
 
 const quoteLiteral = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
@@ -33,6 +43,9 @@ export async function exportDataset(
   outDir: string,
 ): Promise<ExportResult> {
   mkdirSync(outDir, { recursive: true });
+  // a dataset never changes after it is stored: an export written once is reused
+  const done = DONE[format];
+  if (existsSync(join(outDir, done.filename))) return { ...done, file: join(outDir, done.filename) };
   if (format === "duckdb") {
     const file = join(outDir, "dataset.duckdb");
     await exportSandbox(dbPath, file);
@@ -42,7 +55,9 @@ export async function exportDataset(
     const sheets = await withStore(dbPath, async (s) => {
       const out = [];
       for (const t of await mainTables(s)) {
-        const rows = await s.query(`SELECT * FROM main.${quoteIdent(t.table)}`);
+        const rows = await s.query(
+          `SELECT * FROM main.${quoteIdent(t.table)} LIMIT ${String(XLSX_MAX_ROWS)}`,
+        );
         const numeric = new Set(t.columns.filter((c) => isNumericType(c.type)).map((c) => c.name));
         out.push({ name: t.table, columns: t.columns.map((c) => c.name), numeric, rows });
       }

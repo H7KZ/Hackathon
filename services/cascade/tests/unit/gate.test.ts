@@ -83,6 +83,49 @@ describe("story gate in the A5 loop", () => {
   });
 });
 
+describe("v1 A5 gate is seed-robust too (run-5 decision)", () => {
+  let cleanup = () => {};
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("an A5 answer that passes only at seed 42 is sent back with the failing seeds", async () => {
+    const t = setup([company, model, influences, story, detail, { ...detail, name: "second try" }]);
+    cleanup = t.cleanup;
+    const seeds: number[] = [];
+    let attempt = 0;
+    await runCascade(
+      { story: "s", company: "c" },
+      {
+        llm: t.llm,
+        runsDir: t.runsDir,
+        runId: "g2",
+        onEvent: (e) => {
+          if (e.type === "loop.iteration" && e.step === "05_scenario") attempt = e.n;
+        },
+        verify: (sc) => {
+          const seed = sc.meta.seed;
+          seeds.push(seed);
+          // first attempt: luck at 42 only; second attempt: robust
+          const weak = attempt === 0 && seed !== 42;
+          return Promise.resolve(
+            weak
+              ? [
+                  {
+                    path: "expectations[0]",
+                    message: `Expectation "e1" (d) failed: before 1, after 1 (change 0.0%); x`,
+                  },
+                ]
+              : [],
+          );
+        },
+      },
+    );
+    expect(seeds.slice(0, 3)).toEqual([42, 1, 2]);
+    expect(t.fake.calls.at(-1)?.prompt).toMatch(/Passes at seed 42 but fails at other seeds \(seed 1: /);
+  });
+});
+
 describe("seedRobust (causal gate: >= 4/5 seeds, live run 4)", () => {
   const s = Scenario.parse(loadScenarioFixture("supplier_delay"));
   const failAt =

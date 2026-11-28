@@ -221,7 +221,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     if (!shouldRun("04_story")) return { dir, company, model, causalMap, processes, overlay, expectations };
     // code only: the UI timeline edits 04_story, and 05 is rebuilt from it
     const story = await step("04_story", StoryPlan, () =>
-      Promise.resolve(causalStory(causalMap, overlay, expectations)),
+      Promise.resolve(causalStory(causalMap, overlay, expectations, processes)),
     );
     if (!shouldRun("05_scenario"))
       return { dir, company, model, causalMap, processes, overlay, expectations, story };
@@ -322,7 +322,9 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       {
         onEvent: opts.onEvent,
         signal: opts.signal,
-        verify: opts.verify,
+        // seed 42 alone can be luck (causal, run 4); v1 demands >= 4/5 of seeds 1..5 too (run 5: all
+        // four run-4 v1 scenarios already passed that, so it costs no extra attempt there)
+        verify: opts.verify && seedRobust(opts.verify),
         // kept next to the artifacts so a failed A5 can be inspected, fixed by hand or resumed
         onRejected: rejected("05_scenario", key),
         ...(resume && {

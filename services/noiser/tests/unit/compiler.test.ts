@@ -248,3 +248,60 @@ describe("compileScenario — curve scopes and story entities (live run 2026-11-
     expect(errorsOf(s).filter((x) => x.path.startsWith("processes[3].p"))).toEqual([]);
   });
 });
+
+describe("curve semantics checks (live run 4: marketing second wave)", () => {
+  it("rejects a decay to the baseline: it jumps there and climbs back to the previous level", () => {
+    const s = fixture();
+    const late = s.curves[0];
+    late.segments = [
+      {
+        kind: "ramp",
+        start: "2025-03-01",
+        end: "2025-03-08",
+        to: 0.6,
+        storyPointId: late.segments[0].storyPointId,
+      },
+      {
+        kind: "decay",
+        start: "2025-04-01",
+        end: "2025-04-15",
+        to: late.baseline,
+        storyPointId: late.segments[0].storyPointId,
+      },
+    ];
+    const errors = errorsOf(s);
+    const e = errors.find((x) => x.path === "curves[0].segments[1].kind");
+    expect(e?.message).toMatch(/returns to the value before it \(0\.6\)/);
+    expect(e?.message).toMatch(/"kind":"ramp"/);
+  });
+
+  it("a decay that jumps away from the baseline and fades back is fine", () => {
+    const s = fixture();
+    const late = s.curves[0];
+    late.segments = [
+      {
+        kind: "decay",
+        start: "2025-03-01",
+        end: "2025-03-15",
+        to: 0.6,
+        storyPointId: late.segments[0].storyPointId,
+      },
+    ];
+    expect(errorsOf(s).filter((x) => x.path.startsWith("curves[0]"))).toEqual([]);
+  });
+
+  it("rejects a probability that can exceed 1 (curve value × scale)", () => {
+    const s = fixture();
+    s.processes[0].fields.is_late.p = { curve: "late_prob", scale: 2 };
+    const e = errorsOf(s).find((x) => x.path === "processes[0].fields.is_late.p");
+    expect(e?.message).toMatch(/probability.*above 1/);
+  });
+
+  it("rejects one curve as the p of several bernoulli fields of one record (the effect multiplies)", () => {
+    const s = fixture();
+    const fields = s.processes[0].fields;
+    s.processes[0].fields = { ...fields, is_late_2: { gen: "bernoulli", p: { curve: "late_prob" } } };
+    const e = errorsOf(s).find((x) => x.path === "processes[0].fields.is_late_2.p");
+    expect(e?.message).toMatch(/already the p of "is_late"/);
+  });
+});
