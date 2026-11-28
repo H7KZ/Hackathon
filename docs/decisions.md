@@ -13,6 +13,14 @@ Template:
 ```
 
 
+
+## 2026-11-28 — Segment story points; detective scores category values
+
+- **Decision:** `StoryPoint.segment = {field, values}` (optional) names a group of records by category values (e.g. customer segment "kampaň"). The compiler (`checkStoryRefs`) demands it on a story point whose curve is scoped by non-id values, instead of an entity (A4 invented CUS-001..005 in live run 3). `writeRun` stores `segment_field` and `segment_values` (JSON) in `truth.story_points`; `TruthPoint.segmentValues`; a point is findable with phase ≥ 1 and an entity id **or** a segment value. `scoreFindings` matches a finding's `entities` against ids (exact) or segment values (case, spacing and quotes ignored); the date window and nearest-point rule stay. The detective prompt says `entities` may hold the category values of a group. Precision stays one match per point: true downstream findings count as unmatched (precision is a lower bound), so the honest-scoring rules of run 2 hold.
+- **Why:** marketing ("campaign customers") scored recall 0 although the detective named "kampaň" and the exact date.
+- **Who:** integration (agent), item 2 of the run-3 follow-up.
+- **Affects:** `packages/schema` (`scenario.ts`, `detective.ts`), `services/noiser/src/compiler/story.ts`, `services/dataer` (store, truth, score, detective prompt), `services/cascade/src/prompts` (A4, causal overlay). Prompt changes change the cache keys of A4, overlay and the detective.
+
 ## 2026-11-28 — Session contract moved to `@s2d/schema/api`
 
 - **Decision:** `SessionStatus`, `SessionInput`, `DatasetInfo`, `SessionState`, `GenerationSettings`, `SessionCommand`, `SessionEvent`, `DatasetEvidence`, `DetectiveResult` moved unchanged from `services/api/src/contract.draft.ts` (deleted) to `packages/schema/src/api.ts`; `CascadeEvent` to `artifacts.ts` (cascade imports it instead of its mirror type). `CompileError` lives in `errors.ts` and `/api` re-exports it, so `api.ts` ↔ `artifacts.ts` has no import cycle. The frontend imports the types from `@s2d/schema/api`.

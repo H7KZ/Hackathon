@@ -40,8 +40,9 @@ Each turn, return exactly one action:
 - {"tool":"report","report":{...}}: your final answer; ends the investigation
 
 Compare periods (e.g. per week or month) and entities; look for a change point.
-In the report, each finding names concrete entity ids exactly as they appear in the data, the ISO date
-(YYYY-MM-DD) the change started, and the SQL that supports it. Write narrative and claims in Czech.`;
+In the report, each finding lists in "entities" the concrete entity ids exactly as they appear in the data
+(or, when the change concerns a group of records, the category values that define it, e.g. a customer
+segment or channel), the ISO date (YYYY-MM-DD) the change started, and the SQL that supports it. Write narrative and claims in Czech.`;
 
 async function runTool(sandbox: Store, action: Exclude<Action, { tool: "report" }>): Promise<unknown> {
   switch (action.tool) {

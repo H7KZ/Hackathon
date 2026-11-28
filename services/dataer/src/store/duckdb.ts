@@ -121,7 +121,18 @@ export async function writeRun(path: string, run: RunResult): Promise<void> {
       {
         name: "story_points",
         visibility: "ground_truth",
-        columns: ["id", "phase", "title", "description", "entity_name", "entity_ids", "start", "end"],
+        columns: [
+          "id",
+          "phase",
+          "title",
+          "description",
+          "entity_name",
+          "entity_ids",
+          "segment_field",
+          "segment_values",
+          "start",
+          "end",
+        ],
         rows: run.storyPoints.map((sp) => ({
           id: sp.id,
           phase: sp.phase,
@@ -129,6 +140,9 @@ export async function writeRun(path: string, run: RunResult): Promise<void> {
           description: sp.description,
           entity_name: sp.entity?.name ?? null,
           entity_ids: sp.entity?.ids.join(",") ?? null,
+          segment_field: sp.segment?.field ?? null,
+          // JSON: category values may contain commas
+          segment_values: sp.segment ? JSON.stringify(sp.segment.values) : null,
           start: sp.start,
           end: sp.end ?? null,
         })),

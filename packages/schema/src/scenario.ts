@@ -253,6 +253,11 @@ export const StoryPoint = z.object({
   title: z.string(),
   description: z.string(),
   entity: z.object({ name: z.string(), ids: z.array(z.string()) }).optional(),
+  /**
+   * A group of records defined by category values (e.g. customer segment "kampaň") instead of entity ids:
+   * the same values as the scope of the curve the point drives. Scored like entity ids (truth.story_points).
+   */
+  segment: z.object({ field: z.string(), values: z.array(z.string()).min(1) }).optional(),
   start: IsoDate,
   end: IsoDate.optional(),
 });

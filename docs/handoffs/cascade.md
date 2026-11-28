@@ -115,7 +115,7 @@ The API calls `run` with `until: "04_story"` (draft) and then `"05_scenario"` (a
 
 - `05_scenario` always passes `compileScenario`; with `verify: storyGate` its expectations also pass at the scenario seed.
 - `meta.seed = 42`, `meta.id` derived from the run id, `locale: "cs-CZ"`, no `scale`.
-- Expectation SQL reads only observed tables (`checkExpectationTables`); story points about an entity carry `entity.ids` (the detective's answer key).
+- Expectation SQL reads only observed tables (`checkExpectationTables`); story points about an entity carry `entity.ids`, story points about a group defined by category values (curve scope like `self.customer_segment = ["kampaň"]`) carry `segment: {field, values}` (the detective's answer key; `checkStoryRefs` demands it).
 
 ## When you change the cascade
 

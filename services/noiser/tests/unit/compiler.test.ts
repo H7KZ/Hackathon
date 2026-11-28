@@ -207,4 +207,26 @@ describe("compileScenario — curve scopes and story entities (live run 2026-11-
     s.storyPoints[0].entity = { name: "supplier", ids: [] };
     expect(errorsOf(s).map((x) => x.path)).toContain("storyPoints[0].entity.ids");
   });
+
+  it("a story point whose curve is scoped by category values names the segment, not invented entity ids (live run 3)", () => {
+    const s = fixture();
+    s.curves[0].scope = { field: "self.supplier_id", ids: ["kampaň"] };
+    delete s.storyPoints[0].entity;
+    const e = errorsOf(s).find((x) => x.path === "storyPoints[0].segment");
+    expect(e?.message).toContain('"segment": {"field": "self.supplier_id", "values": ["kampaň"]}');
+    s.storyPoints[0].entity = { name: "supplier", ids: ["SUP-001"] };
+    expect(errorsOf(s).map((x) => x.path)).toContain("storyPoints[0].segment");
+    s.storyPoints[0].segment = { field: "self.supplier_id", values: ["kampaň"] };
+    delete s.storyPoints[0].entity;
+    expect(errorsOf(s)).toEqual([]);
+  });
+
+  it("rejects segment values that its curve scope does not use", () => {
+    const s = fixture();
+    s.curves[0].scope = { field: "self.supplier_id", ids: ["kampaň"] };
+    delete s.storyPoints[0].entity;
+    s.storyPoints[0].segment = { field: "self.supplier_id", values: ["jaro"] };
+    const e = errorsOf(s).find((x) => x.path === "storyPoints[0].segment.values[0]");
+    expect(e?.message).toMatch(/"jaro".*"kampaň"/);
+  });
 });

@@ -87,7 +87,7 @@ Changing any of these is a cross-service change, even if all noiser tests pass.
 | Dates as ISO `YYYY-MM-DD` strings, `ts` from `hourJitter` | DuckDB types them DATE / TIMESTAMP; daily series are built only from those |
 | `visibility: "observed"` / `"ground_truth"` | `main` vs `truth` schema; the detective and expectations see only `main`. One table name cannot be both |
 | `columns` on a table with no rows | DuckDB needs it to create the empty table |
-| `storyPoints` with `phase >= 1` and `entity.ids` | the detective's answer key; other points are not scored |
+| `storyPoints` with `phase >= 1` and `entity.ids` or `segment.values` | the detective's answer key (`truth.story_points.entity_ids`, `segment_values` as JSON); other points are not scored |
 | `meta` (`scenarioId`, `seed`, `scenarioHash`, `engineVersion`) | stored in `truth.run_meta` |
 
 Several processes may write the same table; `writeRun` concatenates them.

@@ -102,6 +102,19 @@ describe("readTruthPoints (full db, scoring only)", () => {
       expect(await readTruthPoints(db)).toEqual([
         { id: "sp1", entityIds: ["SUP-002", "SUP-003"], start: "2025-03-01" },
       ]);
+      const segment = {
+        id: "sp2",
+        phase: 1,
+        title: "Kampaň",
+        description: "d",
+        segment: { field: "customer.segment", values: ["kampaň", "jaro, léto"] },
+        start: "2025-03-15",
+      };
+      await writeRun(db, { ...run, storyPoints: [...run.storyPoints, segment] });
+      expect(await readTruthPoints(db)).toEqual([
+        { id: "sp1", entityIds: ["SUP-002", "SUP-003"], start: "2025-03-01" },
+        { id: "sp2", entityIds: [], segmentValues: ["kampaň", "jaro, léto"], start: "2025-03-15" },
+      ]);
       await writeRun(db, { ...run, storyPoints: [] });
       expect(await readTruthPoints(db)).toEqual([]);
     } finally {
