@@ -52,6 +52,13 @@ describe("withSandbox", () => {
     expect(readdirSync(join(dir, "data"))).toEqual(["run.duckdb"]);
   });
 
+  it("runs single-threaded, so LLM SQL without ORDER BY returns rows in a replayable order (live run 4)", async () => {
+    const threads = await withSandbox(db, (sb) => sb.query("SELECT current_setting('threads') AS t"), {
+      tmpRoot,
+    });
+    expect(Number(threads[0]?.t)).toBe(1);
+  });
+
   it("cleans up when fn throws and rethrows the error", async () => {
     await expect(
       withSandbox(

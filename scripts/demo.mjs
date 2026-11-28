@@ -2,9 +2,15 @@
 /**
  * `pnpm demo`: the real stack (API :4000 + UI :3000) replaying the committed LLM cache, no network.
  * Every LLM step is pinned to the model the demo was recorded with, so per-step model overrides in a
- * local env file cannot change the cache keys. Recorded prompts: the three landing examples
- * ("Dodavatel", "Marketing", "Podpora") with the suggested what-if questions and the detective
- * (docs/runs/2026-11-28-live-e2e-3.md). Anything else needs a live model: `pnpm dev`.
+ * local env file cannot change the cache keys. Anything else needs a live model: `pnpm dev`.
+ *
+ * Replays offline (verified in the browser, docs/runs/2026-11-28-live-e2e-4.md), each through draft ->
+ * "Generovat data" (first press) -> data -> detective -> both suggested what-ifs:
+ *   - "Příklad: Dodavatel"  (E-shop s domácími spotřebiči)
+ *   - "Příklad: Marketing"  (Online obchod se sportovním vybavením)
+ *   - "Příklad: Podpora"    (Poskytovatel internetového připojení)
+ * Also recorded (API harness, scripts/live-cases.json): elektro_novak, and supplier_delay with
+ * CASCADE_DESIGN=causal.
  */
 import { spawn } from "node:child_process";
 

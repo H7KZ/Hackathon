@@ -80,7 +80,8 @@ export function Table({ node }: NodeProps) {
         </thead>
         <tbody>
           {shown.map((row, i) => (
-            <tr key={toText(row.id ?? i)}>
+            // ids repeat when the noise duplicates rows (live run 4), so the position is part of the key
+            <tr key={`${toText(row.id ?? "")}#${String(i)}`}>
               {columns.map((c) => {
                 const v = row[c.key];
                 // delta is coloured only when the column says which direction is good

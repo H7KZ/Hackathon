@@ -11,13 +11,13 @@ The cascade is implemented and wired into the API, the CLI (`pnpm cascade`) and 
 | `"v1"` (default) | A1 company → A2 model → A3 influences → A4 story → A5 detail | LLM (A4), checked by code |
 | `"causal"` | A1 → A2 → 4a causal map → 4b processes → overlay → expectations → story → scenario | code, from the map and the lever matrix; the LLM writes only SQL |
 
-Both live evals pass on `anthropic:claude-sonnet-5-5` (seed 42, ≥ 4/5 seeds, story gate). Their recordings (16 files in `.cache/llm/`) replay offline in about 11 s:
+Both evals pass on `anthropic:claude-sonnet-5-5` (seed 42, ≥ 4/5 seeds, story gate), every step on that model (run 4). Their recordings replay offline:
 
 ```bash
-LLM_OFFLINE=1 LLM_MODEL_01_COMPANY=anthropic:claude-haiku-5-5 LLM_MODEL_03_INFLUENCES=anthropic:claude-haiku-5-5 pnpm evals
+. scripts/live-env.sh; LLM_OFFLINE=1 pnpm evals
 ```
 
-Steps 01 and 03 were recorded on Haiku. The cache key includes the model, so the replay needs the same per-step models.
+The cache key includes the model, so the replay needs the same per-step models (`scripts/live-env.sh` pins them). `EVAL_LIVE=1` needs the API key in the shell (vitest does not load the env file); the same prompts also record through a running API session with the eval's company and story. `LLM_CACHE_TRACE=<file>` appends every cache key a run reads, so you can commit only the recordings a replay uses.
 
 Changed by live run 3 ([report](../runs/2026-11-28-live-e2e-3.md)):
 

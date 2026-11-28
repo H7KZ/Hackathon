@@ -42,11 +42,16 @@ export async function openStore(path: string, opts: { readOnly?: boolean } = {})
   return open(path, opts.readOnly ? { access_mode: "READ_ONLY" } : {});
 }
 
-/** Read-only, no file/network access, configuration locked. Use for evidence and the detective. */
+/**
+ * Read-only, no file/network access, configuration locked. Use for evidence and the detective.
+ * Single-threaded: LLM SQL often has GROUP BY / string_agg without ORDER BY, whose row order varies with
+ * threads; the detective's next prompt contains those rows, so a varying order broke the offline replay.
+ */
 export function openSandbox(path: string): Promise<Store> {
   return open(path, {
     access_mode: "READ_ONLY",
     enable_external_access: "false",
+    threads: "1",
     lock_configuration: "true",
   });
 }

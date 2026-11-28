@@ -80,23 +80,28 @@ describe("real noiser via the API", () => {
     }
   });
 
-  it("the API answers GET /health while a large generation runs (engine in a worker thread)", async () => {
-    const big = compiled({
-      ...(loadScenarioFixture("supplier_delay") as object),
-      meta: { ...(loadScenarioFixture("supplier_delay") as { meta: object }).meta, scale: 3 },
-    });
-    let settled = false;
-    const job = Promise.resolve(noiserPort().run(big, 42)).then((r) => {
-      settled = true;
-      return r;
-    });
-    const t0 = performance.now();
-    const res = await app.request("/health");
-    const latency = performance.now() - t0;
-    expect(res.status).toBe(200);
-    expect(settled).toBe(false);
-    expect(latency).toBeLessThan(250);
-    const run = await job;
-    expect(run.tables.find((t) => t.name === "sale")?.rows.length).toBeGreaterThan(0);
-  });
+  // the first request starts the engine worker: slow when turbo runs every package at once
+  it(
+    "the API answers GET /health while a large generation runs (engine in a worker thread)",
+    { timeout: 90_000 },
+    async () => {
+      const big = compiled({
+        ...(loadScenarioFixture("supplier_delay") as object),
+        meta: { ...(loadScenarioFixture("supplier_delay") as { meta: object }).meta, scale: 3 },
+      });
+      let settled = false;
+      const job = Promise.resolve(noiserPort().run(big, 42)).then((r) => {
+        settled = true;
+        return r;
+      });
+      const t0 = performance.now();
+      const res = await app.request("/health");
+      const latency = performance.now() - t0;
+      expect(res.status).toBe(200);
+      expect(settled).toBe(false);
+      expect(latency).toBeLessThan(250);
+      const run = await job;
+      expect(run.tables.find((t) => t.name === "sale")?.rows.length).toBeGreaterThan(0);
+    },
+  );
 });

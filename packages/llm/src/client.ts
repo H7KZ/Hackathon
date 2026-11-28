@@ -167,7 +167,7 @@ export interface Llm {
 export function createLlm(opts: LlmOptions = {}): Llm {
   const needEnv = opts.cacheDir === undefined || opts.offline === undefined || opts.model === undefined;
   const env = needEnv ? readLlmEnv() : { cacheDir: "", offline: false, model: "", modelBySchema: {} };
-  const cache = new DiskCache(opts.cacheDir ?? env.cacheDir);
+  const cache = new DiskCache(opts.cacheDir ?? env.cacheDir, process.env.LLM_CACHE_TRACE || undefined);
   const offline = opts.offline ?? env.offline;
   const defaultModel = opts.model ?? env.model;
   const modelBySchema = opts.modelBySchema ?? env.modelBySchema;

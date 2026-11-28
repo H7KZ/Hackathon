@@ -24,7 +24,8 @@ function hashes(tables: readonly GeneratedTable[]): Record<string, string> {
 
 afterAll(() => stopEngineWorker());
 
-describe("engine worker", () => {
+// the first request starts the worker (tsx hook + engine import): slow when turbo runs every package at once
+describe("engine worker", { timeout: 90_000 }, () => {
   it("generateInWorker matches the golden hashes and the in-process run", async () => {
     const raw = loadScenarioFixture("supplier_delay");
     const res = await generateInWorker(raw, { seed: 42 });
