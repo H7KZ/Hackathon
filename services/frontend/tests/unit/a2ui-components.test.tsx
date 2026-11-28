@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { A2uiSurface } from "../../components/a2ui/Surface";
 import { COMPONENTS, validateComponents } from "../../lib/a2ui/catalog";
 import { EXAMPLES, type Example } from "../../lib/a2ui/playground";
-import { a2ui } from "../../lib/a2ui/protocol";
+import { a2ui, path } from "../../lib/a2ui/protocol";
 import { createSurfaceStore } from "../../lib/a2ui/store";
 
 function mount(name: Example["name"]) {
@@ -192,6 +192,63 @@ describe("CurveEditor: it just works", () => {
     expect(values(read)[0]?.level).toBe(8);
     fireEvent.click(within(editor).getByRole("button", { name: "Smazat bod" }));
     expect(values(read)).toHaveLength(2);
+  });
+
+  it("+ Bod adds the new point at the last point's level, inside the chart (user: it ran off a 0–0.5 axis)", () => {
+    const store = createSurfaceStore();
+    store.apply(
+      a2ui.create({
+        surfaceId: "s",
+        components: [
+          {
+            id: "root",
+            component: "CurveEditor",
+            points: path("/points"),
+            baseline: 0.05,
+            from: "2025-02-15",
+            to: "2025-12-31",
+            min: 0,
+            max: 0.5,
+            live: true,
+          },
+        ],
+        dataModel: {
+          points: [
+            {
+              id: "sp1",
+              title: "Zpoždění",
+              start: "2025-03-01",
+              end: "2025-03-15",
+              level: 0.33,
+              kind: "ramp",
+            },
+            { id: "sp2", title: "Návrat", start: "2025-06-15", level: 0.45, kind: "step" },
+          ],
+        },
+      }),
+    );
+    render(<A2uiSurface store={store} surfaceId="s" onAction={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "+ Bod" }));
+    const pts = store.read("s", "/points") as { id: string; start: string; level: number }[];
+    const added = pts.find((p) => p.id === "sp3");
+    expect(added?.level).toBe(0.45);
+    expect(added && added.start > "2025-06-15" && added.start <= "2025-12-31").toBe(true);
+  });
+
+  it("+ Bod on an empty curve starts at the baseline", () => {
+    const store = createSurfaceStore();
+    store.apply(
+      a2ui.create({
+        surfaceId: "s",
+        components: [
+          { id: "root", component: "CurveEditor", points: path("/points"), baseline: 0.3, min: 0, max: 0.5 },
+        ],
+        dataModel: { points: [] },
+      }),
+    );
+    render(<A2uiSurface store={store} surfaceId="s" onAction={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "+ Bod" }));
+    expect((store.read("s", "/points") as { level: number }[])[0]?.level).toBe(0.3);
   });
 
   it("double-click on empty chart adds a point where the pointer is", () => {

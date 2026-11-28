@@ -150,7 +150,11 @@ export function CurveEditor({ node }: NodeProps) {
   };
   const add = (day: string, level: number) => {
     const id = nextId(points);
-    commit([...points, { id, title: "Nový bod", description: "", ...datesAt(day), level }]);
+    // a new point never starts outside the drawn value range
+    commit([
+      ...points,
+      { id, title: "Nový bod", description: "", ...datesAt(day), level: clamp(level, min, max) },
+    ]);
     setSelected(id);
   };
   const undo = () => {
@@ -299,8 +303,10 @@ export function CurveEditor({ node }: NodeProps) {
                     const last = sorted.at(-1);
                     const next = last ? addDays(last.start, 21) : addDays(from, Math.round(span / 2));
                     const start = next > to ? to : next;
-                    // `add` places the handle on the given day; the new change starts on `start`
-                    add(addDays(start, ramp), round1(valueOn(next) + 1));
+                    // `add` places the handle on the given day; the new change starts on `start`.
+                    // Same level as the last point (or the baseline): always on the chart, whatever the axis
+                    // (a fixed +1 ran off a 0–0.5 probability axis)
+                    add(addDays(start, ramp), last ? last.level : baseline);
                   }}
                 >
                   + Bod
