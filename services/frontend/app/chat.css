@@ -130,6 +130,37 @@
 .sb-list a {
   display: grid;
   gap: 0;
+  padding-right: 40px;
+}
+.sb-list li {
+  position: relative;
+}
+/* delete: revealed on hover or keyboard focus, always shown on touch screens */
+.sb-delete {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  translate: 0 -50%;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--color-muted);
+  opacity: 0;
+}
+.sb-list li:hover .sb-delete,
+.sb-delete:focus-visible {
+  opacity: 1;
+}
+.sb-delete:hover {
+  background: #e2e8e6;
+  color: var(--color-fis-dark);
+}
+@media (hover: none) {
+  .sb-delete {
+    opacity: 1;
+  }
 }
 /* current chat: a quiet filled pill, title a touch stronger (no accent stripe) */
 .sb-list a[aria-current="page"],

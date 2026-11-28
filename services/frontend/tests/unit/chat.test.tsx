@@ -116,6 +116,23 @@ describe("landing → chat", () => {
 });
 
 describe("history and loading copy", () => {
+  it("a chat can be deleted from the sidebar, after confirmation", () => {
+    for (const id of ["s1", "s2"])
+      remember({ id, company: `Firma ${id}`, story: "P", createdAt: "2026-11-27", demo: false });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
+    render(<HomePage />);
+    const button = screen.getByRole("button", { name: "Smazat chat Firma s1", hidden: true });
+
+    fireEvent.click(button);
+    expect(loadHistory()).toHaveLength(2);
+
+    fireEvent.click(button);
+    expect(loadHistory().map((e) => e.id)).toEqual(["s2"]);
+    expect(screen.queryByText("Firma s1")).toBeNull();
+    expect(screen.getByText("Firma s2")).toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
   it("keeps newest first, dedupes by id, caps at 20", () => {
     for (let i = 0; i < 25; i++)
       remember({ id: `s${String(i)}`, company: "F", story: "P", createdAt: "2026-11-27", demo: false });

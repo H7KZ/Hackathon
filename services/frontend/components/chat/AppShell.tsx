@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { formatDate } from "../../lib/format";
-import { chatHref, loadHistory, type HistoryEntry } from "../../lib/history";
+import { chatHref, forget, loadHistory, type HistoryEntry } from "../../lib/history";
 import { Icon, ICONS } from "../icons";
 
 const KEY = "jojo.sidebar";
@@ -59,7 +59,15 @@ export function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () 
 }
 
 function Sidebar({ activeId, onClose }: { activeId?: string; onClose: () => void }) {
-  const entries = useHistory();
+  const stored = useHistory();
+  const [afterDelete, setAfterDelete] = useState<HistoryEntry[]>();
+  const entries = afterDelete ?? stored;
+  const remove = (e: HistoryEntry) => {
+    if (!window.confirm(`Smazat chat „${e.company}“ z historie?`)) return;
+    setAfterDelete(forget(e.id));
+    // the open chat was deleted: leave it for a new one
+    if (e.id === activeId) window.location.assign("/");
+  };
   return (
     <aside id="sidebar" className="sidebar" aria-label="Historie chatů">
       <div className="sb-head">
@@ -93,6 +101,17 @@ function Sidebar({ activeId, onClose }: { activeId?: string; onClose: () => void
                   {e.demo && " · demo"}
                 </small>
               </a>
+              <button
+                type="button"
+                className="sb-delete"
+                aria-label={`Smazat chat ${e.company}`}
+                title="Smazat chat"
+                onClick={() => {
+                  remove(e);
+                }}
+              >
+                <Icon path={ICONS.close} />
+              </button>
             </li>
           ))}
         </ul>
