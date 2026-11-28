@@ -3,7 +3,7 @@
  * scenario that is valid but carries no story; these catch that and go back to the agent as feedback.
  * A real Haiku run produced a single-process model with an unused late-delivery curve.
  */
-import { categoryFields, checkCurveShapes } from "@s2d/noiser";
+import { categoryFields, checkCurveShapes, fromDay, toDay } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
 import type { DataModel, StoryPlan } from "@s2d/schema/artifacts";
 import type { EntityDef, Scenario } from "@s2d/schema/scenario";
@@ -31,6 +31,27 @@ export function checkModelShape(model: ModelTables): CompileError[] {
       path: "processes",
       message:
         "The model has no causal chain: add branch/derive processes so the story's lever (an arrival or a field probability) leads to the outcome tables, e.g. order -> branch on stock -> sale / lost_sale -> derive complaint.",
+    },
+  ];
+}
+
+/** Longest lead-in (days from meta.start to the first curve change) A5 may pick; live runs used 26–91. */
+export const MAX_LEAD_IN_DAYS = 120;
+
+/**
+ * A long lead-in does not fix a drifting baseline, it only multiplies the rows every story gate has
+ * to generate and check. User run 5813f06c: asked to flatten the baseline, A5 moved the start 18
+ * months earlier (640-day lead-in) and the next gate took 10 minutes instead of 47 s.
+ */
+export function checkLeadIn(scenario: Pick<Scenario, "meta" | "curves">): CompileError[] {
+  const first = scenario.curves.flatMap((c) => c.segments.map((s) => s.start)).sort()[0];
+  if (first === undefined) return [];
+  const days = toDay(first) - toDay(scenario.meta.start);
+  if (days <= MAX_LEAD_IN_DAYS) return [];
+  return [
+    {
+      path: "meta.start",
+      message: `start ${scenario.meta.start} is ${String(days)} days before the first story change on ${first}; use at most ${String(MAX_LEAD_IN_DAYS)} days (start on or after ${fromDay(toDay(first) - MAX_LEAD_IN_DAYS)}; 8–12 weeks is enough). A longer lead-in does not flatten a drifting baseline and makes every check slow: start each flow near its steady level (its "initial" value) instead.`,
     },
   ];
 }
