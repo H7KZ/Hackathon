@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PHRASE_MS, phraseAt } from "../../lib/chat/phrases";
+import { YoyoSpinner } from "../yoyo-spinner";
 
 /** "The machine is working": fixed step label + rotating phrase (principle 4). */
 export function Thinking({ step, onCancel }: { step: string; onCancel?: (() => void) | undefined }) {
@@ -16,12 +17,8 @@ export function Thinking({ step, onCancel }: { step: string; onCancel?: (() => v
     };
   }, []);
   return (
-    <div className="thinking" role="status" aria-live="polite">
-      <span className="dots" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
+    <div className="thinking" aria-live="polite">
+      <YoyoSpinner size={48} label={step} />
       <span>
         <strong>{step}</strong>
         <span key={tick} className="phrase" suppressHydrationWarning>
