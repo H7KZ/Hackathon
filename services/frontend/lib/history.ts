@@ -38,6 +38,13 @@ export function remember(entry: HistoryEntry): HistoryEntry[] {
   return next;
 }
 
+/** Removes the chat from this browser's list only; the session stays on the API. */
+export function forget(id: string): HistoryEntry[] {
+  const next = loadHistory().filter((e) => e.id !== id);
+  storage()?.setItem(KEY, JSON.stringify(next));
+  return next;
+}
+
 export function findEntry(id: string): HistoryEntry | undefined {
   return loadHistory().find((e) => e.id === id);
 }
