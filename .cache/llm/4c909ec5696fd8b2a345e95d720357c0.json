@@ -1,0 +1,237 @@
+{
+  "key": "4c909ec5696fd8b2a345e95d720357c0",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_rollout",
+        "phase": 1,
+        "title": "Plošná aktualizace firmwaru vybraných modelů routerů",
+        "description": "Od začátku března 2024 se rychle nasazuje nový firmware na routery modelů RMO-001 až RMO-004. Podíl zařízení s novým firmwarem u těchto modelů roste a nový firmware přináší více technických problémů (ztráta Wi-Fi, restarty, špatná konfigurace). Ostatní modely zůstávají beze změny.",
+        "start": "2024-03-04",
+        "end": "2024-03-25",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        }
+      },
+      {
+        "id": "sp_support_overload",
+        "phase": 2,
+        "title": "Přetížení podpory a prodloužené čekání",
+        "description": "Zvýšený počet problémů se při stejné ochotě zákazníků volat promítne do prudkého nárůstu hovorů. Fronty agentů přesáhnou práh a doba čekání na lince se výrazně prodlouží. Přibývá také eskalací.",
+        "start": "2024-03-18",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        }
+      }
+    ],
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.02,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-10",
+            "to": 3,
+            "storyPointId": "sp_rollout"
+          },
+          {
+            "kind": "ramp",
+            "start": "2024-03-18",
+            "end": "2024-03-25",
+            "to": 0.1,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-18",
+            "to": 10,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "rollout_old",
+        "baseline": 0.95,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-25",
+            "to": 0.2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_new",
+        "baseline": 0.03,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-25",
+            "to": 0.75,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_fix",
+        "baseline": 0.02,
+        "segments": []
+      },
+      {
+        "id": "call_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "remote_resolve_prob",
+        "baseline": 0.7,
+        "segments": []
+      },
+      {
+        "id": "churn_prob",
+        "baseline": 0.1,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_firmware_updates_per_day",
+        "storyPointId": "sp_rollout",
+        "description": "Počet aktualizací firmwaru za den u dotčených modelů RMO-001 až RMO-004 během vrcholu nasazování výrazně vzroste oproti únoru.",
+        "sql": "SELECT 'before' AS period, COUNT(*) * 1.0 / 25 AS value FROM main.firmware_update WHERE router_model_id IN ('RMO-001','RMO-002','RMO-003','RMO-004') AND CAST(\"date\" AS DATE) BETWEEN DATE '2024-02-05' AND DATE '2024-02-29' UNION ALL SELECT 'after' AS period, COUNT(*) * 1.0 / 11 AS value FROM main.firmware_update WHERE router_model_id IN ('RMO-001','RMO-002','RMO-003','RMO-004') AND CAST(\"date\" AS DATE) BETWEEN DATE '2024-03-08' AND DATE '2024-03-18'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 1
+        }
+      },
+      {
+        "id": "exp_calls_per_day_affected",
+        "storyPointId": "sp_support_overload",
+        "description": "Počet hovorů na podporu za den od zařízení dotčených modelů po aktualizaci prudce vzroste.",
+        "sql": "SELECT 'before' AS period, COUNT(*) * 1.0 / 25 AS value FROM main.support_call c JOIN main.device d ON d.id = c.device_id WHERE d.router_model_id IN ('RMO-001','RMO-002','RMO-003','RMO-004') AND CAST(c.\"date\" AS DATE) BETWEEN DATE '2024-02-05' AND DATE '2024-02-29' UNION ALL SELECT 'after' AS period, COUNT(*) * 1.0 / 37 AS value FROM main.support_call c JOIN main.device d ON d.id = c.device_id WHERE d.router_model_id IN ('RMO-001','RMO-002','RMO-003','RMO-004') AND CAST(c.\"date\" AS DATE) BETWEEN DATE '2024-03-25' AND DATE '2024-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_wait_minutes",
+        "storyPointId": "sp_support_overload",
+        "description": "Průměrná doba čekání na hovor naroste, protože se zvýší backlog agentů nad práh.",
+        "sql": "SELECT 'before' AS period, AVG(wait_minutes) AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2024-02-05' AND DATE '2024-02-29' UNION ALL SELECT 'after' AS period, AVG(wait_minutes) AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2024-03-25' AND DATE '2024-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_escalations_per_day_affected",
+        "storyPointId": "sp_support_overload",
+        "description": "Počet eskalací za den u hovorů od dotčených modelů vzroste, protože do procesu vstupuje více hovorů při stejné pravděpodobnosti vzdáleného vyřešení.",
+        "sql": "SELECT 'before' AS period, COUNT(*) * 1.0 / 25 AS value FROM main.escalation e JOIN main.support_call c ON c.id = e.call_id JOIN main.device d ON d.id = c.device_id WHERE d.router_model_id IN ('RMO-001','RMO-002','RMO-003','RMO-004') AND CAST(e.\"date\" AS DATE) BETWEEN DATE '2024-02-05' AND DATE '2024-02-29' UNION ALL SELECT 'after' AS period, COUNT(*) * 1.0 / 37 AS value FROM main.escalation e JOIN main.support_call c ON c.id = e.call_id JOIN main.device d ON d.id = c.device_id WHERE d.router_model_id IN ('RMO-001','RMO-002','RMO-003','RMO-004') AND CAST(e.\"date\" AS DATE) BETWEEN DATE '2024-03-25' AND DATE '2024-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_control_unaffected_calls",
+        "storyPointId": "sp_support_overload",
+        "description": "Kontrola: počet hovorů za den od zařízení nedotčených modelů (RMO-005, RMO-006) zůstává stabilní.",
+        "sql": "SELECT 'before' AS period, COUNT(*) * 1.0 / 25 AS value FROM main.support_call c JOIN main.device d ON d.id = c.device_id WHERE d.router_model_id IN ('RMO-005','RMO-006') AND CAST(c.\"date\" AS DATE) BETWEEN DATE '2024-02-05' AND DATE '2024-02-29' UNION ALL SELECT 'after' AS period, COUNT(*) * 1.0 / 37 AS value FROM main.support_call c JOIN main.device d ON d.id = c.device_id WHERE d.router_model_id IN ('RMO-005','RMO-006') AND CAST(c.\"date\" AS DATE) BETWEEN DATE '2024-03-25' AND DATE '2024-04-30'",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.45
+        }
+      },
+      {
+        "id": "exp_control_priority_share",
+        "storyPointId": "sp_support_overload",
+        "description": "Kontrola: podíl hovorů s běžnou prioritou zůstává stabilní (konstantní rozdělení priorit, mnoho řádků).",
+        "sql": "SELECT 'before' AS period, AVG(CASE WHEN priority = 'běžná' THEN 1.0 ELSE 0.0 END) AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2024-02-05' AND DATE '2024-02-29' UNION ALL SELECT 'after' AS period, AVG(CASE WHEN priority = 'běžná' THEN 1.0 ELSE 0.0 END) AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2024-03-25' AND DATE '2024-04-30'",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.1
+        }
+      }
+    ]
+  }
+}

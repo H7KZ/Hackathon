@@ -1,0 +1,16 @@
+{
+  "key": "b21467205dd2136efed4c3369f3d76bf",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',date) w, count(*) calls, avg(wait_minutes) wait, sum(case when issue_type='restarty routeru' then 1 else 0 end) restarts from support_call group by 1 order by 1",
+        "select date_trunc('week',date) w, issue_type, count(*) c from support_call group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, router_model_id, firmware_version, count(*) c from firmware_update group by 1,2,3 order by 1,2,3",
+        "select date_trunc('week',e.date) w, count(*) esc, (select count(*) from remote_resolution r where date_trunc('week',r.date)=date_trunc('week',e.date)) remote, (select count(*) from repeat_call r where date_trunc('week',r.date)=date_trunc('week',e.date)) rep, (select count(*) from compensation r where date_trunc('week',r.date)=date_trunc('week',e.date)) comp, (select count(*) from customer_churn r where date_trunc('week',r.date)=date_trunc('week',e.date)) churn from escalation e group by 1 order by 1"
+      ]
+    }
+  }
+}

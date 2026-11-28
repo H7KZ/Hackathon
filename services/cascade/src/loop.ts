@@ -3,6 +3,7 @@
  * scenario in code, `compileScenario`, feed the errors back. An optional `verify` (A5: the story gate)
  * runs the engine and the expectations on a scenario that compiled.
  */
+import { createHash } from "node:crypto";
 import { LlmOutputInvalid, type Llm, type ObjectRequest } from "@s2d/llm";
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
@@ -140,6 +141,16 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
   return { ok: false, feedback, iterations: max };
 }
 
+/** A rejected A1–A4 answer, kept so a new run of the step continues from it (`withSchemaRetry` resume). */
+export interface RejectedAnswer {
+  /** Identity of the step's first prompt: a resume only applies to the same inputs. */
+  key: string;
+  n: number;
+  raw: unknown;
+  issues: string;
+  byCheck: boolean;
+}
+
 /**
  * Wraps an Llm so a schema-invalid answer is re-asked with the zod issues appended to the prompt
  * (A1–A4 have no compile step; A5/whatIf use repairLoop). Emits `loop.iteration` per attempt.
@@ -153,13 +164,27 @@ export function withSchemaRetry(
     maxIterations?: number;
     /** Extra checks on the schema-valid value; errors are fed back like schema issues. */
     check?: ((value: unknown) => CompileError[]) | undefined;
+    /**
+     * The last rejected answer of an earlier run for the same first prompt (`key`). With the disk
+     * cache, starting over at attempt 1 would replay the same rejected answers (user run 76384e44:
+     * "Zkusit znovu" failed A4 three times in a row in milliseconds), so the run continues from it.
+     */
+    resume?: ((key: string) => RejectedAnswer | undefined) | undefined;
+    /** Called for every rejected answer (persist it for `resume`). */
+    onRejected?: ((answer: RejectedAnswer) => void) | undefined;
   } = {},
 ): Llm {
   const max = opts.maxIterations ?? MAX_ITERATIONS;
   return {
     async object<T>(req: ObjectRequest<T>): Promise<T> {
-      let failed: { err: LlmOutputInvalid; byCheck: boolean } | undefined;
-      for (let n = 1; ; n++) {
+      const key = promptKey(req);
+      const earlier = opts.resume?.(key);
+      let failed: { err: LlmOutputInvalid; byCheck: boolean } | undefined = earlier && {
+        err: new LlmOutputInvalid(req.schemaName, earlier.issues, earlier.raw),
+        byCheck: earlier.byCheck,
+      };
+      const first = earlier ? earlier.n + 1 : 1;
+      for (let n = first; ; n++) {
         opts.signal?.throwIfAborted();
         const prompt =
           failed === undefined
@@ -176,12 +201,21 @@ export function withSchemaRetry(
         } catch (err) {
           if (!(err instanceof LlmOutputInvalid)) throw err;
           opts.onEvent?.({ type: "loop.iteration", step, n, ok: false, feedback: [err.issues] });
-          if (n >= max) throw err;
+          opts.onRejected?.({ key, n, raw: err.raw, issues: err.issues, byCheck });
+          if (n >= first + max - 1) throw err;
           failed = { err, byCheck };
         }
       }
     },
   };
+}
+
+/** Identity of a step's first request (model aside): resuming applies only to the same inputs. */
+function promptKey(req: ObjectRequest<unknown>): string {
+  return createHash("sha256")
+    .update(JSON.stringify([req.schemaName, req.instructions ?? "", req.prompt]))
+    .digest("hex")
+    .slice(0, 16);
 }
 
 /**

@@ -47,6 +47,13 @@ describe("L1 draft: prompt → timeline awaiting refinement", () => {
     expect(existsSync(join(tmp.dir, id, "04_story.json"))).toBe(true);
   });
 
+  it("the fake Firma card names actors, not entity ids (run 6: 'SUP-002' shown as an actor)", async () => {
+    const { orch } = setup();
+    const id = await drafted(orch);
+    const company = orch.artifact(id, "01_company") as { actors: { name: string }[] };
+    expect(company.actors.every((a) => !/^[A-Z]+-\d+$/.test(a.name))).toBe(true);
+  });
+
   it("forwards cascade events to the session stream", async () => {
     const { orch } = setup();
     const id = await drafted(orch);
@@ -315,6 +322,35 @@ describe("L3b approve with UI settings", () => {
       readFileSync(join(tmp.dir, id, "05_scenario.json"), "utf8"),
     ) as typeof scenario;
     expect(designed.meta.seed).toBe(scenario.meta.seed);
+  });
+
+  it("a hypothesis switched off in the editor does not fail the A5 gate (run-6 item 2)", async () => {
+    const { orch, calls, scenario } = setup({ gateFails: ["e2"] });
+    const all = scenario.expectations.map((e) => e.id);
+    expect(all).toContain("e2");
+    const failing = await drafted(orch);
+    orch.command(failing, { type: "approve" });
+    await orch.idle(failing);
+    expect(orch.get(failing).status).toBe("awaiting_refinement");
+    expect(orch.get(failing).error).toMatch(/e2/);
+
+    const id = await drafted(orch);
+    const keep = all.filter((x) => x !== "e2");
+    orch.command(id, { type: "approve", settings: { expectations: keep } });
+    await orch.idle(id);
+    expect(orch.get(id).status).toBe("ready");
+    expect(calls.keptExpectations.at(-1)).toEqual(keep);
+  });
+
+  it("rejects an approve that switches off every hypothesis before any cascade call", async () => {
+    const { orch, calls } = setup();
+    const id = await drafted(orch);
+    const before = calls.produced.length;
+    const res = orch.command(id, { type: "approve", settings: { expectations: [] } });
+    expect(res.errors?.[0]?.path).toBe("settings.expectations");
+    expect(res.errors?.[0]?.message).toMatch(/hypotéz/);
+    expect(orch.get(id).status).toBe("awaiting_refinement");
+    expect(calls.produced.length).toBe(before);
   });
 
   it("applies a user period that contains the story", async () => {

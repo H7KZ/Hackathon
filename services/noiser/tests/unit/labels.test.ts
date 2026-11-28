@@ -22,6 +22,19 @@ describe("entityLabels (user: nobody knows what STO-001 means)", () => {
     expect(labels["SUP-001"]).toBe(row?.name);
   });
 
+  it("names a store by its city, not by a faker company name (run 6: 'Patočková v.o.s. (STO-001)')", () => {
+    const s = scenario();
+    const store = s.entities.find((e) => e.name === "store")!;
+    store.fields = { ...store.fields, name: { gen: "fake", kind: "companyName" } };
+    const labels = entityLabels(s.entities, { seed: 7 });
+    const run = runScenario(s, { seed: 7 });
+    const row = run.tables.find((t) => t.name === "store")?.rows[0];
+    expect(labels["STO-001"]).toBe(row?.city);
+    // other entities keep their name
+    const sup = run.tables.find((t) => t.name === "supplier")?.rows[0];
+    expect(labels["SUP-001"]).toBe(sup?.name);
+  });
+
   it("is deterministic and depends on the seed", () => {
     const s = scenario();
     const a = entityLabels(s.entities, { seed: 1 });

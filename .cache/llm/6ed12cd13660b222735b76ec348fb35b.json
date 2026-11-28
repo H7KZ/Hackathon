@@ -1,0 +1,16 @@
+{
+  "key": "6ed12cd13660b222735b76ec348fb35b",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select s.date, count(*) filter (where d.router_model_id in ('RMO-001','RMO-002','RMO-003','RMO-004')) m14, count(*) filter (where d.router_model_id in ('RMO-005','RMO-006')) m56 from support_call s join device d on d.id=s.device_id where s.date between '2024-02-26' and '2024-03-14' group by 1 order by 1",
+        "select date_trunc('week',date) w, count(*) c, count(*) filter (where router_model_id in ('RMO-001','RMO-002','RMO-003','RMO-004')) m14 from firmware_update group by 1 order by 1",
+        "select id,name,vendor,typ_pripojeni from router_model order by 1",
+        "select w, (select count(*) from escalation e where date_trunc('week',e.date)=w) esc, (select count(*) from remote_resolution r where date_trunc('week',r.date)=w) remote, (select count(*) from repeat_call r where date_trunc('week',r.date)=w) rep, (select count(*) from compensation r where date_trunc('week',r.date)=w) comp, (select count(*) from customer_churn r where date_trunc('week',r.date)=w) churn, (select avg(value) from agent_backlog_snapshot b where date_trunc('week',b.date)=w) backlog from (select distinct date_trunc('week',date) w from support_call) order by 1"
+      ]
+    }
+  }
+}

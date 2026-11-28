@@ -1,0 +1,141 @@
+{
+  "key": "f46d0b5d356d41519449be7f713d2553",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_normal",
+        "phase": 0,
+        "title": "Běžný provoz",
+        "description": "Všichni dodavatelé dodávají převážně včas, zásoby na prodejnách jsou stabilní a poptávka zákazníků je rovnoměrná.",
+        "start": "2025-01-01",
+        "end": "2025-02-28"
+      },
+      {
+        "id": "sp_late_supplier",
+        "phase": 1,
+        "title": "Problémový dodavatel začíná dodávat pozdě",
+        "description": "Od března výrazně roste pravděpodobnost pozdní dodávky u problémového dodavatele. Pozdní dodávky mají zpoždění 7–21 dní. Poptávka ani ostatní dodavatelé se nemění.",
+        "start": "2025-03-01",
+        "end": "2025-03-14",
+        "segment": {
+          "field": "self.supplier_profile",
+          "values": [
+            "problémový"
+          ]
+        }
+      },
+      {
+        "id": "sp_consequences",
+        "phase": 2,
+        "title": "Výpadky zásob, ztracené prodeje a stížnosti",
+        "description": "Zboží problémového dodavatele chybí na prodejnách, přibývá neuskutečněných nákupů a stížností a tržby z jeho zboží klesají. Poptávka zůstává stejná.",
+        "start": "2025-03-15",
+        "segment": {
+          "field": "self.supplier_profile",
+          "values": [
+            "problémový"
+          ]
+        }
+      }
+    ],
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_profile",
+          "ids": [
+            "problémový"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-14",
+            "to": 0.7,
+            "storyPointId": "sp_late_supplier"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "late_prob_normal",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_late_share_problem",
+        "storyPointId": "sp_late_supplier",
+        "description": "Podíl pozdních objednávek u problémového dodavatele vzroste.",
+        "sql": "WITH o AS (SELECT CAST(order_date AS DATE) d, CASE WHEN is_late THEN 1.0 ELSE 0.0 END AS late FROM purchase_order WHERE supplier_profile = 'problémový') SELECT CASE WHEN d < DATE '2025-03-01' THEN 'before' WHEN d >= DATE '2025-03-15' THEN 'after' END AS period, AVG(late) AS value FROM o WHERE d < DATE '2025-03-01' OR d >= DATE '2025-03-15' GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_lost_sales_problem",
+        "storyPointId": "sp_consequences",
+        "description": "Počet ztracených prodejů za den u zboží problémového dodavatele vzroste.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) d FROM sale), per AS (SELECT d, CASE WHEN d < DATE '2025-03-01' THEN 'before' WHEN d >= DATE '2025-03-15' THEN 'after' END AS period FROM days), x AS (SELECT CAST(l.date AS DATE) d, COUNT(*) AS n FROM lost_sale l JOIN product p ON p.id = l.product_id JOIN supplier su ON su.id = p.supplier_id WHERE su.profile = 'problémový' GROUP BY 1) SELECT per.period AS period, SUM(COALESCE(x.n, 0)) * 1.0 / COUNT(*) AS value FROM per LEFT JOIN x ON x.d = per.d WHERE per.period IS NOT NULL GROUP BY per.period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_complaints_problem",
+        "storyPointId": "sp_consequences",
+        "description": "Počet stížností za den na zboží problémového dodavatele vzroste.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) d FROM sale), per AS (SELECT d, CASE WHEN d < DATE '2025-03-01' THEN 'before' WHEN d >= DATE '2025-03-15' THEN 'after' END AS period FROM days), x AS (SELECT CAST(c.date AS DATE) d, COUNT(*) AS n FROM complaint c JOIN supplier su ON su.id = c.supplier_id WHERE su.profile = 'problémový' GROUP BY 1) SELECT per.period AS period, SUM(COALESCE(x.n, 0)) * 1.0 / COUNT(*) AS value FROM per LEFT JOIN x ON x.d = per.d WHERE per.period IS NOT NULL GROUP BY per.period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_revenue_problem",
+        "storyPointId": "sp_consequences",
+        "description": "Denní tržby ze zboží problémového dodavatele klesnou.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) d FROM sale), per AS (SELECT d, CASE WHEN d < DATE '2025-03-01' THEN 'before' WHEN d >= DATE '2025-03-15' THEN 'after' END AS period FROM days), x AS (SELECT CAST(s.date AS DATE) d, SUM(s.quantity * s.unit_price) AS rev FROM sale s JOIN product p ON p.id = s.product_id JOIN supplier su ON su.id = p.supplier_id WHERE su.profile = 'problémový' GROUP BY 1) SELECT per.period AS period, SUM(COALESCE(x.rev, 0)) * 1.0 / COUNT(*) AS value FROM per LEFT JOIN x ON x.d = per.d WHERE per.period IS NOT NULL GROUP BY per.period",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.05
+        }
+      },
+      {
+        "id": "exp_revenue_reliable_control",
+        "storyPointId": "sp_consequences",
+        "description": "Kontrola: denní tržby ze zboží spolehlivých dodavatelů zůstanou stabilní.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) d FROM sale), per AS (SELECT d, CASE WHEN d < DATE '2025-03-01' THEN 'before' WHEN d >= DATE '2025-03-15' THEN 'after' END AS period FROM days), x AS (SELECT CAST(s.date AS DATE) d, SUM(s.quantity * s.unit_price) AS rev FROM sale s JOIN product p ON p.id = s.product_id JOIN supplier su ON su.id = p.supplier_id WHERE su.profile = 'spolehlivý' GROUP BY 1) SELECT per.period AS period, SUM(COALESCE(x.rev, 0)) * 1.0 / COUNT(*) AS value FROM per LEFT JOIN x ON x.d = per.d WHERE per.period IS NOT NULL GROUP BY per.period",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.12
+        }
+      },
+      {
+        "id": "exp_demand_control",
+        "storyPointId": "sp_consequences",
+        "description": "Kontrola: celková poptávka (prodeje + ztracené prodeje) za den zůstane stabilní.",
+        "sql": "WITH ev AS (SELECT CAST(date AS DATE) d FROM sale UNION ALL SELECT CAST(date AS DATE) d FROM lost_sale), days AS (SELECT DISTINCT CAST(date AS DATE) d FROM sale), per AS (SELECT d, CASE WHEN d < DATE '2025-03-01' THEN 'before' WHEN d >= DATE '2025-03-15' THEN 'after' END AS period FROM days), x AS (SELECT d, COUNT(*) AS n FROM ev GROUP BY d) SELECT per.period AS period, SUM(COALESCE(x.n, 0)) * 1.0 / COUNT(*) AS value FROM per LEFT JOIN x ON x.d = per.d WHERE per.period IS NOT NULL GROUP BY per.period",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.1
+        }
+      }
+    ]
+  }
+}

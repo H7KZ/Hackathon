@@ -1,0 +1,44 @@
+{
+  "key": "2e37c85e84e4283b5032ef562da9bc59",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_profile",
+          "ids": [
+            "problémový"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-14",
+            "to": 0.7,
+            "storyPointId": "sp_late_supplier"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "late_prob_normal",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Rampa růstu pravděpodobnosti pozdní dodávky u problémového dodavatele je posunuta o měsíc později (z března na duben), ostatní parametry zůstávají beze změny."
+  }
+}

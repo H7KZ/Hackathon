@@ -12,8 +12,15 @@ import type { Runtime } from "./engine/types";
 
 const NAME_KINDS = new Set(["companyName", "personName", "productName", "city"]);
 
-/** The field that names a row: `name`/`title`/`label`, else the first faker name-like field. */
+/** Entities that are places: a faker company name reads oddly for them ("Patočková v.o.s." as a store). */
+const PLACE_ENTITY = /store|shop|branch|outlet|warehouse|depot|prodejn|pobo[cč]k|sklad|filial/i;
+
+/**
+ * The field that names a row: a place's `city` (run 6), else `name`/`title`/`label`, else the first
+ * faker name-like field.
+ */
 function labelField(def: EntityDef): string | undefined {
+  if (PLACE_ENTITY.test(def.name) && "city" in def.fields) return "city";
   const named = ["name", "title", "label", "nazev"].find((f) => f in def.fields);
   if (named) return named;
   return Object.entries(def.fields).find(([, g]) => g.gen === "fake" && NAME_KINDS.has(g.kind))?.[0];

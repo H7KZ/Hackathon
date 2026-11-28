@@ -1,0 +1,26 @@
+{
+  "key": "db624708ac3f8f442b706bc1a799b22a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Do začátku března byl provoz stabilní: zhruba 115–150 hovorů týdně, čekání 11–15 min, backlog agentů kolem 4 a přibližně 40 eskalací týdně. Od týdne 2024-03-04 se hromadně nasazuje nový firmware na routery RMO-001 až RMO-004. Aktualizací bylo dříve 5–8 týdně, nyní je to 298, pak 684 a 360. Denně jich je 1 až 94 (první skok 2024-03-05). Modely RMO-005 a RMO-006 firmware téměř nedostaly a jejich počet hovorů zůstal na ~20–25 týdně. U modelů RMO-001 až RMO-004 se hovory zvýšily z ~25 týdně na ~200 týdně na model. Týdenní počet hovorů vzrostl z ~140 na ~900, v první vlně 3. až 14. března. Čekání vzrostlo z ~13 na ~25 minut. Nárůst se týká všech typů problémů, nejen restartů, a obou segmentů zákazníků. Další dopady: eskalace vzrostly ze ~40 na ~260–300 týdně, opakované hovory z ~12 na ~90–100, kompenzace z ~8 na ~50–60 týdně a backlog agentů ze ~4 na ~15. Odchody zákazníků rostou se zpožděním, ze ~0–2 týdně na 6–9 týdně v dubnu. Pravděpodobnou příčinou je tedy chybný firmware nasazený na RMO-001 až RMO-004 od 2024-03-04. Jde o časovou souvislost a rozdíl mezi modely, příčinu jsem přímo nepotvrdil.",
+        "findings": [
+          {
+            "claim": "Od týdne 2024-03-04 (první skok 2024-03-05) se hromadně nasazuje nový firmware na routery RMO-001 až RMO-004. Počet hovorů na podporu u těchto modelů vzrostl z ~25 na ~200 týdně na model, zatímco RMO-005 a RMO-006 zůstaly ploché. Následně vzrostly čekací doby, eskalace, opakované hovory, kompenzace i odchody zákazníků a backlog agentů.",
+            "entities": [
+              "RMO-001",
+              "RMO-002",
+              "RMO-003",
+              "RMO-004"
+            ],
+            "start": "2024-03-04",
+            "supportingSql": "select date_trunc('week',s.date) w, count(*) filter (where d.router_model_id in ('RMO-001','RMO-002','RMO-003','RMO-004')) m14, count(*) filter (where d.router_model_id in ('RMO-005','RMO-006')) m56 from support_call s join device d on d.id=s.device_id group by 1 order by 1"
+          }
+        ]
+      }
+    }
+  }
+}

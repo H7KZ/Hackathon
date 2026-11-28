@@ -47,7 +47,8 @@ Stable states (`cancel` returns to them): `awaiting_refinement`, `ready`. Busy s
 ```ts
 interface Ports {
   cascade: {
-    run(input: CascadeInput, o: { dir: string; until: ArtifactName; onEvent; signal }): Promise<void>;
+    // expectations: hypothesis ids kept in the story editor (approve settings); only those gate A5
+    run(input: CascadeInput, o: { dir: string; until: ArtifactName; onEvent; signal; expectations? }): Promise<void>;
     whatIf(question: string, base: Scenario, o: { onEvent; signal }): Promise<Scenario>;
   };
   noiser: { run(scenario: Scenario, seed: number): RunResult };            // pure

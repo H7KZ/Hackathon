@@ -185,14 +185,16 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
         return "awaiting_refinement";
       }
       case "approve": {
+        const settings = cmd?.type === "approve" ? cmd.settings : undefined;
         await ports.cascade.run(store.read(id).input, {
           dir: store.dir(id),
           until: "05_scenario",
           onEvent,
           signal,
+          // only the kept hypotheses gate A5 (run 6: switched-off ones still cost 5 attempts)
+          ...(settings?.expectations && { expectations: settings.expectations }),
         });
         // UI settings (seed, scale, noise, which hypotheses) apply on top of the cascade output
-        const settings = cmd?.type === "approve" ? cmd.settings : undefined;
         const designed = compiled(store.readJson(store.artifactPath(id, "05_scenario")));
         const scenario = compiled(applySettings(designed, settings));
         signal.throwIfAborted();
@@ -340,6 +342,15 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
             const errors = story.success ? periodErrors(story.data, cmd.settings.period) : [];
             if (errors.length) return reject(id, errors);
           }
+          if (cmd.settings?.expectations?.length === 0)
+            // no hypothesis = no story check on A5 and an empty Důkazy tab
+            return reject(id, [
+              {
+                path: "settings.expectations",
+                message:
+                  "Nech zapnutou aspoň jednu ověřovanou hypotézu, jinak nejde ověřit, že data příběh ukazují.",
+              },
+            ]);
           start(id, { kind: "approve", command: cmd, fallback: "awaiting_refinement" });
           break;
         case "edit_artifact": {

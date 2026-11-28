@@ -1,0 +1,150 @@
+{
+  "key": "9166688255c373fe252ad48f03254811",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_normal",
+        "phase": 0,
+        "title": "Běžný provoz",
+        "description": "Leden a únor: dodavatel notebooků dodává včas a v plném množství, prodejny mají dost zboží a ztracených prodejů je minimum.",
+        "start": "2025-01-01",
+        "end": "2025-02-28",
+        "segment": {
+          "field": "self.category",
+          "values": [
+            "notebook"
+          ]
+        }
+      },
+      {
+        "id": "sp_delays",
+        "phase": 1,
+        "title": "Dodavatel notebooků začíná zpožďovat",
+        "description": "Od března se prudce zvyšuje pravděpodobnost zpožděné dodávky notebooků a také pravděpodobnost nedodání plného množství. Nižší spolehlivost dodavatele je jediná kořenová příčina.",
+        "start": "2025-03-01",
+        "end": "2025-03-15",
+        "segment": {
+          "field": "self.category",
+          "values": [
+            "notebook"
+          ]
+        }
+      },
+      {
+        "id": "sp_stockouts",
+        "phase": 2,
+        "title": "Docházejí notebooky a přibývá stížností",
+        "description": "Zásoby notebooků na prodejnách klesají, zákazníci odcházejí bez nákupu a při stejné pravděpodobnosti stížnosti přibývá stížností na nedostupnost zboží.",
+        "start": "2025-03-15",
+        "segment": {
+          "field": "self.category",
+          "values": [
+            "notebook"
+          ]
+        }
+      }
+    ],
+    "curves": [
+      {
+        "id": "notebook_late_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.category",
+          "ids": [
+            "notebook"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-15",
+            "to": 0.6,
+            "storyPointId": "sp_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "notebook_short_prob",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.category",
+          "ids": [
+            "notebook"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-15",
+            "to": 0.5,
+            "storyPointId": "sp_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_late_share",
+        "storyPointId": "sp_delays",
+        "description": "Podíl zpožděných objednávek notebooků vzroste oproti období před březnem.",
+        "sql": "SELECT CASE WHEN o.order_date < '2025-03-01' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN o.is_late THEN 1.0 ELSE 0.0 END) AS value FROM main.purchase_order o JOIN main.product p ON p.id = o.product_id WHERE p.category = 'notebook' AND (o.order_date < '2025-03-01' OR o.order_date >= '2025-03-15') GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_lost_sales_notebook",
+        "storyPointId": "sp_stockouts",
+        "description": "Počet ztracených prodejů notebooků za den vzroste (duben a později oproti lednu a únoru).",
+        "sql": "WITH d AS (SELECT CASE WHEN date < '2025-03-01' THEN 'before' WHEN date >= '2025-04-01' THEN 'after' END AS period, COUNT(DISTINCT date) AS n FROM main.sale GROUP BY 1), x AS (SELECT CASE WHEN l.date < '2025-03-01' THEN 'before' WHEN l.date >= '2025-04-01' THEN 'after' END AS period, COUNT(*) AS c FROM main.lost_sale l JOIN main.product p ON p.id = l.product_id WHERE p.category = 'notebook' GROUP BY 1) SELECT d.period AS period, COALESCE(x.c, 0) * 1.0 / d.n AS value FROM d LEFT JOIN x ON x.period = d.period WHERE d.period IS NOT NULL",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_complaints_notebook",
+        "storyPointId": "sp_stockouts",
+        "description": "Počet stížností na nedostupnost notebooků za den vzroste při stejné pravděpodobnosti stížnosti.",
+        "sql": "WITH d AS (SELECT CASE WHEN date < '2025-03-01' THEN 'before' WHEN date >= '2025-04-01' THEN 'after' END AS period, COUNT(DISTINCT date) AS n FROM main.sale GROUP BY 1), x AS (SELECT CASE WHEN c.date < '2025-03-01' THEN 'before' WHEN c.date >= '2025-04-01' THEN 'after' END AS period, COUNT(*) AS c FROM main.complaint c JOIN main.product p ON p.id = c.product_id WHERE p.category = 'notebook' GROUP BY 1) SELECT d.period AS period, COALESCE(x.c, 0) * 1.0 / d.n AS value FROM d LEFT JOIN x ON x.period = d.period WHERE d.period IS NOT NULL",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_control_other_sales",
+        "storyPointId": "sp_stockouts",
+        "description": "Kontrola: denní počet prodejů produktů, které nejsou notebooky, zůstává stabilní.",
+        "sql": "SELECT CASE WHEN s.date < '2025-03-01' THEN 'before' ELSE 'after' END AS period, COUNT(*) * 1.0 / COUNT(DISTINCT s.date) AS value FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.category <> 'notebook' AND (s.date < '2025-03-01' OR s.date >= '2025-04-01') GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.15
+        }
+      }
+    ]
+  }
+}

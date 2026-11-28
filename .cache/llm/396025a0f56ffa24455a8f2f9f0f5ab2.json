@@ -1,0 +1,16 @@
+{
+  "key": "396025a0f56ffa24455a8f2f9f0f5ab2",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select strftime(date_trunc('week',ls.date),'%m-%d') w, count(*) filter (where p.supplier_id='SUP-001') n1, count(*) filter (where p.supplier_id='SUP-002') n2, count(*) filter (where p.supplier_id='SUP-003') n3 from lost_sale ls join product p on p.id=ls.product_id group by 1 order by 1",
+        "select strftime(date_trunc('week',date),'%m-%d') w, count(*) filter (where supplier_id='SUP-001') n1, count(*) filter (where supplier_id='SUP-002') n2, count(*) filter (where supplier_id='SUP-003') n3 from complaint group by 1 order by 1",
+        "select supplier_id, count(*) n from product group by 1",
+        "select strftime(date_trunc('week',date),'%m-%d') w, count(*) n from sale group by 1 order by 1"
+      ]
+    }
+  }
+}

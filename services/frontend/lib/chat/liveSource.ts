@@ -146,7 +146,8 @@ export function createLiveSource(sessionId: string): ChatSource {
   };
   const base = `/sessions/${sessionId}`;
 
-  const command = async (cmd: SessionCommand) => {
+  /** Sends a command; false when it did not start (API down, busy, or rejected with a reason). */
+  const command = async (cmd: SessionCommand): Promise<boolean> => {
     let res: Response;
     try {
       res = await fetch(`${apiUrl()}${base}/commands`, {
@@ -156,13 +157,14 @@ export function createLiveSource(sessionId: string): ChatSource {
       });
     } catch {
       say("API je nedostupné. Zkontrolujte, že běží.");
-      return;
+      return false;
     }
     if (res.status === 409) say("Ještě běží předchozí krok. Zkuste to za chvilku.");
     else if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null;
       say(`Příkaz se nepodařilo odeslat: ${body?.errors?.[0]?.message ?? `HTTP ${String(res.status)}`}`);
     }
+    return res.ok;
   };
 
   /** Only the draft card grows with steps of the other cascade design; later cards list their own steps. */
@@ -446,7 +448,8 @@ export function createLiveSource(sessionId: string): ChatSource {
           if (pendingApprove) {
             const cmd = pendingApprove;
             pendingApprove = null;
-            void command(cmd);
+            // rejected after the edit was saved: show the (edited) story again so it can be fixed
+            void command(cmd).then((ok) => (ok ? undefined : showStory().catch(fail)));
           } else await showStory().catch(fail);
         }
         if (e.status === "ready") {
@@ -509,7 +512,13 @@ export function createLiveSource(sessionId: string): ChatSource {
           progress
             .filter((s) => s.state === "running")
             .forEach((s) => {
-              mark(s.id, "failed");
+              // the last attempt's "agent opravuje…" would claim it is still being repaired
+              const tried = s.attempt ? s.attempt.n - 1 : 0;
+              mark(
+                s.id,
+                "failed",
+                tried > 0 ? `selhalo po ${String(tried)} ${tried === 1 ? "pokusu" : "pokusech"}` : "selhalo",
+              );
             });
         // shown by the status that follows (retry card in its place in the timeline), not as raw text
         lastError = e.message;
@@ -518,9 +527,18 @@ export function createLiveSource(sessionId: string): ChatSource {
   }
 
   function approve(context: Record<string, unknown>) {
-    if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
     const config = context.config as StoryConfig | undefined;
     const settings = settingsFrom(config, context.expectations as ExpectationToggle[] | undefined);
+    if (settings.expectations?.length === 0) {
+      // the API rejects it too: without a hypothesis nothing checks that the data shows the story
+      say("Nech zapnutou aspoň jednu ověřovanou hypotézu, jinak nejde ověřit, že data příběh ukazují.");
+      return;
+    }
+    if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
+    // a rejected approve (period, hypotheses) must leave the editor usable to fix it
+    const unlockIfRejected = (ok: boolean) => {
+      if (!ok && storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", false) });
+    };
     const approveCmd: SessionCommand = { type: "approve", settings };
     const edited = context.points as StoryPointEdit[] | undefined;
     if (story && edited) {
@@ -552,7 +570,7 @@ export function createLiveSource(sessionId: string): ChatSource {
         return;
       }
     }
-    void command(approveCmd);
+    void command(approveCmd).then(unlockIfRejected);
   }
 
   return {

@@ -1,0 +1,72 @@
+{
+  "key": "876af740241e3e31ef7b51b6c66c2c95",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04a_overlay",
+  "output": {
+    "name": "Výpadky zásob kvůli pozdním dodávkám dodavatele Domex Distribuce",
+    "start": "2024-01-01",
+    "end": "2024-06-30",
+    "storyPoints": [
+      {
+        "id": "sp_zpozdeni_zacina",
+        "phase": 1,
+        "title": "Začátek zpožděných dodávek",
+        "description": "Od března začíná problémový dodavatel Domex Distribuce dodávat zboží pozdě. Pozdní dodávky jsou zatím ojedinělé, ale zásoby u části produktů se začínají ztenčovat.",
+        "segment": {
+          "field": "supplier.profile",
+          "values": [
+            "problémový"
+          ]
+        },
+        "start": "2024-03-01",
+        "end": "2024-03-25"
+      },
+      {
+        "id": "sp_zpozdeni_roste",
+        "phase": 2,
+        "title": "Rostoucí zpoždění a výpadky zásob",
+        "description": "Pravděpodobnost pozdní dodávky u dodavatele Domex Distribuce dále roste. Zásoby produktů tohoto dodavatele se na prodejnách vyprazdňují, přibývá neuskutečněných nákupů, stížností a odchodů ke konkurenci.",
+        "segment": {
+          "field": "supplier.profile",
+          "values": [
+            "problémový"
+          ]
+        },
+        "start": "2024-03-25",
+        "end": "2024-04-22"
+      },
+      {
+        "id": "sp_zpozdeni_vrchol",
+        "phase": 3,
+        "title": "Trvale vysoká míra zpoždění",
+        "description": "Zpožděné dodávky se stávají běžnou praxí. Poptávka zákazníků zůstává stabilní, ale tržby sítě klesají, protože zboží není na prodejnách k dispozici.",
+        "segment": {
+          "field": "supplier.profile",
+          "values": [
+            "problémový"
+          ]
+        },
+        "start": "2024-04-22"
+      }
+    ],
+    "levers": [
+      {
+        "lever": "late_prob_problem",
+        "values": [
+          {
+            "storyPointId": "sp_zpozdeni_zacina",
+            "value": 0.2
+          },
+          {
+            "storyPointId": "sp_zpozdeni_roste",
+            "value": 0.4
+          },
+          {
+            "storyPointId": "sp_zpozdeni_vrchol",
+            "value": 0.55
+          }
+        ]
+      }
+    ]
+  }
+}

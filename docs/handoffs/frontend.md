@@ -12,6 +12,8 @@ Run-5 follow-up ([run 6](../runs/2026-11-28-live-e2e-6.md)): the live source han
 
 Tests: unit (`live-mapping`, `live-source` with a fake EventSource), Playwright on fake services (`flow.spec.ts`, ports 4310/3310), real stack in the browser (`E2E_REAL=1 … real.spec.ts`, live or `LLM_OFFLINE=1`), screenshot review of finished sessions (`E2E_REVIEW=<api>|<ids> … review.spec.ts`). Live results: [`docs/runs/2026-11-28-live-e2e-3.md`](../runs/2026-11-28-live-e2e-3.md).
 
+Run 7: a rejected approve (period outside the story, every hypothesis switched off) unlocks the story editor again and says why; switching off every hypothesis is caught before sending. Stores are labelled by city (`GET …/labels`).
+
 ## Goal
 
 A conversational UI over a single session:

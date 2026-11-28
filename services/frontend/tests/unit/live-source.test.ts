@@ -48,6 +48,7 @@ function start(
   state: Record<string, unknown> = { status: "ready", datasets: [] },
   artifacts: Record<string, unknown> = {},
   routes: Record<string, unknown> = {},
+  commandStatus = 202,
 ) {
   vi.stubGlobal("EventSource", FakeEventSource);
   const requests: { url: string; body?: unknown }[] = [];
@@ -65,7 +66,7 @@ function start(
             ? { value: artifacts[url.split("/artifacts/")[1] ?? ""] ?? {} }
             : state;
       return Promise.resolve(
-        new Response(JSON.stringify(body), { status: url.endsWith("/commands") ? 202 : 200 }),
+        new Response(JSON.stringify(body), { status: url.endsWith("/commands") ? commandStatus : 200 }),
       );
     }),
   );
@@ -319,6 +320,101 @@ describe("live source: a dataset whose hypotheses do not all hold", () => {
       expect(events.some((e) => e.type === "say" && e.text.includes("1 hypotéza v nich neplatí (z 2)"))).toBe(
         true,
       );
+    });
+    stop();
+  });
+});
+
+describe("live source: a rejected approve (run-6 follow-up)", () => {
+  const story = {
+    storyPoints: [],
+    curves: [],
+    expectations: [
+      {
+        id: "e1",
+        storyPointId: "sp1",
+        description: "a",
+        sql: "SELECT 1",
+        check: { kind: "increase", minRelChange: 0.1 },
+      },
+    ],
+  };
+  const lockValues = (events: SourceEvent[]) =>
+    events.flatMap((e) =>
+      e.type === "a2ui" &&
+      "updateDataModel" in e.message &&
+      e.message.updateDataModel.surfaceId === "story" &&
+      e.message.updateDataModel.path === "/locked"
+        ? [e.message.updateDataModel.value]
+        : [],
+    );
+  const approve = (context: Record<string, unknown>) => ({
+    kind: "action" as const,
+    action: { name: "approve", surfaceId: "story", sourceComponentId: "generate", timestamp: "", context },
+  });
+
+  it("all hypotheses off: says so in Czech and sends no approve", async () => {
+    const { source, es, events, requests, stop } = start(
+      { status: "awaiting_refinement", datasets: [] },
+      {
+        "04_story": story,
+      },
+    );
+    es.push({ type: "status", status: "awaiting_refinement" }, 1);
+    await vi.waitFor(() => {
+      expect(created(events)).toContain("story");
+    });
+    source.send(approve({ expectations: [{ id: "e1", description: "a", enabled: false }] }));
+    await vi.waitFor(() => {
+      expect(events.some((e) => e.type === "say" && e.text.includes("aspoň jednu"))).toBe(true);
+    });
+    expect(requests.some((r) => (r.body as { type?: string } | undefined)?.type === "approve")).toBe(false);
+    expect(lockValues(events).at(-1) ?? false).toBe(false);
+    stop();
+  });
+
+  it("an approve the API rejects unlocks the editor again and says why", async () => {
+    const { source, es, events, stop } = start(
+      { status: "awaiting_refinement", datasets: [] },
+      { "04_story": story },
+      { "/commands": { errors: [{ path: "settings.period", message: "Období musí obsahovat příběh." }] } },
+      422,
+    );
+    es.push({ type: "status", status: "awaiting_refinement" }, 1);
+    await vi.waitFor(() => {
+      expect(created(events)).toContain("story");
+    });
+    source.send(approve({ expectations: [{ id: "e1", description: "a", enabled: true }] }));
+    await vi.waitFor(() => {
+      expect(events.some((e) => e.type === "say" && e.text.includes("Období musí obsahovat příběh"))).toBe(
+        true,
+      );
+      expect(lockValues(events)).toEqual([true, false]);
+    });
+    stop();
+  });
+});
+
+describe("live source: a step that gave up (run 7 review)", () => {
+  it("says it failed after N attempts, not that the agent is still repairing", async () => {
+    const { es, events, stop } = start({ status: "failed", datasets: [] });
+    es.push({ type: "status", status: "drafting" }, 1);
+    es.push({ type: "cascade", event: { type: "step.started", step: "04_story" } }, 2);
+    for (const n of [1, 2, 3])
+      es.push(
+        {
+          type: "cascade",
+          event: { type: "loop.iteration", step: "04_story", n, ok: false, feedback: ["x"] },
+        },
+        2 + n,
+      );
+    es.push({ type: "error", message: "LLM output for 04_story failed validation" }, 6);
+    es.push({ type: "status", status: "failed" }, 7);
+    await vi.waitFor(() => {
+      const story = steps(events, "progress-1").find((s) => s.id === "04_story") as
+        { state: string; detail?: string } | undefined;
+      expect(story?.state).toBe("failed");
+      expect(story?.detail).toBe("selhalo po 3 pokusech");
     });
     stop();
   });

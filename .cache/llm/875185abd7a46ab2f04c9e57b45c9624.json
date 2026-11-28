@@ -1,0 +1,44 @@
+{
+  "key": "875185abd7a46ab2f04c9e57b45c9624",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_profile",
+          "ids": [
+            "problémový"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-14",
+            "to": 0.375,
+            "storyPointId": "sp_late_supplier"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "late_prob_normal",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Pravděpodobnost pozdní dodávky u problémového dodavatele roste jen na 0,375 místo 0,7, takže nárůst oproti základu (0,05) je poloviční, zatímco poptávka a ostatní parametry zůstávají beze změny."
+  }
+}

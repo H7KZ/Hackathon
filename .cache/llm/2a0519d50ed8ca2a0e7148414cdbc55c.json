@@ -1,0 +1,15 @@
+{
+  "key": "2a0519d50ed8ca2a0e7148414cdbc55c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('month',date) m, count(*) filter (where supplier_id='SUP-001') s1, count(*) filter (where supplier_id='SUP-002') s2, count(*) filter (where supplier_id='SUP-003') s3, count(*) filter (where supplier_id='SUP-004') s4, count(*) filter (where supplier_id='SUP-005') s5 from complaint group by 1 order by 1",
+        "select date_trunc('month',order_date) m, round(avg(lead_days) filter (where supplier_id='SUP-001'),2) l1, round(avg(lead_days) filter (where supplier_id='SUP-002'),2) l2, round(avg(lead_days) filter (where supplier_id='SUP-003'),2) l3, round(avg(lead_days) filter (where supplier_id='SUP-004'),2) l4, round(avg(lead_days) filter (where supplier_id='SUP-005'),2) l5 from purchase_order group by 1 order by 1",
+        "select date_trunc('month',date) m, round(avg(delivery_days) filter (where courier_id='COU-001'),2) c1, round(avg(delivery_days) filter (where courier_id='COU-002'),2) c2, round(avg(delivery_days) filter (where courier_id='COU-003'),2) c3 from eshop_order group by 1 order by 1"
+      ]
+    }
+  }
+}

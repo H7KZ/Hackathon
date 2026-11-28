@@ -1,0 +1,175 @@
+{
+  "key": "ceb0d72b88f27ba4cdc66d618851959b",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_trend_sport",
+        "phase": 1,
+        "title": "Nový trend: sportovní značkové boty",
+        "description": "Od dubna 2024 roste obliba značkových sportovních bot. Podíl sportovních bot mezi pokusy o objednávku postupně stoupá z 35 % na 55 %. Celková poptávka zůstává stejná, jen se přesouvá ze zboží kategorie ostatní. Při stejných maržích na kus roste počet prodaných sportovních párů.",
+        "start": "2024-04-01",
+        "end": "2024-06-30",
+        "segment": {
+          "field": "product.category",
+          "values": [
+            "sportovní"
+          ]
+        }
+      },
+      {
+        "id": "sp_quality_drop",
+        "phase": 2,
+        "title": "Zhoršení kvality sportovních bot",
+        "description": "Od září 2024 se do prodeje dostávají sportovní boty horší kvality. Pravděpodobnost vady sportovního páru roste ze 3 % na 18 %. Reklamace a žádosti o vrácení peněz se začnou hromadit se zpožděním 7 až 60 dnů po nákupu.",
+        "start": "2024-09-01",
+        "end": "2024-12-01",
+        "segment": {
+          "field": "product.category",
+          "values": [
+            "sportovní"
+          ]
+        }
+      },
+      {
+        "id": "sp_churn",
+        "phase": 3,
+        "title": "Reklamace a odchod zákazníků",
+        "description": "Od ledna 2025 jsou vidět dlouhodobé následky. Reklamací je mnohem víc, zákazníci po nich odcházejí se stejnou pravděpodobností jako dřív a počet odchodů roste. Pravděpodobnost odchodu po reklamaci se nemění. Roste jen počet reklamací, které se k ní dostanou.",
+        "start": "2025-01-01",
+        "end": "2025-02-28"
+      }
+    ],
+    "curves": [
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "sport_share",
+        "baseline": 0.35,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-01",
+            "end": "2024-06-30",
+            "to": 0.55,
+            "storyPointId": "sp_trend_sport"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "other_share",
+        "baseline": 0.65,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-01",
+            "end": "2024-06-30",
+            "to": 0.45,
+            "storyPointId": "sp_trend_sport"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "defect_prob",
+        "baseline": 0.03,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-09-01",
+            "end": "2024-12-01",
+            "to": 0.18,
+            "storyPointId": "sp_quality_drop"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "churn_after_complaint",
+        "baseline": 0.1,
+        "segments": []
+      },
+      {
+        "id": "stock_target",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_sport_orders_up",
+        "storyPointId": "sp_trend_sport",
+        "description": "Počet objednávek sportovních bot za den vzroste (únor–březen 2024 oproti červenci–srpnu 2024).",
+        "sql": "SELECT period, COUNT(*) * 1.0 / (CASE WHEN period = 'before' THEN 60 ELSE 48 END) AS value FROM (SELECT CASE WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-02-01' AND DATE '2024-03-31' THEN 'before' WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-07-15' AND DATE '2024-08-31' THEN 'after' END AS period FROM main.eshop_order WHERE category = 'sportovní') t WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_total_orders_stable_trend",
+        "storyPointId": "sp_trend_sport",
+        "description": "Kontrola: celkový počet objednávek za den zůstává stabilní, trend jen přesouvá poptávku mezi kategoriemi.",
+        "sql": "SELECT period, COUNT(*) * 1.0 / (CASE WHEN period = 'before' THEN 60 ELSE 48 END) AS value FROM (SELECT CASE WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-02-01' AND DATE '2024-03-31' THEN 'before' WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-07-15' AND DATE '2024-08-31' THEN 'after' END AS period FROM main.eshop_order) t WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.1
+        }
+      },
+      {
+        "id": "exp_complaints_up",
+        "storyPointId": "sp_quality_drop",
+        "description": "Počet reklamací za den výrazně vzroste (červenec–srpen 2024 oproti lednu–únoru 2025).",
+        "sql": "SELECT period, COUNT(*) * 1.0 / (CASE WHEN period = 'before' THEN 48 ELSE 59 END) AS value FROM (SELECT CASE WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-07-15' AND DATE '2024-08-31' THEN 'before' WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' THEN 'after' END AS period FROM main.complaint) t WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_returns_up",
+        "storyPointId": "sp_quality_drop",
+        "description": "Počet žádostí o vrácení peněz za den vzroste jako následek vyššího počtu reklamací.",
+        "sql": "SELECT period, COUNT(*) * 1.0 / (CASE WHEN period = 'before' THEN 48 ELSE 59 END) AS value FROM (SELECT CASE WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-07-15' AND DATE '2024-08-31' THEN 'before' WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' THEN 'after' END AS period FROM main.return_request) t WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_total_orders_stable_quality",
+        "storyPointId": "sp_quality_drop",
+        "description": "Kontrola: celkový počet objednávek za den zůstává zhruba stabilní, protože poptávka se nemění.",
+        "sql": "SELECT period, COUNT(*) * 1.0 / (CASE WHEN period = 'before' THEN 48 ELSE 59 END) AS value FROM (SELECT CASE WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-07-15' AND DATE '2024-08-31' THEN 'before' WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' THEN 'after' END AS period FROM main.eshop_order) t WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.12
+        }
+      },
+      {
+        "id": "exp_churn_up",
+        "storyPointId": "sp_churn",
+        "description": "Počet odchodů zákazníků za den vzroste, protože při stejné pravděpodobnosti odchodu je víc reklamací.",
+        "sql": "SELECT period, COUNT(*) * 1.0 / (CASE WHEN period = 'before' THEN 48 ELSE 59 END) AS value FROM (SELECT CASE WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2024-07-15' AND DATE '2024-08-31' THEN 'before' WHEN CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-01' AND DATE '2025-02-28' THEN 'after' END AS period FROM main.customer_churn) t WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      }
+    ]
+  }
+}

@@ -85,6 +85,61 @@ describe("story gate in the A5 loop", () => {
   });
 });
 
+describe("hypotheses switched off in the story editor do not gate A5 (run-6 item 2)", () => {
+  let cleanup = () => {};
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("the gate receives only the kept expectations; its error paths still index 05_scenario", async () => {
+    const two = {
+      ...story,
+      expectations: [story.expectations[0]!, { ...story.expectations[0]!, id: "e_off" }],
+    };
+    const t = setup([company, model, influences, two, detail, { ...detail, name: "second try" }]);
+    cleanup = t.cleanup;
+    const seen: string[][] = [];
+    let calls = 0;
+    await runCascade(
+      { story: "s", company: "c" },
+      {
+        llm: t.llm,
+        runsDir: t.runsDir,
+        runId: "k1",
+        keepExpectations: ["e_off"],
+        verify: (sc) => {
+          seen.push(sc.expectations.map((e) => e.id));
+          return Promise.resolve(
+            calls++ === 0 ? [{ path: "expectations[0]", message: 'Expectation "e_off" failed' }] : [],
+          );
+        },
+      },
+    );
+    expect(seen.every((ids) => ids.length === 1 && ids[0] === "e_off")).toBe(true);
+    // the kept expectation is the 2nd of 05_scenario: the feedback must point there, not at [0]
+    expect(t.fake.calls.at(-1)?.prompt).toContain('expectations[1]: Expectation "e_off" failed');
+  });
+
+  it("without keepExpectations every expectation gates A5 (default approve unchanged)", async () => {
+    const t = setup([company, model, influences, story, detail]);
+    cleanup = t.cleanup;
+    const seen: number[] = [];
+    await runCascade(
+      { story: "s", company: "c" },
+      {
+        llm: t.llm,
+        runsDir: t.runsDir,
+        runId: "k2",
+        verify: (sc) => {
+          seen.push(sc.expectations.length);
+          return Promise.resolve([]);
+        },
+      },
+    );
+    expect(seen[0]).toBe(story.expectations.length);
+  });
+});
+
 describe("v1 A5 gate is seed-robust too (run-5 decision)", () => {
   let cleanup = () => {};
   afterEach(() => {

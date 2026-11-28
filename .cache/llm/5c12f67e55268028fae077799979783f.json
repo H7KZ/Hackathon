@@ -1,0 +1,16 @@
+{
+  "key": "5c12f67e55268028fae077799979783f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select supplier_id, date_trunc('week',order_date) w, count(*) n, round(avg(is_late::int),2) late, round(avg(is_short::int),2) short, round(avg(delay_days),1) d from purchase_order where supplier_id<>'SUP-001' and order_date>='2025-02-10' and order_date<'2025-04-07' group by 1,2 order by 1,2",
+        "select store_id, case when order_date<'2025-03-03' then 'pre' else 'post' end per, count(*) n, round(avg(is_late::int),2) late, round(avg(is_short::int),2) short from purchase_order where supplier_id<>'SUP-001' group by 1,2 order by 1,2",
+        "select category, supplier_id, case when order_date<'2025-03-03' then 'pre' else 'post' end per, count(*) n, round(avg(is_late::int),2) late, round(avg(is_short::int),2) short from purchase_order group by 1,2,3 order by 1,2,3",
+        "select date_trunc('week',date) w, count(*) n, sum(case when product_id in (select id from product where supplier_id='SUP-001') then 1 else 0 end) s1 from lost_sale where date>='2025-03-01' group by 1 order by 1"
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "key": "9ba8f844eb1a294fe18034b87800f07c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',f.date) w, f.router_model_id, f.firmware_version, count(*) c from firmware_update f group by 1,2,3 order by 1,2,3",
+        "select date_trunc('week',s.date) w, d.router_model_id, count(*) c from support_call s join device d on d.id=s.device_id group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, issue_type, count(*) c from support_call where date>='2024-02-26' group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, count(*) calls, count(distinct customer_id) cust, count(distinct device_id) devs from support_call group by 1 order by 1"
+      ]
+    }
+  }
+}

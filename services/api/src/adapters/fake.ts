@@ -18,6 +18,8 @@ export interface FakeCalls {
   whatIf: string[];
   noiserSeeds: number[];
   detective: number;
+  /** `expectations` (kept hypothesis ids) of each cascade run that reached 05_scenario; undefined = all. */
+  keptExpectations: (readonly string[] | undefined)[];
 }
 
 export interface FakeOptions {
@@ -28,6 +30,8 @@ export interface FakeOptions {
   failAt?: ArtifactName;
   /** Artificial delay per step so a UI can show progress. */
   delayMs?: number;
+  /** Expectation ids whose story gate fails on 05_scenario unless switched off (`expectations`). */
+  gateFails?: string[];
 }
 
 const wait = (ms: number, signal: AbortSignal) =>
@@ -86,12 +90,14 @@ const FAKE_TABLES = [
 
 export function fakePorts(opts: FakeOptions) {
   const { scenario } = opts;
-  const calls: FakeCalls = { produced: [], whatIf: [], noiserSeeds: [], detective: 0 };
+  const calls: FakeCalls = { produced: [], whatIf: [], noiserSeeds: [], detective: 0, keptExpectations: [] };
   const artifacts: Partial<Record<ArtifactName, unknown>> = {
     "01_company": {
       industry: "maloobchod",
       size: "5 prodejen",
-      actors: [{ kind: "supplier", name: "SUP-002", description: "dodavatel" }],
+      actors: [
+        { kind: "supplier", name: "Dodavatel Kovo s.r.o.", description: "dodavatel kuchyňských potřeb" },
+      ],
       keyProcesses: ["zásobování"],
     },
     "02_model": { entities: scenario.entities, flows: scenario.flows, processes: scenario.processes },
@@ -110,7 +116,7 @@ export function fakePorts(opts: FakeOptions) {
 
   const ports: Ports = {
     cascade: {
-      async run(_input, { dir, until, onEvent, signal }) {
+      async run(_input, { dir, until, onEvent, signal, expectations }) {
         for (const name of ORDER.slice(0, ORDER.indexOf(until) + 1)) {
           const file = join(dir, `${name}.json`);
           onEvent({ type: "step.started", step: name });
@@ -123,6 +129,9 @@ export function fakePorts(opts: FakeOptions) {
           signal.throwIfAborted();
           if (opts.failAt === name) throw new Error(`fake failure at ${name}`);
           if (name === "05_scenario") {
+            calls.keptExpectations.push(expectations);
+            const gated = (opts.gateFails ?? []).filter((e) => !expectations || expectations.includes(e));
+            if (gated.length) throw new Error(`fake story gate failed: ${gated.join(", ")}`);
             onEvent({ type: "loop.iteration", step: name, n: 1, ok: true, feedback: [] });
           }
           writeFileSync(file, JSON.stringify(artifacts[name]));

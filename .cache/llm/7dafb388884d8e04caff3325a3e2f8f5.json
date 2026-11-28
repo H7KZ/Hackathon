@@ -1,0 +1,23 @@
+{
+  "key": "7dafb388884d8e04caff3325a3e2f8f5",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Od začátku září 2024 prudce vzrostl počet reklamací v kategorii „sportovní“. V předchozích týdnech (červenec–srpen 2024) bylo kolem 40–55 reklamací týdně, od týdne 2024-09-02 jich bylo 62, pak 84, 103, 130, 150, 169, 181 a 233 (týden od 2024-10-21), tedy postupná eskalace na zhruba 4–5× normál; v listopadu až lednu to je přes 1100–1300 měsíčně. Reklamace kategorie „ostatní“ zůstaly ploché (~110–150 měsíčně). Nárůst je plošný přes všech 5 dodavatelů, všechny 3 kurýry i prakticky všechny sportovní produkty, takže nejde o jednoho dodavatele ani kurýra, ale o kvalitu celé kategorie sportovní. Objem objednávek, doba doručení, ceny ani marže se nezměnily. Rostou souběžně všechny důvody (rozlepená podrážka, rychlé opotřebení, špatné šití). Následkem je růst odchodů zákazníků (churn z ~40 měsíčně na 59 v říjnu, 108 v listopadu a ~140–155 v prosinci až únoru) a růst vratek a refundací.",
+        "findings": [
+          {
+            "claim": "Reklamace kategorie „sportovní“ začaly od týdne 2024-09-02 postupně narůstat (z ~48 na ~230 týdně do konce října, ~1300 měsíčně), plošně napříč dodavateli, kurýry i produkty; kategorie „ostatní“ je beze změny. Následně roste churn zákazníků (od října–listopadu 2024) a vratky.",
+            "entities": [
+              "sportovní"
+            ],
+            "start": "2024-09-02",
+            "supportingSql": "select date_trunc('week',date) w, category, count(*) n from complaint where date>='2024-07-15' group by 1,2 order by 1,2"
+          }
+        ]
+      }
+    }
+  }
+}
