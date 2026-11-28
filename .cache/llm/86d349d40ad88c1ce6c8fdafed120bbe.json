@@ -1,0 +1,66 @@
+{
+  "key": "86d349d40ad88c1ce6c8fdafed120bbe",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "order_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.customer_segment",
+          "ids": [
+            "kampaň"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-07",
+            "to": 2,
+            "storyPointId": "sp_spring_campaign"
+          },
+          {
+            "kind": "ramp",
+            "start": "2025-04-30",
+            "end": "2025-05-15",
+            "to": 1,
+            "storyPointId": "sp_campaign_fade"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "late_prob",
+        "baseline": 0.08,
+        "segments": []
+      },
+      {
+        "id": "return_prob",
+        "baseline": 0.06,
+        "segments": []
+      },
+      {
+        "id": "retention_email_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "repeat_campaign_prob",
+        "baseline": 0.12,
+        "segments": []
+      },
+      {
+        "id": "repeat_loyal_prob",
+        "baseline": 0.45,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Vrchol intenzity objednávek segmentu kampaň se zvýšil jen na 2 místo 3, takže nárůst oproti běžné úrovni 1 je poloviční (+1 místo +2), zatímco ostatní parametry zůstaly beze změny."
+  }
+}

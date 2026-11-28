@@ -1,0 +1,39 @@
+{
+  "key": "b75ad285c1cb6a4783b72e6ebcbd5aac",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatel SUP-001 (7 produktů, dodává do všech 5 prodejen) se začal od poloviny února 2024 postupně zhoršovat. Podíl zpožděných objednávek vzrostl z ~3 % v lednu na ~8 % v únoru, ~29 % v březnu a 44–54 % v dubnu až květnu. Průměrné zpoždění vzrostlo z ~1 dne na 10–12 dní. Skok je nejvýraznější v týdnu od 2024-03-25 (63 % zpožděných). Zhoršení je stejné ve všech prodejnách, jde tedy o problém dodavatele, ne jedné prodejny. Plánovaná lead_days se přitom nezměnila (~2,5 dne). Ostatní dodavatelé (SUP-002, SUP-003) zůstávají stabilní s podílem zpoždění 5–10 %. Následky: u produktů SUP-001 rostou ztracené prodeje (lost_sale) z ~51 v lednu na 157–167 v dubnu a květnu, zatímco ostatní dodavatelé stagnují. Rostou i stížnosti na nedostupnost zboží (complaint) u SUP-001 ze 4–5 měsíčně na 21–26 a stížnosti se rozšířily z 4 na všech 7 produktů.",
+        "findings": [
+          {
+            "claim": "Dodavatel SUP-001 začal od poloviny února 2024 dodávat s rostoucím zpožděním. Podíl zpožděných objednávek vzrostl z ~3 % v lednu na ~50 % v dubnu až červnu a průměrné zpoždění z ~1 na 10–12 dní. Skokové zhoršení nastalo v týdnu od 2024-03-25. Zpoždění je plošné napříč všemi prodejnami, plánovaná lead_days se nezměnila.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-02-12",
+            "supportingSql": "SELECT date_trunc('week', order_date) w, count(*) n, avg(CASE WHEN is_late THEN 1.0 ELSE 0 END) late_rate, avg(delay_days) avg_delay FROM purchase_order WHERE supplier_id='SUP-001' GROUP BY 1 ORDER BY 1"
+          },
+          {
+            "claim": "Následkem zpoždění dodávek SUP-001 vzrostly ztracené prodeje u jeho produktů z ~51 měsíčně v lednu na 157–167 v dubnu a květnu. Ztracené prodeje produktů ostatních dodavatelů zůstaly zhruba stabilní.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-03-01",
+            "supportingSql": "WITH ps AS (SELECT DISTINCT product_id, supplier_id FROM purchase_order) SELECT ps.supplier_id, date_trunc('month', l.date) m, count(*) n_lost, sum(l.quantity*l.unit_price) lost_value FROM lost_sale l LEFT JOIN ps USING(product_id) GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Stížnosti zákazníků na nedostupnost zboží u produktů SUP-001 vzrostly ze 4–5 měsíčně (leden až únor) na 16 v březnu a 21–26 v dubnu až červnu. Stížnosti se rozšířily ze 4 na všech 7 produktů dodavatele. U SUP-002 a SUP-003 žádný takový růst není.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-03-01",
+            "supportingSql": "SELECT supplier_id, date_trunc('month', date) m, count(*) n, count(DISTINCT product_id) prods FROM complaint GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

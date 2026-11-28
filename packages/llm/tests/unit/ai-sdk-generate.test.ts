@@ -118,3 +118,26 @@ describe("providerSafeSchema", () => {
     expect((await s.validate?.({ items: [{ kind: "a", y: "z" }] }))?.success).toBe(false);
   });
 });
+
+describe("anthropic text mode corrects schema misses (live detective_step: no `action`)", () => {
+  it("sends the zod issues back once and returns the corrected object", async () => {
+    const schema = z.object({ action: z.object({ kind: z.string() }) });
+    generateText
+      .mockResolvedValueOnce({ text: '{"kind":"sql"}', finishReason: "stop" })
+      .mockResolvedValueOnce({ text: '{"action":{"kind":"sql"}}', finishReason: "stop" });
+    await expect(aiSdkGenerate({ ...req, schema, model: "anthropic:m" })).resolves.toEqual({
+      action: { kind: "sql" },
+    });
+    const retry = generateText.mock.lastCall?.[0] as { messages?: { role: string; content: string }[] };
+    expect(retry.messages?.[2]?.content).toMatch(/does not match the schema/);
+    expect(retry.messages?.[2]?.content).toMatch(/action/);
+  });
+
+  it("returns the last answer when it still misses (the caller's parse reports it)", async () => {
+    const schema = z.object({ action: z.object({ kind: z.string() }) });
+    generateText
+      .mockResolvedValueOnce({ text: '{"kind":"a"}', finishReason: "stop" })
+      .mockResolvedValueOnce({ text: '{"kind":"b"}', finishReason: "stop" });
+    await expect(aiSdkGenerate({ ...req, schema, model: "anthropic:m" })).resolves.toEqual({ kind: "b" });
+  });
+});

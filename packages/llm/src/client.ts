@@ -125,19 +125,29 @@ async function anthropicJsonText({
   };
   const first = await generateText({ model: resolveModel(model), instructions: system, prompt });
   const raw = read(first);
-  if (raw !== undefined) return raw;
-  // a live detective step answered with prose only: show the model its answer and ask once more
+  // valid: done. Otherwise one follow-up turn with the model's own answer and what is wrong with it
+  // (live run 5: a detective step answered with prose only, another left out the `action` wrapper;
+  // a forced tool used to steer the shape, text mode needs this correction instead)
+  const issues =
+    raw === undefined
+      ? "Your answer contained no JSON object."
+      : ((r) =>
+          r.success ? undefined : `Your JSON does not match the schema:\n${z.prettifyError(r.error)}`)(
+          schema.safeParse(raw),
+        );
+  if (issues === undefined) return raw;
   const again = await generateText({
     model: resolveModel(model),
     instructions: system,
     messages: [
       { role: "user", content: prompt },
       { role: "assistant", content: first.text },
-      { role: "user", content: "Your answer contained no JSON object. Reply with only the JSON object." },
+      { role: "user", content: `${issues}\nReply with only the corrected JSON object.` },
     ],
   });
   const retried = read(again);
   if (retried === undefined) throw new Error(`LLM answer for ${model} contained no JSON object.`);
+  // still invalid: the caller's zod parse reports it (repair loops turn it into feedback)
   return retried;
 }
 

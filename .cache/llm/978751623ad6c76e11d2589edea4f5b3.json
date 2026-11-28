@@ -1,0 +1,11 @@
+{
+  "key": "978751623ad6c76e11d2589edea4f5b3",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "WITH ps AS (SELECT product_id, min(supplier_id) sup FROM purchase_order GROUP BY 1) SELECT date_trunc('week', l.date) w, sum(CASE WHEN sup='SUP-001' THEN 1 ELSE 0 END) lost_s1, sum(CASE WHEN sup<>'SUP-001' THEN 1 ELSE 0 END) lost_other FROM lost_sale l JOIN ps USING(product_id) GROUP BY 1 ORDER BY 1"
+    }
+  }
+}
