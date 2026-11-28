@@ -12,6 +12,13 @@ Template:
 - **Affects:** <workspaces / files>
 ```
 
+## 2026-11-28 — Integration: UI settings travel with approve; e2e on own ports; live harness and offline demo
+
+- **Decision:** (1) The story editor sends `approve.settings` (seed, scale, noise %, kept hypotheses); the API applies them to the dataset copy of `05_scenario` (`services/api/src/settings.ts`), never to curves. In live mode the editor hides what the API cannot apply (period, company size, ramp length). (2) Only story points that drive the edited curve are draggable; outcome points stay untouched on edit. (3) New port `dataer.tables/preview` + routes for the Data tab and totals. (4) `resume` also re-runs a failed or cancelled draft. (5) Playwright uses its own ports (API 4310, UI 3310) and never reuses a running server; `E2E_REAL=1` runs the real stack. (6) `pnpm e2e:live` (`scripts/live-e2e.mjs`) drives real sessions and writes a report; `pnpm demo` replays the committed cache with every LLM step pinned to one model.
+- **Why:** before this, editor settings were silently ignored in live mode, editing one knot could add segments for outcome points and break the story, and the e2e config could attach to a dev server already running on :4000.
+- **Who:** integration agent (asked by the frontend owner to integrate everything end to end).
+- **Affects:** `services/api` (contract.draft `GenerationSettings`, orchestrator, routes, CLI), `services/dataer` (`src/preview`), `packages/schema/src/evidence.ts` (`TableInfo`, `TablePreview`), `services/frontend` (live source, story surface, e2e), `scripts/`, `.cache/llm/` (recordings of the live run).
+
 ## 2026-11-27 — Causal cascade (D1–D4) built behind `design: "causal"`, v1 stays default
 
 - **Decision:** the typed causal map design is implemented next to the A1–A5 cascade, not instead of it. `CascadeOptions.design` (`CASCADE_DESIGN` in the API, `--design` in the CLI) picks `"v1"` (default) or `"causal"`: 4a `03a_causal_map`, 4b `03b_processes` with `trace`, `04a_overlay` (lever × story point matrix, curves built by code), `04b_expectations` (hypotheses derived by code, LLM writes only SQL), `04_story` and `05_scenario` assembled by code. v1 also gets two code checks: `03_influences` endpoints must name parts of `02_model`, and A5 curves may drive only map roots. `ArtifactName` gains `03a_causal_map`, `03b_processes`, `04a_overlay`, `04b_expectations`; `ArtifactSchemas` in `@s2d/schema/artifacts` is the one artifact → schema map.

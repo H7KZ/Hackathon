@@ -51,7 +51,7 @@ Not implemented (not needed for the demo): functions (`@call`), `callRendererFun
 | `dataset.ready` | `GET datasets/:d/evidence` (+ `compare/:parent`) | `dataset-dN` (canvas), `ready-dN` (chat), `compare-…` |
 | `detective.done` | `GET datasets/:d/detective` | `detective-dN` (canvas) |
 
-API gaps (owner: `services/api`): no table-rows endpoint (Tabulky tab empty in live mode), no dataset totals, story-point `strength` not in `04_story`.
+Since 2026-11-28 the live source also fetches `GET datasets/:d/tables` (+ `/tables/:t` previews) for the totals and the Tabulky tab. Pure mappings live in `lib/chat/liveMapping.ts`: only story points that drive the edited curve are draggable knots (outcome points stay as the cascade wrote them), the overview chart shows the series that moved most as a 7-day mean indexed to "before the story = 100", and "Generovat data" sends `approve.settings`. Still UI-only: story-point `strength`.
 
 ## Files
 

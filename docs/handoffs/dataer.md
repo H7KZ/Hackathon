@@ -6,10 +6,10 @@ Shared rules and the API overview: [README.md](README.md). Contract: SPEC §3.D�
 
 Everything that happens **after** the engine (storage, proof in the data, comparing two runs, the blind detective) is implemented and wired into the API and the cascade.
 
-Open:
+Done since the first handoff (2026-11-28):
 
-- **Table preview** for the frontend "Data" page: no port or route returns rows yet. Add `preview(dbPath, table, limit)` to `Ports["dataer"]` and `GET /sessions/:id/datasets/:d/tables/:t?limit=` in `services/api/src/routes/sessions.ts`. Agree the shape with the frontend team.
-- **CLI:** `pnpm evidence`, `pnpm detective` and `pnpm compare` print "not implemented yet" and exit 2. Only `pnpm gen` (store + evidence) works.
+- **Table preview:** `listTables(db)` / `previewTable(db, table, limit)` (`src/preview/tables.ts`), port `tables` / `preview`, routes `GET …/datasets/:d/tables` and `…/tables/:t?limit=` (1–200 rows, ordered by `id`, BIGINT as number). The UI uses them for the dataset totals and the Tabulky tab.
+- **CLI:** `pnpm evidence <db> [--scenario f]`, `pnpm compare <a> <b>`, `pnpm detective <db>` work (`services/api/src/cli/inspect.ts`).
 
 ## Where it sits
 

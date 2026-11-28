@@ -1,0 +1,28 @@
+[
+  {
+    "id": "dodavatel",
+    "company": "E-shop s domácími spotřebiči",
+    "story": "Dodavatel začal v březnu zpožďovat dodávky. Zákazníci si stěžují a část z nich ruší objednávky."
+  },
+  {
+    "id": "marketing",
+    "company": "Online obchod se sportovním vybavením",
+    "story": "Po jarní kampani přišlo hodně nových zákazníků, ale většina už podruhé nenakoupila."
+  },
+  {
+    "id": "podpora",
+    "company": "Poskytovatel internetového připojení",
+    "story": "Po aktualizaci routerů prudce přibylo hovorů na podporu a narostla doba čekání."
+  },
+  {
+    "id": "elektro_novak",
+    "company": "Elektro Novák s.r.o., řetězec 5 prodejen spotřební elektroniky",
+    "story": "Od března začne dodavatel notebooků zpožďovat dodávky. Prodejnám dochází zboží, zákazníci odcházejí bez nákupu a přibývá stížností na nedostupnost."
+  },
+  {
+    "id": "supplier_delay_causal",
+    "design": "causal",
+    "company": "Síť 5 prodejen s domácími potřebami v ČR. Zboží od 3 dodavatelů, zásobování týdně.",
+    "story": "Síti prodejen klesají tržby. Poptávka ale neklesla: jeden dodavatel začal od března dodávat pozdě, což způsobilo výpadky zásob, neuskutečněné nákupy a více stížností."
+  }
+]
