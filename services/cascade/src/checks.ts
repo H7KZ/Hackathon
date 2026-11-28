@@ -39,14 +39,31 @@ export function checkModelShape(model: ModelTables): CompileError[] {
  * point never shows. A flat curve is only a constant: A5 may use it or inline its baseline. Requiring it
  * deadlocked A5 against checkCurvesOnRoots in a live run (flat complaint_prob on a downstream param).
  */
-export function checkCurveCoverage(scenario: unknown, story: Pick<StoryPlan, "curves">): CompileError[] {
+export function checkCurveCoverage(
+  scenario: unknown,
+  story: Pick<StoryPlan, "curves"> & {
+    storyPoints?: Pick<StoryPlan["storyPoints"][number], "id" | "phase">[];
+  },
+): CompileError[] {
   const used = new Set<string>();
   collectCurveRefs(scenario, used);
+  // Story points a used curve bends. An unused bending curve is fine when every point it bends is
+  // already bent (redundant curve) or comes later than one that is (an outcome such as "issue surge"
+  // that must emerge through the chain, hard rule 3). Live run 3 (podpora): A4 bent rollout, two
+  // rollout variants and the downstream issue rate; only the rollout is a root, so A5 oscillated
+  // between "curve not used" and "curves only on roots" for 10 attempts.
+  const phase = new Map((story.storyPoints ?? []).map((p) => [p.id, p.phase]));
+  const covered = new Set(
+    story.curves.filter((c) => used.has(c.id)).flatMap((c) => c.segments.map((s) => s.storyPointId)),
+  );
+  const firstCovered = Math.min(...[...covered].map((id) => phase.get(id) ?? Infinity));
+  const follows = (id: string) => covered.has(id) || (phase.get(id) ?? -Infinity) > firstCovered;
   return story.curves
     .filter((c) => c.segments.length > 0 && !used.has(c.id))
+    .filter((c) => !(covered.size > 0 && c.segments.every((s) => follows(s.storyPointId))))
     .map((c) => ({
       path: `curves.${c.id}`,
-      message: `Curve "${c.id}" from 04_story is not used. Reference it as {"curve": "${c.id}"} in the Param it drives (an arrival rate or a bernoulli p in entities/processes).`,
+      message: `Curve "${c.id}" from 04_story is not used. Reference it as {"curve": "${c.id}"} in the root Param it drives (an arrival rate or a bernoulli p in entities/processes); a curve whose story point only follows from another curve's point may stay unused.`,
     }));
 }
 
