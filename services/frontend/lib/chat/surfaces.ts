@@ -417,6 +417,7 @@ function leverNodes(count: number): ComponentNode[] {
       max: path(`${at.curve}/max`),
       label: path(at.label),
       locked: path("/locked"),
+      live: true,
     },
     { id: `${id}Help`, component: "Text", variant: "caption", text: path(at.help) },
     {

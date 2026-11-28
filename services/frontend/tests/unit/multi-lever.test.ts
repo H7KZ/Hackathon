@@ -43,7 +43,7 @@ describe("every lever is editable", () => {
     const fee = edit.levers[0];
     expect(fee).toMatchObject({
       baseline: 99,
-      points: [{ id: "sp_shipping", start: "2025-05-01", level: 199 }],
+      points: [{ id: "sp_shipping", start: "2025-05-01", level: 199, kind: "step" }],
     });
     expect(fee?.max).toBeGreaterThanOrEqual(199);
     // its own segment's start, not the point's
@@ -124,6 +124,11 @@ describe("every lever is editable", () => {
     expect(msg).toContain('"component":"Tabs"');
     expect(msg).toContain('"title":{"@path":"/levers/1/label"},"child":"lv1"');
     expect(msg).toContain('"points":{"@path":"/levers/1/points"}');
+    // every lever's chart draws what the engine does (ramps hold, steps jump), like the main one
+    const nodes = (
+      JSON.parse(msg) as { createSurface: { components: { component: string; live?: boolean }[] } }
+    ).createSurface.components;
+    expect(nodes.filter((n) => n.component === "CurveEditor" && n.live).length).toBeGreaterThanOrEqual(3);
     expect(msg).toContain('"levers":{"@path":"/levers"}');
     expect(msg).toContain('"curveId":"checkout_prob"');
   });
