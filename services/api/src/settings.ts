@@ -19,8 +19,7 @@ function observedOutputs(s: Scenario): { table: string; fields: Fields }[] {
   for (const p of s.processes) {
     const outs = p.type === "branch" ? [p.then, p.else] : [p];
     for (const o of outs) {
-      if (o && (o.visibility ?? "observed") === "observed")
-        out.push({ table: o.table, fields: o.fields });
+      if (o && (o.visibility ?? "observed") === "observed") out.push({ table: o.table, fields: o.fields });
     }
   }
   return out;
