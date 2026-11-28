@@ -29,16 +29,21 @@ const story = {
 };
 
 describe("live story editor with two levers", () => {
-  it("draws a curve per lever and Generate sends the second lever's edit", () => {
+  it("shows a tab per lever and Generate sends the second lever's edit", () => {
     const edit = storyToEdit(story);
     const store = createSurfaceStore();
     store.apply(storySurface("story", edit.points, edit.config, edit.expectations, false, true, edit.levers));
     const onAction = vi.fn();
     const { container } = render(<A2uiSurface store={store} surfaceId="story" onAction={onAction} />);
 
-    expect(screen.getByText("Další páky příběhu")).toBeInTheDocument();
-    expect(container.querySelectorAll("svg").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/Cena dopravy/).length).toBeGreaterThan(0);
+    // one tab per lever, one chart at a time
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Pravděpodobnost zpoždění",
+      "Cena dopravy",
+    ]);
+    expect(container.querySelectorAll(".a2-tabpanel svg").length).toBe(1);
+    fireEvent.click(screen.getByRole("tab", { name: "Cena dopravy" }));
+    expect(screen.getByText(/v datech „shipping_fee“/)).toBeInTheDocument();
 
     act(() => {
       store.write("story", "/levers/0/baseline", 79);

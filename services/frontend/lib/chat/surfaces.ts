@@ -199,20 +199,22 @@ export function storySurface(
         gap: "lg",
         children: [
           "intro",
-          "curve",
-          ...(live ? ["curveHelp"] : []),
-          ...(levers.length > 0 ? ["levers"] : []),
+          // several levers: one tab per lever, one chart at a time (stacked charts read as one long form)
+          ...(levers.length > 0 ? ["leverTabs"] : ["curve", ...(live ? ["curveHelp"] : [])]),
           "basic",
           "advanced",
           "actions",
         ],
       },
-      ...(levers.length > 0 ? leverNodes() : []),
+      ...(levers.length > 0 ? leverNodes(levers.length) : []),
       {
         id: "intro",
         component: "Text",
         variant: "muted",
-        text: "Body příběhu ohýbají křivku parametru. Táhněte je v grafu, dvojklikem přidáte nový. Data vzniknou až po vygenerování.",
+        text:
+          levers.length > 0
+            ? `Příběh pohání ${String(levers.length + 1)} ${levers.length + 1 < 5 ? "páky" : "pák"}, každá má svou záložku. Body táhněte v grafu, dvojklikem přidáte nový. Data vzniknou až po vygenerování.`
+            : "Body příběhu ohýbají křivku parametru. Táhněte je v grafu, dvojklikem přidáte nový. Data vzniknou až po vygenerování.",
       },
       // live: what this curve is, in words (the id alone, e.g. "late_prob", told users nothing)
       { id: "curveHelp", component: "Text", variant: "caption", text: path("/config/curve/help") },
@@ -393,37 +395,64 @@ export function storySurface(
   );
 }
 
-/** One card per further lever: what it is, its own draggable curve and its value before the story. */
-function leverNodes(): ComponentNode[] {
-  return [
-    { id: "levers", component: "Column", gap: "md", children: ["leversT", "leverList"] },
-    { id: "leversT", component: "Text", variant: "label", text: "Další páky příběhu" },
-    { id: "leverList", component: "List", children: { componentId: "lever", path: "/levers" } },
-    { id: "lever", component: "Card", child: "lvCol" },
-    { id: "lvCol", component: "Column", gap: "sm", children: ["lvCurve", "lvHelp", "lvBase"] },
+/**
+ * Tabs over every lever: the main one (`/points`, `/config/curve`) first, then each of `/levers`.
+ * Each tab is the same panel: its draggable curve, what it is, and its value before the story.
+ */
+function leverNodes(count: number): ComponentNode[] {
+  const panel = (
+    id: string,
+    at: { points: string; curve: string; label: string; help: string },
+  ): ComponentNode[] => [
+    { id, component: "Column", gap: "sm", children: [`${id}Curve`, `${id}Help`, `${id}Base`] },
     {
-      id: "lvCurve",
+      id: `${id}Curve`,
       component: "CurveEditor",
-      points: path("points"),
-      baseline: path("baseline"),
+      points: path(at.points),
+      baseline: path(`${at.curve}/baseline`),
       rampDays: path("/config/curve/rampDays"),
       from: path("/config/time/from"),
       to: path("/config/time/to"),
-      min: path("min"),
-      max: path("max"),
-      label: path("label"),
+      min: path(`${at.curve}/min`),
+      max: path(`${at.curve}/max`),
+      label: path(at.label),
       locked: path("/locked"),
     },
-    { id: "lvHelp", component: "Text", variant: "caption", text: path("help") },
+    { id: `${id}Help`, component: "Text", variant: "caption", text: path(at.help) },
     {
-      id: "lvBase",
+      id: `${id}Base`,
       component: "Slider",
       label: "Výchozí hodnota",
-      min: path("min"),
-      max: path("max"),
-      steps: path("step"),
-      value: path("baseline"),
+      min: path(`${at.curve}/min`),
+      max: path(`${at.curve}/max`),
+      steps: path(`${at.curve}/step`),
+      value: path(`${at.curve}/baseline`),
     },
+  ];
+  const others = Array.from({ length: count }, (_, i) => `/levers/${String(i)}`);
+  return [
+    {
+      id: "leverTabs",
+      component: "Tabs",
+      tabs: [
+        { title: path("/config/curve/label"), child: "lv" },
+        ...others.map((at, i) => ({ title: path(`${at}/label`), child: `lv${String(i)}` })),
+      ],
+    },
+    ...panel("lv", {
+      points: "/points",
+      curve: "/config/curve",
+      label: "/config/curve/label",
+      help: "/config/curve/help",
+    }),
+    ...others.flatMap((at, i) =>
+      panel(`lv${String(i)}`, {
+        points: `${at}/points`,
+        curve: at,
+        label: `${at}/label`,
+        help: `${at}/help`,
+      }),
+    ),
   ];
 }
 

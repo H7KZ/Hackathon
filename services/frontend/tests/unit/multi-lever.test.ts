@@ -116,12 +116,14 @@ describe("every lever is editable", () => {
     expect(once).toEqual(editToStory(story, edit.points, edit.config.curve.baseline));
   });
 
-  it("the live story surface shows one editor per further lever and sends them with Generate", () => {
+  it("the live story surface shows one tab per lever and sends them with Generate", () => {
     const edit = storyToEdit(story);
     const msg = JSON.stringify(
       storySurface("story", edit.points, edit.config, edit.expectations, false, true, edit.levers),
     );
-    expect(msg).toContain('"componentId":"lever","path":"/levers"');
+    expect(msg).toContain('"component":"Tabs"');
+    expect(msg).toContain('"title":{"@path":"/levers/1/label"},"child":"lv1"');
+    expect(msg).toContain('"points":{"@path":"/levers/1/points"}');
     expect(msg).toContain('"levers":{"@path":"/levers"}');
     expect(msg).toContain('"curveId":"checkout_prob"');
   });
