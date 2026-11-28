@@ -394,3 +394,28 @@ describe("live source: a rejected approve (run-6 follow-up)", () => {
     stop();
   });
 });
+
+describe("live source: a step that gave up (run 7 review)", () => {
+  it("says it failed after N attempts, not that the agent is still repairing", async () => {
+    const { es, events, stop } = start({ status: "failed", datasets: [] });
+    es.push({ type: "status", status: "drafting" }, 1);
+    es.push({ type: "cascade", event: { type: "step.started", step: "04_story" } }, 2);
+    for (const n of [1, 2, 3])
+      es.push(
+        {
+          type: "cascade",
+          event: { type: "loop.iteration", step: "04_story", n, ok: false, feedback: ["x"] },
+        },
+        2 + n,
+      );
+    es.push({ type: "error", message: "LLM output for 04_story failed validation" }, 6);
+    es.push({ type: "status", status: "failed" }, 7);
+    await vi.waitFor(() => {
+      const story = steps(events, "progress-1").find((s) => s.id === "04_story") as
+        { state: string; detail?: string } | undefined;
+      expect(story?.state).toBe("failed");
+      expect(story?.detail).toBe("selhalo po 3 pokusech");
+    });
+    stop();
+  });
+});

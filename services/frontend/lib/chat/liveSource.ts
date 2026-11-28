@@ -512,7 +512,13 @@ export function createLiveSource(sessionId: string): ChatSource {
           progress
             .filter((s) => s.state === "running")
             .forEach((s) => {
-              mark(s.id, "failed");
+              // the last attempt's "agent opravuje…" would claim it is still being repaired
+              const tried = s.attempt ? s.attempt.n - 1 : 0;
+              mark(
+                s.id,
+                "failed",
+                tried > 0 ? `selhalo po ${String(tried)} ${tried === 1 ? "pokusu" : "pokusech"}` : "selhalo",
+              );
             });
         // shown by the status that follows (retry card in its place in the timeline), not as raw text
         lastError = e.message;
