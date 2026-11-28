@@ -55,8 +55,16 @@ describe("live mapping 04_story <-> curve editor", () => {
   it("reads levels and end dates from the curve segments", () => {
     const edit = storyToEdit(story);
     expect(edit.points).toEqual([
-      { id: "sp1", title: "Zpoždění", description: "d", start: "2026-03-02", level: 0.4 },
-      { id: "sp2", title: "Storna", description: "e", start: "2026-04-01", end: "2026-05-01", level: 0.6 },
+      { id: "sp1", title: "Zpoždění", description: "d", start: "2026-03-02", level: 0.4, kind: "ramp" },
+      {
+        id: "sp2",
+        title: "Storna",
+        description: "e",
+        start: "2026-04-01",
+        end: "2026-05-01",
+        level: 0.6,
+        kind: "step",
+      },
     ]);
     expect(edit.config.curve).toMatchObject({ baseline: 0.05, label: "Pravděpodobnost pozdní dodávky" });
     expect(edit.expectations).toEqual([{ id: "e1", description: "Zpoždění roste", enabled: true }]);

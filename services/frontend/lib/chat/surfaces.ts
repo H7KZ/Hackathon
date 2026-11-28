@@ -25,6 +25,8 @@ export type StoryPointEdit = {
   end?: string;
   /** curve value from this point on (ramp segment `to`) */
   level: number;
+  /** live: the scenario segment kind, so the chart draws what the engine will do */
+  kind?: string;
 };
 
 /** Everything the Generate button sends (basic + advanced settings). */
@@ -205,6 +207,7 @@ export function storySurface(
         label: path("/config/curve/label"),
         unit: path("/config/curve/unit"),
         locked: path("/locked"),
+        ...(live && { live: true }),
       },
       { id: "basic", component: "Column", gap: "md", children: ["time", "basicRow"] },
       { id: "time", component: "PeriodPicker", value: path("/config/time"), ...(live && { live: true }) },

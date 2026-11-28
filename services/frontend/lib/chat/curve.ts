@@ -4,7 +4,8 @@
  * edits, not generated data: the engine turns it into records later.
  */
 
-export type Knot = { id: string; start: string; end?: string; level: number };
+/** `kind` is the scenario segment kind; only live (engine) curves read it, default "ramp". */
+export type Knot = { id: string; start: string; end?: string; level: number; kind?: string };
 
 const DAY = 86_400_000;
 export const addDays = (iso: string, n: number) =>
@@ -14,8 +15,39 @@ export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) -
 const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const byStart = (a: Knot, b: Knot) => a.start.localeCompare(b.start);
 
-/** Value on `day`: baseline, then a smooth ramp (rampDays) to each knot's level; `end` ramps back to baseline. */
-export function curveAt(day: string, baseline: number, knots: Knot[], rampDays = 14): number {
+/**
+ * One segment as the engine applies it (mirrors services/noiser/src/engine/curves.ts, which the UI may
+ * not import): a ramp moves from `start` to `end` and HOLDS; only step / spike / decay come back.
+ */
+function applySegment(prev: number, k: Knot, day: string): number {
+  if (day < k.start) return prev;
+  const elapsed = daysBetween(k.start, day);
+  const length = k.end ? daysBetween(k.start, k.end) : undefined;
+  switch (k.kind ?? "ramp") {
+    case "step":
+      return k.end && day >= k.end ? prev : k.level;
+    case "spike": {
+      const stop = length ?? 1;
+      return elapsed >= stop ? prev : k.level + ((prev - k.level) * elapsed) / stop;
+    }
+    case "decay":
+      return prev + (k.level - prev) * Math.pow(0.5, elapsed / (length && length > 0 ? length : 7));
+    default:
+      return length === undefined || elapsed >= length
+        ? k.level
+        : prev + ((k.level - prev) * elapsed) / length;
+  }
+}
+
+/** Day on which the curve reaches the knot's level (engine curves). */
+export const arrivalDay = (k: Knot) => ((k.kind ?? "ramp") === "ramp" ? (k.end ?? k.start) : k.start);
+
+/**
+ * Value on `day`. `engine`: exactly what the data will be generated from. Otherwise (mock): baseline,
+ * then a smooth ramp (rampDays) to each knot's level; `end` ramps back to baseline.
+ */
+export function curveAt(day: string, baseline: number, knots: Knot[], rampDays = 14, engine = false): number {
+  if (engine) return [...knots].sort(byStart).reduce((v, k) => applySegment(v, k, day), baseline);
   let v = baseline;
   const ramp = Math.max(1, rampDays);
   for (const k of [...knots].sort(byStart)) {
@@ -37,10 +69,11 @@ export function sampleCurve(
   to: string,
   stepDays = 1,
   rampDays = 14,
+  engine = false,
 ): { day: string; value: number }[] {
   const out: { day: string; value: number }[] = [];
   for (let d = from; d <= to; d = addDays(d, stepDays)) {
-    out.push({ day: d, value: curveAt(d, baseline, knots, rampDays) });
+    out.push({ day: d, value: curveAt(d, baseline, knots, rampDays, engine) });
   }
   return out;
 }

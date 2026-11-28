@@ -60,7 +60,9 @@ describe("storyToEdit / editToStory on a real-shaped story", () => {
   it("only points that drive the curve become knots; slider bounds fit a probability", () => {
     const edit = storyToEdit(story);
     expect(edit.points.map((p) => p.id)).toEqual(["sp_late"]);
-    expect(edit.points[0]).toMatchObject({ level: 0.7, start: "2025-03-01", end: "2025-05-31" });
+    expect(edit.points[0]).toMatchObject({ level: 0.7, start: "2025-03-01", kind: "step" });
+    // the segment has no end, so the engine never returns: the chart must not draw a return
+    expect(edit.points[0]).not.toHaveProperty("end");
     expect(edit.config.curve).toMatchObject({
       baseline: 0.05,
       min: 0,
@@ -80,11 +82,12 @@ describe("storyToEdit / editToStory on a real-shaped story", () => {
     expect(next.storyPoints.find((p) => p.id === "sp_baseline")).toEqual(story.storyPoints[0]);
     expect(next.storyPoints.find((p) => p.id === "sp_late")).toMatchObject({
       start: "2025-04-01",
+      end: "2025-05-31",
       entity: { ids: ["SUP-001"] },
     });
     expect(next.curves[0]).toEqual(story.curves[0]);
     expect(next.curves[1]?.segments).toEqual([
-      { kind: "step", start: "2025-04-01", to: 0.5, storyPointId: "sp_late", end: "2025-05-31" },
+      { kind: "step", start: "2025-04-01", to: 0.5, storyPointId: "sp_late" },
     ]);
   });
 
