@@ -6,7 +6,7 @@ import type { RunResult } from "@s2d/schema/run";
 import type { DetectiveReport } from "@s2d/schema/detective";
 import { writeRun, type Store } from "../../src/store/duckdb";
 import { withSandbox } from "../../src/store/sandbox";
-import { runDetective, type DetectiveEvent } from "../../src/detective/loop";
+import { DETECTIVE_MAX_STEPS, runDetective, type DetectiveEvent } from "../../src/detective/loop";
 import { detective } from "../../src/detective/index";
 
 const run: RunResult = {
@@ -119,6 +119,39 @@ describe("detective tool loop", () => {
     expect(events).toEqual([
       { type: "log", message: "SQL: SELECT supplier_id, sum(delay_days) AS d FROM delivery GROUP BY 1" },
     ]);
+  });
+
+  it("the first prompt already shows every main table with columns, row count and samples (no list/describe steps)", async () => {
+    const { result, calls } = loop([act({ tool: "report", report })]);
+    await result;
+    const first = calls[0]?.prompt ?? "";
+    expect(first).toMatch(/delivery \(rows: 2\)/);
+    expect(first).toMatch(/delay_days BIGINT/);
+    expect(first).toMatch(/planned_date: 2025-02-01 … 2025-03-05/);
+    expect(first).toMatch(/SUP-002/);
+    expect(first).not.toMatch(/lost_sale/);
+  });
+
+  it("one step can run several queries; each result reaches the next prompt", async () => {
+    const { result, calls, events } = loop([
+      act({
+        tool: "run_sql",
+        queries: ["SELECT count(*) AS n FROM delivery", "SELECT max(delay_days) AS worst FROM delivery"],
+      }),
+      act({ tool: "report", report }),
+    ]);
+    await result;
+    // several results are nested JSON strings, so their quotes are escaped
+    expect(calls[1]?.prompt).toMatch(/\\"n\\":\\?"?2/);
+    expect(calls[1]?.prompt).toMatch(/\\"worst\\":\\?"?9/);
+    expect(events.map((e) => e.message)).toEqual([
+      "SQL: SELECT count(*) AS n FROM delivery",
+      "SQL: SELECT max(delay_days) AS worst FROM delivery",
+    ]);
+  });
+
+  it("the default budget is short (each step is one slow LLM call)", () => {
+    expect(DETECTIVE_MAX_STEPS).toBeLessThanOrEqual(8);
   });
 
   it("SQL errors and guard rejections are fed back to the model, the loop continues", async () => {

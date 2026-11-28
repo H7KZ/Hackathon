@@ -130,6 +130,10 @@
   outline: none; /* the rounded ring on .field shows focus */
   background: transparent;
 }
+/* beats the app shell's square `.shell :focus-visible` outline: the card's ring is the only focus cue */
+.landing .field :is(input, textarea):focus-visible {
+  outline: none;
+}
 .field textarea {
   field-sizing: content;
   min-height: 3.2em;

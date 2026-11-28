@@ -40,7 +40,7 @@ export function formatExpectationFailure(
             ? ""
             : ` (change ${r.relChange >= 0 ? "+" : ""}${(r.relChange * 100).toFixed(1)}%)`
         }`;
-  return `Expectation "${e.id}" (${e.description}) failed: ${measured}; it needs ${needed}. The curves and expectations are fixed (from 04_story); change counts, rates, initial flow values or the process chain so the story lever reaches the measured table strongly enough.`;
+  return `Expectation "${e.id}" (${e.description}) failed: ${measured}; it needs ${needed}. The curves and expectations are fixed (from 04_story); change counts, rates, initial flow values or the process chain so the story lever reaches the measured table strongly enough. Prefer more affected records or a higher probability over extreme magnitudes: a delay of months or a tenfold effect reads as nonsense to the user.`;
 }
 
 /** Row-count series whose daily volume drifts between the two halves of the pre-story baseline. */

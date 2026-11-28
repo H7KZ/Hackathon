@@ -25,6 +25,8 @@ const Env = z.object({
       (s.trim() === "all" ? [...SERVICES] : s.split(",")).map((x) => x.trim()).filter(Boolean),
     )
     .pipe(z.array(z.enum(SERVICES, { error: `must be a comma list of ${SERVICES.join(", ")} or "all"` }))),
+  /** Delay per fake step in ms (UI testing: long enough to reload the page mid-run). */
+  API_FAKE_DELAY_MS: z.coerce.number().int().min(0).default(400),
   /** Cascade design (docs/cascade-design.md): "v1" A1–A5 (default, demo cache) or "causal" D1–D4. */
   CASCADE_DESIGN: z.enum(["v1", "causal"]).default("v1"),
   /** Session state folder (default <repo>/runs). Two API processes must never share one: each marks the other's busy sessions interrupted on startup. */
@@ -35,6 +37,8 @@ export interface ApiConfig {
   port: number;
   /** Services served by fake ports (API_FAKE). */
   fake: FakeService[];
+  /** ms per fake step (API_FAKE_DELAY_MS) */
+  fakeDelayMs: number;
   cascadeDesign: "v1" | "causal";
   corsOrigin: string[];
   root: string;
@@ -50,6 +54,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, root = findRepo
   return {
     port: parsed.data.API_PORT,
     fake: parsed.data.API_FAKE,
+    fakeDelayMs: parsed.data.API_FAKE_DELAY_MS,
     cascadeDesign: parsed.data.CASCADE_DESIGN,
     corsOrigin: parsed.data.CORS_ORIGIN,
     root,

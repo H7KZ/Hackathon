@@ -9,6 +9,7 @@ import type { CompileError } from "@s2d/schema/api";
 import { sourceProcessId, topoSort } from "./dag";
 import { checkStoryRefs } from "./story";
 import { evaluateCurve } from "../engine/curves";
+import { checkMagnitudes } from "./plausibility";
 import { toDay } from "../engine/days";
 
 const daysBetween = (a: string, b: string) => toDay(b) - toDay(a);
@@ -484,6 +485,7 @@ export function compileScenario(raw: unknown): CompileResult {
   });
   // ---- curve semantics: shapes and probabilities that do not mean what an author expects ----
   errors.push(...checkCurveShapes(s.curves));
+  errors.push(...checkMagnitudes(s));
   const curveMax = (id: string) => {
     const c = s.curves.find((x) => x.id === id);
     if (!c) return undefined;

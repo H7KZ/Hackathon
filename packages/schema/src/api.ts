@@ -95,7 +95,8 @@ export const SessionCommand = z.discriminatedUnion("type", [
 ]);
 export type SessionCommand = z.infer<typeof SessionCommand>;
 
-const Seq = { seq: z.number().int().positive() };
+/** seq orders the stream; at (server epoch ms) lets a reloaded UI show true elapsed times. */
+const Seq = { seq: z.number().int().positive(), at: z.number().int().optional() };
 export const SessionEvent = z.discriminatedUnion("type", [
   z.object({ ...Seq, type: z.literal("status"), status: SessionStatus }),
   z.object({ ...Seq, type: z.literal("cascade"), event: CascadeEvent }),

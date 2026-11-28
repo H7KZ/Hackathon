@@ -26,6 +26,7 @@ export type StoryArtifact = {
     start: string;
     end?: string;
     entity?: { name: string; ids: string[] };
+    segment?: { field: string; values: string[] };
   }[];
   curves: {
     id: string;
@@ -230,9 +231,17 @@ export function editToStory(
   const byId = new Map(edited.map((e) => [e.id, e]));
   const maxPhase = story.storyPoints.reduce((m, p) => Math.max(m, p.phase ?? 0), 0);
   const known = new Set(story.storyPoints.map((p) => p.id));
+  // a point added in the editor bends the same curve, so it names the same entity / group as the curve's
+  // other points (the compiler rejects a curve-driving point without one; user run: A5 failed 5× on it)
+  const sibling = story.storyPoints.find((p) => knots.has(p.id) && (p.entity ?? p.segment));
+  const target: Partial<StoryArtifact["storyPoints"][number]> = {
+    ...(sibling?.entity && { entity: sibling.entity }),
+    ...(sibling?.segment && { segment: sibling.segment }),
+  };
   const toPoint = (old: StoryArtifact["storyPoints"][number] | undefined, e: StoryPointEdit, i: number) => {
     const { level: _level, end, ...rest } = e;
-    const { end: _oldEnd, ...base } = old ?? { phase: maxPhase + i + 1 };
+    const fresh: Partial<StoryArtifact["storyPoints"][number]> = { phase: maxPhase + i + 1, ...target };
+    const { end: _oldEnd, ...base } = old ?? fresh;
     return { ...base, ...rest, ...(end && { end }) };
   };
   const storyPoints = [

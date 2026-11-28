@@ -65,6 +65,9 @@ export function sessionRoutes(orch: Orchestrator) {
     .get("/:id/datasets/:d/compare/:other", async (c) =>
       c.json({ diff: await orch.compare(c.req.param("id"), c.req.param("d"), c.req.param("other")) }),
     )
+    .get("/:id/labels", (c) =>
+      c.json({ labels: orch.labels(c.req.param("id"), c.req.query("dataset") || undefined) }),
+    )
     .get("/:id/datasets/:d/scenario", (c) =>
       c.json({ scenario: orch.scenario(c.req.param("id"), c.req.param("d")) }),
     )
