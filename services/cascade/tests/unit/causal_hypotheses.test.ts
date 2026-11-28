@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ExpectationsPlan } from "@s2d/schema/artifacts";
 import { compileScenario } from "@s2d/noiser";
 import { runCascade } from "../../src/cascade";
-import { deriveHypotheses, netSign, pathsFrom } from "../../src/causal/hypotheses";
+import {
+  MIN_CHANGE,
+  MIN_CHANGE_DILUTED,
+  deriveHypotheses,
+  netSign,
+  pathsFrom,
+} from "../../src/causal/hypotheses";
 import { causalStory, checkQueries } from "../../src/causal/sql";
 import { causalMap, overlay, processesPlan, queries } from "./causal_fixtures";
 import { company, model, setup } from "./fixtures";
@@ -34,6 +40,15 @@ describe("hypotheses from map + overlay (D3)", () => {
       "e_lost",
       "e_lost_complaint",
     ]);
+  });
+
+  it("a metric reached through a branch's success outcome is diluted volume: 5 %, others 10 % (live run 3: sale -8.6 %)", () => {
+    const hs = deriveHypotheses(causalMap, overlay, processesPlan);
+    const min = (id: string) => hs.find((h) => h.id === id)?.minRelChange;
+    expect(MIN_CHANGE_DILUTED).toBe(0.05);
+    expect(min("sp1_sale")).toBe(MIN_CHANGE_DILUTED);
+    expect(min("sp1_complaint")).toBe(MIN_CHANGE);
+    expect(min("sp1_late_delivery")).toBe(MIN_CHANGE);
   });
 
   it("contiguous story points: one set at the peak, compared with the baseline before the first move", () => {
