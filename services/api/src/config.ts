@@ -7,7 +7,16 @@ export type FakeService = (typeof SERVICES)[number];
 
 const Env = z.object({
   API_PORT: z.coerce.number().int().positive().default(4000),
-  CORS_ORIGIN: z.string().default("http://localhost:3000"),
+  /** One origin or a comma list (e.g. the dev UI and the e2e UI). */
+  CORS_ORIGIN: z
+    .string()
+    .default("http://localhost:3000")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
   /** Services to replace with deterministic fakes (no LLM, no DuckDB): "cascade,noiser,dataer" or "all". */
   API_FAKE: z
     .string()
@@ -27,7 +36,7 @@ export interface ApiConfig {
   /** Services served by fake ports (API_FAKE). */
   fake: FakeService[];
   cascadeDesign: "v1" | "causal";
-  corsOrigin: string;
+  corsOrigin: string[];
   root: string;
   scenariosDir: string;
   runsDir: string;

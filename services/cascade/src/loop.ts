@@ -32,8 +32,10 @@ export interface RepairLoopOptions<T> {
   verify?: ((scenario: Scenario) => Promise<CompileError[]>) | undefined;
   /** Start as a repair: errors found later (e.g. the story gate on 05) and the output they refer to. */
   initial?: { feedback: Feedback; previous: unknown } | undefined;
-  /** A rejected attempt (raw agent output or assembled scenario), e.g. to keep it for debugging. */
-  onRejected?: ((n: number, value: unknown) => void) | undefined;
+  /** Number of the first attempt (default 1): a resumed repair continues the numbering, so its prompts are new. */
+  firstN?: number | undefined;
+  /** A rejected attempt (raw agent output or assembled scenario) and why, e.g. to keep it or resume from it. */
+  onRejected?: ((n: number, value: unknown, feedback: Feedback) => void) | undefined;
 }
 
 export type RepairResult<T> =
@@ -44,7 +46,8 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
   const max = opts.maxIterations ?? MAX_ITERATIONS;
   let feedback: Feedback = opts.initial?.feedback ?? [];
   let previous: unknown = opts.initial?.previous;
-  for (let n = 1; n <= max; n++) {
+  const first = opts.firstN ?? 1;
+  for (let n = first; n < first + max; n++) {
     opts.signal?.throwIfAborted();
     let output: T;
     try {
@@ -54,7 +57,7 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
       if (!(err instanceof LlmOutputInvalid)) throw err;
       feedback = [...describeShape(err.raw), err.issues];
       if (err.raw !== undefined) previous = err.raw;
-      opts.onRejected?.(n, err.raw);
+      opts.onRejected?.(n, err.raw, feedback);
       opts.onEvent?.({ type: "loop.iteration", step: opts.step, n, ok: false, feedback });
       continue;
     }
@@ -75,8 +78,8 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
       feedback: compiled.ok ? [] : compiled.errors,
     });
     if (compiled.ok) return { ok: true, scenario: compiled.scenario, output, iterations: n };
-    opts.onRejected?.(n, assembled.ok ? assembled.scenario : output);
     feedback = compiled.errors;
+    opts.onRejected?.(n, assembled.ok ? assembled.scenario : output, feedback);
   }
   return { ok: false, feedback, iterations: max };
 }

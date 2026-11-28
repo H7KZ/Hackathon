@@ -99,14 +99,19 @@ export function createLiveSource(sessionId: string): ChatSource {
     }
   };
 
+  /** Only the draft card grows with steps of the other cascade design; later cards list their own steps. */
+  let progressGrows = true;
   const newProgress = (title: string, keys: StepKey[]) => {
     progressId = `progress-${String(++runs)}`;
+    progressGrows = keys === DRAFT_KEYS;
     progress = keys.map((id) => ({ id, label: STEP_LABELS[id], state: "pending" }));
     emit({ type: "a2ui", message: progressSurface(progressId, title, progress) });
   };
   const mark = (key: string, state: Step["state"], detail?: string) => {
     if (!progressId) newProgress("Průběh", DRAFT_KEYS);
     if (!progress.some((s) => s.id === key)) {
+      // approve re-emits the cached A1–A4 steps: not part of the generation card
+      if (!progressGrows) return;
       // a step of the other cascade design: insert it before the first step that has not started
       const label = key in STEP_LABELS ? STEP_LABELS[key as StepKey] : key;
       const at = progress.findIndex((s) => s.state === "pending");

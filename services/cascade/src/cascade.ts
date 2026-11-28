@@ -3,7 +3,8 @@
  * An existing artifact file is reused instead of calling the agent again, so a hand-edited
  * artifact re-runs only the steps after it (SPEC §2 rule 9) — delete later files to recompute them.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
@@ -37,7 +38,7 @@ import {
   checkStoryPlan,
 } from "./checks";
 import type { OnEvent } from "./events";
-import { formatFeedback, withSchemaRetry } from "./loop";
+import { formatFeedback, withSchemaRetry, type Feedback } from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
 
 export interface CascadeOptions {
@@ -138,8 +139,13 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
-  const rejected = (name: ArtifactName) => (n: number, value: unknown) => {
+  const rejected = (name: ArtifactName, key?: string) => (n: number, value: unknown, feedback: Feedback) => {
     writeFileSync(join(dir, `${name}.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
+    if (key !== undefined)
+      writeFileSync(
+        join(dir, `${name}.rejected-${n}.feedback.json`),
+        `${JSON.stringify({ key, feedback }, null, 2)}\n`,
+      );
   };
   const llm = (name: ArtifactName, check?: (value: unknown) => CompileError[]) =>
     withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal, check });
@@ -294,6 +300,10 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   );
   if (!shouldRun("05_scenario")) return { dir, company, model, influences, story };
   const scenario = await step("05_scenario", Scenario, async () => {
+    // a new run after A5 gave up continues from its last rejected attempt for the same story: with the
+    // disk cache, starting over at attempt 1 would only replay the same answers
+    const key = storyKey(story);
+    const resume = lastRejected(dir, "05_scenario", key);
     const res = await a5Detail(
       opts.llm,
       { input, runId: opts.runId, model, influences, story },
@@ -301,8 +311,12 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         onEvent: opts.onEvent,
         signal: opts.signal,
         verify: opts.verify,
-        // kept next to the artifacts so a failed A5 can be inspected or fixed by hand
-        onRejected: rejected("05_scenario"),
+        // kept next to the artifacts so a failed A5 can be inspected, fixed by hand or resumed
+        onRejected: rejected("05_scenario", key),
+        ...(resume && {
+          initial: { previous: resume.previous, feedback: resume.feedback },
+          firstN: resume.n + 1,
+        }),
       },
     );
     if (res.ok) return res.scenario;
@@ -316,4 +330,33 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     );
   });
   return { dir, company, model, influences, story, scenario };
+}
+
+/** Identity of the story an A5 attempt was made for (an edited 04_story must not resume old attempts). */
+function storyKey(story: { storyPoints: unknown; curves: unknown; expectations: unknown }): string {
+  return createHash("sha256")
+    .update(JSON.stringify([story.storyPoints, story.curves, story.expectations]))
+    .digest("hex")
+    .slice(0, 16);
+}
+
+/** The highest-numbered rejected attempt of `name` made for this story, with its feedback. */
+function lastRejected(dir: string, name: ArtifactName, key: string) {
+  const suffix = ".feedback.json";
+  const prefix = `${name}.rejected-`;
+  const ns = readdirSync(dir)
+    .filter((f) => f.startsWith(prefix) && f.endsWith(suffix))
+    .map((f) => Number(f.slice(prefix.length, -suffix.length)))
+    .filter((n) => Number.isInteger(n))
+    .sort((a, b) => b - a);
+  for (const n of ns) {
+    const side = JSON.parse(readFileSync(join(dir, `${prefix}${n}${suffix}`), "utf8")) as {
+      key: string;
+      feedback: Feedback;
+    };
+    if (side.key !== key) continue;
+    const previous: unknown = JSON.parse(readFileSync(join(dir, `${prefix}${n}.json`), "utf8"));
+    return { n, previous, feedback: side.feedback };
+  }
+  return undefined;
 }
