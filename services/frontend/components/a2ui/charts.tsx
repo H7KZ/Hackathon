@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import {
   Bar,
   BarChart as RBarChart,
@@ -50,6 +50,7 @@ function Frame({ title, height, children }: { title: string; height: number; chi
 /**
  * Time series with story-point markers (amber dashed line + label): the place where a curve was bent.
  * `data`: rows like `{ day: "2026-03-01", a: 12, b: 15 }`; `lines` say which keys to draw.
+ * Hovering a line or its legend item dims the others.
  */
 export function LineChart({ node }: NodeProps) {
   const resolve = useResolve();
@@ -57,6 +58,8 @@ export function LineChart({ node }: NodeProps) {
   const lines = (node.lines as Series[] | undefined) ?? [];
   const markers = (resolve(node.markers) as Marker[] | undefined) ?? [];
   const xKey = (node.xKey as string | undefined) ?? "day";
+  const [active, setActive] = useState<string | null>(null);
+  const highlight = lines.length > 1 ? active : null;
   return (
     <Frame title={str(resolve(node.title))} height={Number(node.height ?? 260)}>
       <RLineChart data={data} margin={{ top: 22, right: 12, bottom: 0, left: 0 }}>
@@ -64,7 +67,18 @@ export function LineChart({ node }: NodeProps) {
         <XAxis dataKey={xKey} tick={AXIS} tickFormatter={shortDate} minTickGap={28} stroke={GRID} />
         <YAxis tick={AXIS} width={44} stroke={GRID} tickFormatter={tooltipValue} />
         <Tooltip labelFormatter={(v) => formatDate(toText(v))} formatter={tooltipValue} />
-        {lines.length > 1 && <Legend iconType="plainline" wrapperStyle={{ fontSize: 13 }} />}
+        {lines.length > 1 && (
+          <Legend
+            iconType="plainline"
+            wrapperStyle={{ fontSize: 13, cursor: "pointer" }}
+            onMouseEnter={(item) => {
+              setActive(toText(item.dataKey));
+            }}
+            onMouseLeave={() => {
+              setActive(null);
+            }}
+          />
+        )}
         {markers.map((m, i) => (
           <ReferenceLine
             key={`${m.date}-${m.label}`}
@@ -86,7 +100,14 @@ export function LineChart({ node }: NodeProps) {
             dataKey={s.key}
             name={s.label}
             stroke={SERIES_COLORS[s.color ?? i] ?? SERIES_COLORS[0]}
-            strokeWidth={2}
+            strokeWidth={highlight === s.key ? 3 : 2}
+            strokeOpacity={highlight === null || highlight === s.key ? 1 : 0.15}
+            onMouseEnter={() => {
+              setActive(s.key);
+            }}
+            onMouseLeave={() => {
+              setActive(null);
+            }}
             strokeDasharray={s.dashed ? "6 4" : undefined}
             dot={false}
             isAnimationActive={false}
