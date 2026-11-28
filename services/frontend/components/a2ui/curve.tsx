@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
   addDays,
+  arrivalDay,
   curveAt,
   daysBetween,
   effectiveRamp,
@@ -72,6 +73,8 @@ export function CurveEditor({ node }: NodeProps) {
   const label = toText(resolve(node.label));
   const unit = toText(resolve(node.unit));
   const locked = resolve(node.locked) === true;
+  // live: draw the curve the engine generates from; mock / playground keep the "return to normal" shape
+  const live = node.live === true;
   const H = Number(node.height ?? 280);
 
   const [wrap, W] = useWidth();
@@ -91,8 +94,25 @@ export function CurveEditor({ node }: NodeProps) {
   const dayAt = (px: number) => addDays(from, clamp(Math.round(((px - PAD.l) / innerW) * span), 0, span));
   const valueAt = (py: number) => clamp(round1(min + (1 - (py - PAD.t) / innerH) * (max - min)), min, max);
   const sorted = [...points].sort(byStart);
+  const valueOn = (day: string) => curveAt(day, baseline, points, ramp, live);
+  const isRamp = (p: CurvePoint) => live && (p.kind ?? "ramp") === "ramp";
   /** Handles sit where the ramp arrives, so they are on the line the user sees. */
-  const handleDay = (start: string) => addDays(start, ramp);
+  const knotDay = (p: CurvePoint) => (live ? arrivalDay(p) : addDays(p.start, ramp));
+  /** The square: where a ramp starts rising (live), otherwise where things return to normal. */
+  const squareDay = (p: CurvePoint & { end: string }) =>
+    isRamp(p) ? p.start : live ? p.end : addDays(p.end, ramp);
+  /** Dates of a new point whose handle should appear on `day`. */
+  const datesAt = (day: string) => {
+    const early = addDays(day, -ramp);
+    const start = early < from ? from : early;
+    if (!live) return { start };
+    return { start, end: day > start ? day : addDays(start, 1) };
+  };
+  /** Moves a whole live segment so that it keeps its length. */
+  const shifted = (p: CurvePoint, days: number) => ({
+    start: addDays(p.start, days),
+    ...(p.end && { end: addDays(p.end, days) }),
+  });
   const sel = points.find((p) => p.id === selected) ?? null;
   const outside = points.filter((p) => p.start < from || p.start > to).length;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -128,9 +148,9 @@ export function CurveEditor({ node }: NodeProps) {
     commit(points.filter((p) => p.id !== id));
     setSelected(null);
   };
-  const add = (start: string, level: number) => {
+  const add = (day: string, level: number) => {
     const id = nextId(points);
-    commit([...points, { id, title: "Nový bod", description: "", start, level }]);
+    commit([...points, { id, title: "Nový bod", description: "", ...datesAt(day), level }]);
     setSelected(id);
   };
   const undo = () => {
@@ -170,6 +190,18 @@ export function CurveEditor({ node }: NodeProps) {
     d.moved = true;
     const p = points.find((k) => k.id === d.id);
     if (!p) return;
+    if (live) {
+      const day = dayAt(px);
+      if (d.part === "knot") {
+        patch(p.id, { ...shifted(p, daysBetween(arrivalDay(p), day)), level: valueAt(py) }, true);
+      } else if (isRamp(p)) {
+        const latest = addDays(p.end ?? p.start, -1);
+        patch(p.id, { start: day > latest ? latest : day }, true);
+      } else {
+        patch(p.id, { end: day <= p.start ? addDays(p.start, 1) : day }, true);
+      }
+      return;
+    }
     // the handle sits where the ramp arrives, so the story date is `ramp` days earlier
     const day = addDays(dayAt(px), -ramp);
     if (d.part === "knot") {
@@ -207,8 +239,8 @@ export function CurveEditor({ node }: NodeProps) {
     if (!sel) return;
     const big = e.shiftKey;
     const moves: Record<string, () => Partial<CurvePoint>> = {
-      ArrowLeft: () => ({ start: addDays(sel.start, big ? -7 : -1) }),
-      ArrowRight: () => ({ start: addDays(sel.start, big ? 7 : 1) }),
+      ArrowLeft: () => (live ? shifted(sel, big ? -7 : -1) : { start: addDays(sel.start, big ? -7 : -1) }),
+      ArrowRight: () => (live ? shifted(sel, big ? 7 : 1) : { start: addDays(sel.start, big ? 7 : 1) }),
       ArrowUp: () => ({ level: clamp(round1(sel.level + (big ? 1 : 0.1)), min, max) }),
       ArrowDown: () => ({ level: clamp(round1(sel.level - (big ? 1 : 0.1)), min, max) }),
     };
@@ -224,7 +256,7 @@ export function CurveEditor({ node }: NodeProps) {
 
   // geometry for drawing
   const step = Math.max(1, Math.round(span / 240));
-  const samples = sampleCurve(baseline, points, from, to, step, ramp);
+  const samples = sampleCurve(baseline, points, from, to, step, ramp, live);
   const line = samples
     .map((s, i) => `${i ? "L" : "M"}${x(s.day).toFixed(1)},${y(s.value).toFixed(1)}`)
     .join("");
@@ -236,7 +268,7 @@ export function CurveEditor({ node }: NodeProps) {
   const xTicks: string[] = [];
   for (let d = from; d <= to; d = addDays(d, xEvery)) xTicks.push(d);
   const hoverDay = hover === null ? null : dayAt(hover.px);
-  const hoverValue = hoverDay === null ? 0 : curveAt(hoverDay, baseline, points, ramp);
+  const hoverValue = hoverDay === null ? 0 : valueOn(hoverDay);
   // ghost point: pointer near the line and not on top of an existing handle → one click adds it there
   const ghost =
     !locked &&
@@ -244,11 +276,10 @@ export function CurveEditor({ node }: NodeProps) {
     hover !== null &&
     hoverDay !== null &&
     Math.abs(hover.py - y(hoverValue)) < 18 &&
-    sorted.every((p) => Math.abs(x(handleDay(p.start)) - hover.px) > 16);
+    sorted.every((p) => Math.abs(x(knotDay(p)) - hover.px) > 16);
   const addAtGhost = () => {
     if (!ghost || !hoverDay) return false;
-    const start = addDays(hoverDay, -ramp);
-    add(start < from ? from : start, round1(hoverValue));
+    add(hoverDay, round1(hoverValue));
     return true;
   };
 
@@ -266,8 +297,10 @@ export function CurveEditor({ node }: NodeProps) {
                   type="button"
                   onClick={() => {
                     const last = sorted.at(-1);
-                    const start = last ? addDays(last.start, 21) : addDays(from, Math.round(span / 2));
-                    add(start > to ? to : start, round1(curveAt(start, baseline, points, ramp) + 1));
+                    const next = last ? addDays(last.start, 21) : addDays(from, Math.round(span / 2));
+                    const start = next > to ? to : next;
+                    // `add` places the handle on the given day; the new change starts on `start`
+                    add(addDays(start, ramp), round1(valueOn(next) + 1));
                   }}
                 >
                   + Bod
@@ -314,7 +347,7 @@ export function CurveEditor({ node }: NodeProps) {
                 onDoubleClick={(e) => {
                   if (locked || ghost) return;
                   const { px, py } = local(e);
-                  add(addDays(dayAt(px), -ramp), valueAt(py));
+                  add(dayAt(px), valueAt(py));
                 }}
               />
               {yTicks.map((t) => (
@@ -350,8 +383,8 @@ export function CurveEditor({ node }: NodeProps) {
                 </g>
               )}
               {sorted.map((p, i) => {
-                const hx = x(handleDay(p.start));
-                const hy = y(curveAt(handleDay(p.start), baseline, points, ramp));
+                const hx = x(knotDay(p));
+                const hy = y(valueOn(knotDay(p)));
                 const on = p.id === selected;
                 return (
                   <g key={p.id} className={`knot${on ? " on" : ""}`}>
@@ -364,10 +397,10 @@ export function CurveEditor({ node }: NodeProps) {
                         className="end"
                         role="slider"
                         tabIndex={locked ? -1 : 0}
-                        aria-label={`${p.title}: návrat k normálu`}
-                        aria-valuetext={formatDate(p.end)}
-                        x={x(handleDay(p.end)) - 5}
-                        y={y(curveAt(handleDay(p.end), baseline, points, ramp)) - 5}
+                        aria-label={`${p.title}: ${isRamp(p) ? "začátek náběhu" : "návrat k normálu"}`}
+                        aria-valuetext={formatDate(isRamp(p) ? p.start : p.end)}
+                        x={x(squareDay({ ...p, end: p.end })) - 5}
+                        y={y(valueOn(squareDay({ ...p, end: p.end }))) - 5}
                         width={10}
                         height={10}
                         onPointerDown={(e) => {
@@ -444,7 +477,10 @@ export function CurveEditor({ node }: NodeProps) {
               min={from}
               max={to}
               onChange={(e) => {
-                if (e.target.value) patch(sel.id, { start: e.target.value });
+                const start = e.target.value;
+                if (!start) return;
+                const late = isRamp(sel) && sel.end && start >= sel.end;
+                patch(sel.id, { start, ...(late && { end: addDays(start, 1) }) });
               }}
             />
           </label>
@@ -474,11 +510,11 @@ export function CurveEditor({ node }: NodeProps) {
                 }
               }}
             />
-            Návrat k normálu
+            {isRamp(sel) ? "Pozvolný náběh" : "Návrat k normálu"}
           </label>
           {sel.end && (
             <label>
-              Konec
+              {isRamp(sel) ? "Hodnota dosažena" : "Konec"}
               <input
                 type="date"
                 value={sel.end}

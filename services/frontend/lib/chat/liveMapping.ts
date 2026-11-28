@@ -179,13 +179,15 @@ export function storyToEdit(story: StoryArtifact): {
     .filter((p) => knots.has(p.id))
     .map((p) => {
       const seg = curve?.segments.find((x) => x.storyPointId === p.id);
-      const end = seg?.end ?? p.end;
+      // the segment's own end: a story point's end is not where its ramp arrives
+      const end = seg ? seg.end : p.end;
       return {
         id: p.id,
         title: p.title,
         description: p.description,
         start: seg?.start ?? p.start,
         level: seg?.to ?? curve?.baseline ?? 0,
+        kind: seg?.kind ?? "ramp",
         ...(end && { end }),
       };
     });
@@ -239,10 +241,12 @@ export function editToStory(
     ...(sibling?.segment && { segment: sibling.segment }),
   };
   const toPoint = (old: StoryArtifact["storyPoints"][number] | undefined, e: StoryPointEdit, i: number) => {
-    const { level: _level, end, ...rest } = e;
+    const { level: _level, kind: _kind, end, ...rest } = e;
     const fresh: Partial<StoryArtifact["storyPoints"][number]> = { phase: maxPhase + i + 1, ...target };
-    const { end: _oldEnd, ...base } = old ?? fresh;
-    return { ...base, ...rest, ...(end && { end }) };
+    const { end: oldEnd, ...base } = old ?? fresh;
+    // a segment without an end (instant change) must not drop the story point's own end
+    const kept = end ?? (oldEnd && oldEnd >= e.start ? oldEnd : undefined);
+    return { ...base, ...rest, ...(kept && { end: kept }) };
   };
   const storyPoints = [
     ...story.storyPoints.flatMap((p) => {
@@ -258,7 +262,7 @@ export function editToStory(
     ...edited.map((e) => {
       const old = curve.segments.find((s) => s.storyPointId === e.id);
       return {
-        kind: old?.kind ?? "ramp",
+        kind: old?.kind ?? e.kind ?? "ramp",
         start: e.start,
         to: e.level,
         storyPointId: e.id,
