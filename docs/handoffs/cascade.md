@@ -19,9 +19,19 @@ LLM_OFFLINE=1 LLM_MODEL_01_COMPANY=anthropic:claude-haiku-5-5 LLM_MODEL_03_INFLU
 
 Steps 01 and 03 were recorded on Haiku. The cache key includes the model, so the replay needs the same per-step models.
 
+Changed by live run 3 ([report](../runs/2026-11-28-live-e2e-3.md)):
+
+- Flat 04_story curves (no segments) are constants: not demanded by coverage, not checked as levers.
+- An unused bending curve is accepted when the story points it bends are already bent by a used curve, or follow one (outcomes emerge through the chain); the story gate still checks the effect.
+- The root-rule message names the upstream roots a curve can move to.
+- Causal map: a branch needs one positive (success) and one negative (failure) outcome edge.
+- **A5 resumes:** running the cascade again after A5 gave up continues at attempt 6, 7, … from the last rejected attempt for the same story (`05_scenario.rejected-N.feedback.json` holds the feedback and a story key). Without this, "Generovat data" again replayed the cached failures.
+- The what-if prompt leaves out `meta.id` (the session id), so a recorded what-if replays in any session.
+
 Open:
 
-- The API demo input (Elektro Novák, `docs/runs/2026-11-27-live-e2e-2.md`) is **not** replayable: its cache was recorded before #13 changed the A2–A5 prompts. Re-record it once through the API.
+- Elektro Novák was re-recorded through the API in run 3 (pinned Sonnet 5.5).
+- Podpora (ISP) fails A5 on Sonnet (passes on GPT-5); causal design fails its story gate on effect strength. Details in the run 3 report.
 - The detective (eval gate 4) is not part of the cascade evals.
 
 ## Where it sits

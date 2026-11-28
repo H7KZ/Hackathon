@@ -2,6 +2,12 @@
 
 Shared rules and the API overview: [README.md](README.md). Pages: SPEC §3.G. UI text in Czech.
 
+## Status (2026-11-28): integrated
+
+The chat workspace (`/` → `/chat?s=<id>`) drives a real session end to end: agents' progress (v1 and causal steps), the story editor (only curve-driving points are draggable; "Generovat data" sends `approve.settings`), the dataset canvas (KPIs from `/tables`, overview chart of what moved, evidence, table previews), detective, "Co kdyby" with a comparison whose markers follow the what-if's curves, "Zrušit" while busy and a "Pokračovat" / "Zkusit znovu" card after an interruption or failure. Pure mappings: `lib/chat/liveMapping.ts`; effects: `lib/chat/liveSource.ts`.
+
+Tests: unit (`live-mapping`, `live-source` with a fake EventSource), Playwright on fake services (`flow.spec.ts`, ports 4310/3310), real stack in the browser (`E2E_REAL=1 … real.spec.ts`, live or `LLM_OFFLINE=1`), screenshot review of finished sessions (`E2E_REVIEW=<api>|<ids> … review.spec.ts`). Live results: [`docs/runs/2026-11-28-live-e2e-3.md`](../runs/2026-11-28-live-e2e-3.md).
+
 ## Goal
 
 A conversational UI over a single session:
