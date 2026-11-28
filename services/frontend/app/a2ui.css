@@ -265,14 +265,21 @@
 }
 
 /* kpi */
+/* no box around a stat: it would look clickable, like the download buttons */
 .a2-kpi {
   display: grid;
   gap: 2px;
   min-width: 140px;
-  padding: 14px 16px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-  background: #fff;
+  padding: 4px 20px;
+}
+.a2-row:has(> .a2-kpi) {
+  column-gap: 0;
+}
+.a2-kpi:first-child {
+  padding-left: 0;
+}
+.a2-kpi + .a2-kpi {
+  border-left: 1px solid var(--color-line);
 }
 .a2-kpi-label {
   color: var(--color-muted);
