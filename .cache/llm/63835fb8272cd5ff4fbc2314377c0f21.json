@@ -1,0 +1,11 @@
+{
+  "key": "63835fb8272cd5ff4fbc2314377c0f21",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT supplier_id, strftime(date_trunc('week', date), '%Y-%m-%d') AS wk, count(*) AS n, sum(quantity) AS qty FROM supplier_delivery GROUP BY 1,2 ORDER BY 2,1"
+    }
+  }
+}

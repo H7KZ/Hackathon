@@ -7,21 +7,21 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
-import { ArtifactName, ArtifactSchemas } from "@s2d/schema/artifacts";
-import { MetricDiff } from "@s2d/schema/evidence";
+import { ArtifactName, ArtifactSchemas, type CascadeEvent } from "@s2d/schema/artifacts";
+import { MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { Scenario } from "@s2d/schema/scenario";
 import {
   DatasetEvidence,
   DetectiveResult,
-  type CascadeEvent,
   type DatasetInfo,
   type SessionCommand,
   type SessionEvent,
   type SessionInput,
   type SessionState,
   type SessionStatus,
-} from "./contract.draft";
+} from "@s2d/schema/api";
 import type { Ports } from "./ports";
+import { applySettings } from "./settings";
 import { NotFoundError, sessionStore, type JobSpec } from "./sessionStore";
 
 export { NotFoundError } from "./sessionStore";
@@ -53,6 +53,12 @@ export interface Orchestrator {
   evidence(sessionId: string, datasetId: string): Promise<DatasetEvidence>;
   compare(sessionId: string, a: string, b: string): Promise<MetricDiff[]>;
   detective(sessionId: string, datasetId: string): Promise<DetectiveResult | null>;
+  /** The scenario a dataset was generated from (what-if edits and approve settings applied). */
+  scenario(sessionId: string, datasetId: string): Scenario;
+  /** Observed tables of a dataset (name, row count, columns). */
+  tables(sessionId: string, datasetId: string): Promise<TableInfo[]>;
+  /** First rows of one observed table; NotFoundError for unknown or ground-truth tables. */
+  preview(sessionId: string, datasetId: string, table: string, limit: number): Promise<TablePreview>;
   /** Current cascade artifact (e.g. 04_story for the timeline editor); throws NotFoundError if not produced yet. */
   artifact(sessionId: string, name: ArtifactName): unknown;
 }
@@ -116,7 +122,7 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
     const dir = store.datasetDir(id, datasetId);
     mkdirSync(dir, { recursive: true });
     store.writeJson(join(dir, "scenario.json"), scenario);
-    const run = ports.noiser.run(scenario, seed);
+    const run = await ports.noiser.run(scenario, seed);
     const db = join(dir, "db.duckdb");
     await ports.dataer.store(run, db);
     const evidence = await ports.dataer.evidence(db, scenario.expectations);
@@ -166,7 +172,10 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
           onEvent,
           signal,
         });
-        const scenario = compiled(store.readJson(store.artifactPath(id, "05_scenario")));
+        // UI settings (seed, scale, noise, which hypotheses) apply on top of the cascade output
+        const settings = cmd?.type === "approve" ? cmd.settings : undefined;
+        const designed = compiled(store.readJson(store.artifactPath(id, "05_scenario")));
+        const scenario = compiled(applySettings(designed, settings));
         signal.throwIfAborted();
         await createDataset(id, scenario, { parent: null, origin: "approve" }, scenario.meta.seed);
         return "ready";
@@ -220,6 +229,9 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
     update(id, { status, error: undefined });
     const abort = new AbortController();
     const done = (async () => {
+      // a draft that ended failed/cancelled has no stable state to return to: keep job.json so
+      // `resume` can re-run it (reusing the artifacts already on disk)
+      let keepJob = false;
       try {
         const next = await runJob(id, job, abort.signal);
         abort.signal.throwIfAborted();
@@ -227,14 +239,16 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       } catch (err) {
         if (abort.signal.aborted) {
           update(id, { status: job.fallback });
+          keepJob = job.fallback === "cancelled";
         } else {
           const message = err instanceof Error ? err.message : String(err);
           const errors = (err as { errors?: CompileError[] }).errors;
           emit(id, { type: "error", message, ...(errors ? { errors } : {}) });
           update(id, { status: job.fallback === "cancelled" ? "failed" : job.fallback, error: message });
+          keepJob = job.fallback === "cancelled";
         }
       } finally {
-        store.clearJob(id);
+        if (!keepJob) store.clearJob(id);
         jobs.delete(id);
       }
     })();
@@ -280,7 +294,7 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
         case "approve":
           if (s.status !== "awaiting_refinement")
             return wrongState(`"approve" jde jen ve stavu awaiting_refinement, ne ${s.status}.`);
-          start(id, { kind: "approve", fallback: "awaiting_refinement" });
+          start(id, { kind: "approve", command: cmd, fallback: "awaiting_refinement" });
           break;
         case "edit_artifact": {
           const errors = editArtifact(id, cmd.name, cmd.value);
@@ -302,7 +316,8 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
         }
         case "resume": {
           const job = store.readJob(id);
-          if (s.status !== "interrupted" || !job) return wrongState(`Není co obnovit (stav ${s.status}).`);
+          const resumable: SessionStatus[] = ["interrupted", "failed", "cancelled"];
+          if (!resumable.includes(s.status) || !job) return wrongState(`Není co obnovit (stav ${s.status}).`);
           start(id, job);
           break;
         }
@@ -341,6 +356,22 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       const stored = join(da.dir, `compare_${db.info.id}.json`);
       if (existsSync(stored)) return MetricDiff.array().parse(store.readJson(stored));
       return ports.dataer.compare(join(db.dir, "db.duckdb"), join(da.dir, "db.duckdb"));
+    },
+
+    scenario: (id, datasetId) =>
+      store.readJson(join(datasetOf(id, datasetId).dir, "scenario.json")) as Scenario,
+
+    async tables(id, datasetId) {
+      return TableInfo.array().parse(
+        await ports.dataer.tables(join(datasetOf(id, datasetId).dir, "db.duckdb")),
+      );
+    },
+
+    async preview(id, datasetId, table, limit) {
+      const db = join(datasetOf(id, datasetId).dir, "db.duckdb");
+      if (!(await ports.dataer.tables(db)).some((t) => t.name === table))
+        throw new NotFoundError(`Tabulka "${table}" v datasetu ${datasetId} neexistuje.`);
+      return TablePreview.parse(await ports.dataer.preview(db, table, limit));
     },
 
     detective(id, datasetId) {

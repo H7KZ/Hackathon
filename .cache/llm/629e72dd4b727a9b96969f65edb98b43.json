@@ -1,0 +1,11 @@
+{
+  "key": "629e72dd4b727a9b96969f65edb98b43",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "describe_table",
+      "table": "stock_snapshot"
+    }
+  }
+}

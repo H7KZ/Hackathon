@@ -34,15 +34,36 @@ export function checkModelShape(model: ModelTables): CompileError[] {
   ];
 }
 
-/** Every curve planned in 04_story must drive some Param, otherwise its story point never shows. */
-export function checkCurveCoverage(scenario: unknown, story: Pick<StoryPlan, "curves">): CompileError[] {
+/**
+ * Every curve planned in 04_story that bends (has segments) must drive some Param, otherwise its story
+ * point never shows. A flat curve is only a constant: A5 may use it or inline its baseline. Requiring it
+ * deadlocked A5 against checkCurvesOnRoots in a live run (flat complaint_prob on a downstream param).
+ */
+export function checkCurveCoverage(
+  scenario: unknown,
+  story: Pick<StoryPlan, "curves"> & {
+    storyPoints?: Pick<StoryPlan["storyPoints"][number], "id" | "phase">[];
+  },
+): CompileError[] {
   const used = new Set<string>();
   collectCurveRefs(scenario, used);
+  // Story points a used curve bends. An unused bending curve is fine when every point it bends is
+  // already bent (redundant curve) or comes later than one that is (an outcome such as "issue surge"
+  // that must emerge through the chain, hard rule 3). Live run 3 (podpora): A4 bent rollout, two
+  // rollout variants and the downstream issue rate; only the rollout is a root, so A5 oscillated
+  // between "curve not used" and "curves only on roots" for 10 attempts.
+  const phase = new Map((story.storyPoints ?? []).map((p) => [p.id, p.phase]));
+  const covered = new Set(
+    story.curves.filter((c) => used.has(c.id)).flatMap((c) => c.segments.map((s) => s.storyPointId)),
+  );
+  const firstCovered = Math.min(...[...covered].map((id) => phase.get(id) ?? Infinity));
+  const follows = (id: string) => covered.has(id) || (phase.get(id) ?? -Infinity) > firstCovered;
   return story.curves
-    .filter((c) => !used.has(c.id))
+    .filter((c) => c.segments.length > 0 && !used.has(c.id))
+    .filter((c) => !(covered.size > 0 && c.segments.every((s) => follows(s.storyPointId))))
     .map((c) => ({
       path: `curves.${c.id}`,
-      message: `Curve "${c.id}" from 04_story is not used. Reference it as {"curve": "${c.id}"} in the Param it drives (an arrival rate or a bernoulli p in entities/processes).`,
+      message: `Curve "${c.id}" from 04_story is not used. Reference it as {"curve": "${c.id}"} in the root Param it drives (an arrival rate or a bernoulli p in entities/processes); a curve whose story point only follows from another curve's point may stay unused.`,
     }));
 }
 
@@ -290,7 +311,7 @@ export function influenceNames(model: ModelTables): Set<string> {
   return names;
 }
 
-type InfluenceEdges = { edges: { from: string; to: string }[] };
+export type InfluenceEdges = { edges: { from: string; to: string }[] };
 
 /** A3 edges must name existing parts of 02_model, otherwise the map is decoration nobody can check. */
 export function checkInfluenceRefs(influences: InfluenceEdges, model: ModelTables): CompileError[] {
@@ -359,14 +380,31 @@ export function curveParamRefs(scenario: unknown): { curve: string; ref: string;
  * incoming edge (or a derive/branch whose whole process has one) must emerge from the chain instead.
  */
 export function checkCurvesOnRoots(
-  scenario: Pick<Scenario, "processes">,
+  scenario: Pick<Scenario, "processes"> & { curves?: Pick<Scenario["curves"][number], "id" | "segments">[] },
   influences: InfluenceEdges,
 ): CompileError[] {
+  // a flat curve (no segments) never moves: it is a constant, not a story lever
+  const flat = new Set((scenario.curves ?? []).filter((c) => c.segments.length === 0).map((c) => c.id));
   const incoming = new Map<string, string[]>();
   for (const e of influences.edges) incoming.set(e.to, [...(incoming.get(e.to) ?? []), e.from]);
+  /** Roots of the influence map reachable backwards from `nodes` (where a story curve may go instead). */
+  const rootsAbove = (nodes: string[]): string[] => {
+    const roots = new Set<string>();
+    const seen = new Set<string>();
+    const walk = (n: string) => {
+      if (seen.has(n)) return;
+      seen.add(n);
+      const up = incoming.get(n) ?? [];
+      if (up.length === 0) roots.add(n);
+      up.forEach(walk);
+    };
+    nodes.forEach(walk);
+    return [...roots];
+  };
   const chained = new Set(scenario.processes.filter((p) => p.type !== "arrival").map((p) => p.id));
   const errors: CompileError[] = [];
   for (const { curve, ref, path } of curveParamRefs(scenario)) {
+    if (flat.has(curve)) continue;
     const owner = ref.split(".")[0] ?? "";
     // an edge from the owning process to its own field (delivery -> delivery.is_late) is structure, not a cause
     const from = [
@@ -376,7 +414,7 @@ export function checkCurvesOnRoots(
     if (from.length === 0) continue;
     errors.push({
       path,
-      message: `Curve "${curve}" drives ${ref}, which 03_influences explains by ${from.join(", ")}. Curves may drive only root parameters (no incoming edge); make ${ref} a constant so the effect emerges through the chain.`,
+      message: `Curve "${curve}" drives ${ref}, which 03_influences explains by ${from.join(", ")}. Curves may drive only root parameters (no incoming edge); make ${ref} a constant so the effect emerges through the chain, and move the curve to a root parameter upstream of it: ${rootsAbove(from).join(", ") || "a node of 03_influences with no incoming edge"}.`,
     });
   }
   return errors;

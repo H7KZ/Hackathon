@@ -1,0 +1,11 @@
+{
+  "key": "70e6136a77eb2c23913dfa49267071d1",
+  "model": "openai:gpt-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "WITH base AS (\n  SELECT ua.date, ua.router_model_id, ua.issue_roll, COUNT(*) AS attempts\n  FROM cpe_update_attempt ua\n  GROUP BY 1,2,3\n), issues AS (\n  SELECT ua.date, ua.router_model_id, COUNT(*) AS issues\n  FROM cpe_issue ci\n  JOIN cpe_update_attempt ua ON ci.update_attempt_id = ua.id\n  GROUP BY 1,2\n), agg AS (\n  SELECT date, router_model_id,\n         SUM(attempts) AS attempts,\n         SUM(CASE WHEN issue_roll THEN attempts ELSE 0 END) AS rollout_attempts\n  FROM base\n  GROUP BY 1,2\n)\nSELECT a.date, a.router_model_id,\n       attempts,\n       ROUND(COALESCE(i.issues,0)*100.0/attempts,2) AS issues_per_100,\n       ROUND(rollout_attempts*100.0/attempts,1) AS rollout_pct\nFROM agg a\nLEFT JOIN issues i USING (date, router_model_id)\nORDER BY date, router_model_id\nLIMIT 200"
+    }
+  }
+}

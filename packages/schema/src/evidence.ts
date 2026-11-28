@@ -31,6 +31,20 @@ export const ExpectationResult = z.object({
 });
 export type ExpectationResult = z.infer<typeof ExpectationResult>;
 
+/** An observed table (schema `main`) of a stored run: what the "Data" view lists. */
+export const TableInfo = z.object({
+  name: z.string(),
+  rows: z.number().int().nonnegative(),
+  columns: z.array(z.object({ name: z.string(), type: z.string() })),
+});
+export type TableInfo = z.infer<typeof TableInfo>;
+
+/** First rows of one observed table (JSON-safe values: DATE as ISO string, BIGINT as number). */
+export const TablePreview = TableInfo.extend({
+  rowsShown: z.array(z.record(z.string(), z.unknown())),
+});
+export type TablePreview = z.infer<typeof TablePreview>;
+
 /** One metric compared between run A and run B (SPEC §3.F). */
 export const MetricDiff = z.object({
   metric: z.string(),

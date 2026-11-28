@@ -1,0 +1,11 @@
+{
+  "key": "1c9647dde5204a7aa5ea77b7ca4f4d5e",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT order_date, count(*) n, avg(is_late::int) late_rate, avg(delay_days) avg_delay FROM purchase_order WHERE supplier_id='SUP-002' AND order_date BETWEEN '2024-02-15' AND '2024-03-20' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

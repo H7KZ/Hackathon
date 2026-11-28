@@ -1,0 +1,11 @@
+{
+  "key": "8e3b4b544e1c6842d64dcd3670f6080f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', order_date) AS w, count(*) n, avg(delay_days) avg_delay, avg(CASE WHEN is_delayed THEN 1.0 ELSE 0 END) delayed_share, min(CASE WHEN is_delayed THEN order_date END) first_delayed FROM supplier_delivery WHERE supplier_id='SUP-001' AND order_date BETWEEN '2024-02-10' AND '2024-04-01' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

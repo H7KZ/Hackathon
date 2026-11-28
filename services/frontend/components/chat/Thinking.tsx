@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PHRASE_MS, phraseAt } from "../../lib/chat/phrases";
 
 /** "The machine is working": fixed step label + rotating phrase (principle 4). */
-export function Thinking({ step }: { step: string }) {
+export function Thinking({ step, onCancel }: { step: string; onCancel?: (() => void) | undefined }) {
   // start where the clock is, so each new step does not open with the same phrase
   const [tick, setTick] = useState(() => Math.floor(Date.now() / PHRASE_MS));
   useEffect(() => {
@@ -28,6 +28,11 @@ export function Thinking({ step }: { step: string }) {
           {phraseAt(tick)}
         </span>
       </span>
+      {onCancel && (
+        <button type="button" className="thinking-cancel" onClick={onCancel}>
+          Zrušit
+        </button>
+      )}
     </div>
   );
 }

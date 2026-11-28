@@ -1,0 +1,568 @@
+{
+  "key": "6a5589ba5ec5451bbb04839139a3876c",
+  "model": "openai:gpt-5",
+  "schemaName": "05_scenario",
+  "output": {
+    "name": "call_center_router_update",
+    "start": "2025-02-24",
+    "end": "2025-04-05",
+    "entities": [
+      {
+        "name": "contact_center",
+        "count": 1,
+        "idPrefix": "CTC",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "const",
+            "value": "Hlavní call centrum"
+          }
+        }
+      },
+      {
+        "name": "support_skill",
+        "count": 1,
+        "idPrefix": "SKL",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "const",
+            "value": "L1 technická podpora"
+          }
+        }
+      },
+      {
+        "name": "agent",
+        "count": 18,
+        "idPrefix": "AGT",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "contact_center_id": {
+            "gen": "pick",
+            "entity": "contact_center"
+          },
+          "support_skill_id": {
+            "gen": "pick",
+            "entity": "support_skill"
+          },
+          "shift": {
+            "gen": "categorical",
+            "values": [
+              "denní",
+              "večerní"
+            ],
+            "weights": [
+              0.7,
+              0.3
+            ]
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 25000,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "segment": {
+            "gen": "categorical",
+            "values": [
+              "domácnost",
+              "SMB"
+            ],
+            "weights": [
+              0.9,
+              0.1
+            ]
+          },
+          "city": {
+            "gen": "categorical",
+            "values": [
+              "Praha",
+              "Brno",
+              "Ostrava",
+              "Plzeň",
+              "Liberec",
+              "Olomouc",
+              "České Budějovice",
+              "Hradec Králové",
+              "Pardubice",
+              "Zlín"
+            ]
+          }
+        }
+      },
+      {
+        "name": "router_model",
+        "count": 2,
+        "idPrefix": "MOD",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "model_name": {
+            "gen": "categorical",
+            "values": [
+              "Orion CPE-1000",
+              "Orion CPE-2000"
+            ]
+          },
+          "generation": {
+            "gen": "categorical",
+            "values": [
+              "Wi‑Fi 5",
+              "Wi‑Fi 6"
+            ]
+          }
+        }
+      },
+      {
+        "name": "cpe_device",
+        "count": 25000,
+        "idPrefix": "CPE",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "pick",
+            "entity": "customer"
+          },
+          "router_model_id": {
+            "gen": "pick",
+            "entity": "router_model"
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "l1_queue",
+        "keys": [
+          "contact_center",
+          "support_skill"
+        ],
+        "initial": {
+          "gen": "const",
+          "value": 0
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "queue_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "update_attempt",
+        "table": "cpe_update_attempt",
+        "per": [
+          "cpe_device"
+        ],
+        "rate": {
+          "curve": "update_push",
+          "scale": 0.3
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "cpe_device_id": {
+            "gen": "ref",
+            "path": "key.cpe_device"
+          },
+          "customer_id": {
+            "gen": "lookup",
+            "entity": "cpe_device",
+            "key": "key.cpe_device",
+            "field": "customer_id"
+          },
+          "router_model_id": {
+            "gen": "lookup",
+            "entity": "cpe_device",
+            "key": "key.cpe_device",
+            "field": "router_model_id"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "succeeded": {
+            "gen": "bernoulli",
+            "p": 0.95
+          },
+          "issue_roll": {
+            "gen": "bernoulli",
+            "p": {
+              "curve": "issue_prob"
+            }
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "post_update_fault",
+        "source": "update_attempt",
+        "cond": {
+          "kind": "fieldEq",
+          "path": "source.issue_roll",
+          "value": true
+        },
+        "then": {
+          "table": "cpe_issue",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "update_attempt_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "cpe_device_id": {
+              "gen": "ref",
+              "path": "source.cpe_device_id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "severity": {
+              "gen": "categorical",
+              "values": [
+                "nízká",
+                "střední",
+                "vysoká"
+              ],
+              "weights": [
+                0.5,
+                0.35,
+                0.15
+              ]
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "support_call_from_issue",
+        "table": "support_call",
+        "source": "post_update_fault:then",
+        "p": 0.6,
+        "lag": {
+          "min": 0,
+          "max": 2
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "issue_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "contact_center_id": {
+            "gen": "pick",
+            "entity": "contact_center"
+          },
+          "skill_id": {
+            "gen": "pick",
+            "entity": "support_skill"
+          },
+          "topic": {
+            "gen": "const",
+            "value": "potíže po aktualizaci routeru"
+          },
+          "calls": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "l1_queue",
+            "keys": {
+              "contact_center": "self.contact_center_id",
+              "support_skill": "self.skill_id"
+            },
+            "delta": "self.calls",
+            "sign": 1,
+            "on": "self.date"
+          }
+        ]
+      },
+      {
+        "type": "branch",
+        "id": "ivr_check",
+        "source": "support_call_from_issue",
+        "cond": {
+          "kind": "bernoulli",
+          "p": 0.2
+        },
+        "then": {
+          "table": "ivr_resolution",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "call_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "contact_center_id": {
+              "gen": "ref",
+              "path": "source.contact_center_id"
+            },
+            "skill_id": {
+              "gen": "ref",
+              "path": "source.skill_id"
+            },
+            "units": {
+              "gen": "const",
+              "value": 1
+            },
+            "result": {
+              "gen": "const",
+              "value": "samoobsluha IVR"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "l1_queue",
+              "keys": {
+                "contact_center": "self.contact_center_id",
+                "support_skill": "self.skill_id"
+              },
+              "delta": "self.units",
+              "sign": -1,
+              "on": "self.date"
+            }
+          ]
+        },
+        "else": {
+          "table": "queued_call",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "call_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "contact_center_id": {
+              "gen": "ref",
+              "path": "source.contact_center_id"
+            },
+            "skill_id": {
+              "gen": "ref",
+              "path": "source.skill_id"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "overflow_check",
+        "source": "ivr_check:else",
+        "lag": {
+          "min": 0,
+          "max": 0
+        },
+        "cond": {
+          "kind": "flowGt",
+          "flow": "l1_queue",
+          "keys": {
+            "contact_center": "source.contact_center_id",
+            "support_skill": "source.skill_id"
+          },
+          "value": 25
+        },
+        "then": {
+          "table": "overflow_call",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "call_id": {
+              "gen": "ref",
+              "path": "source.call_id"
+            },
+            "partner": {
+              "gen": "const",
+              "value": "CallHub CZ"
+            },
+            "contact_center_id": {
+              "gen": "ref",
+              "path": "source.contact_center_id"
+            },
+            "skill_id": {
+              "gen": "ref",
+              "path": "source.skill_id"
+            },
+            "units": {
+              "gen": "const",
+              "value": 1
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "l1_queue",
+              "keys": {
+                "contact_center": "self.contact_center_id",
+                "support_skill": "self.skill_id"
+              },
+              "delta": "self.units",
+              "sign": -1,
+              "on": "self.date"
+            }
+          ]
+        }
+      },
+      {
+        "type": "arrival",
+        "id": "agent_slot",
+        "table": "agent_slot",
+        "per": [
+          "agent"
+        ],
+        "rate": 1,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "agent_id": {
+            "gen": "ref",
+            "path": "key.agent"
+          },
+          "contact_center_id": {
+            "gen": "lookup",
+            "entity": "agent",
+            "key": "key.agent",
+            "field": "contact_center_id"
+          },
+          "skill_id": {
+            "gen": "lookup",
+            "entity": "agent",
+            "key": "key.agent",
+            "field": "support_skill_id"
+          },
+          "slots": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "serve_or_idle",
+        "source": "agent_slot",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "l1_queue",
+          "keys": {
+            "contact_center": "source.contact_center_id",
+            "support_skill": "source.skill_id"
+          },
+          "value": 1
+        },
+        "then": {
+          "table": "handled_call",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "slot_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "contact_center_id": {
+              "gen": "ref",
+              "path": "source.contact_center_id"
+            },
+            "skill_id": {
+              "gen": "ref",
+              "path": "source.skill_id"
+            },
+            "units": {
+              "gen": "const",
+              "value": 1
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "l1_queue",
+              "keys": {
+                "contact_center": "self.contact_center_id",
+                "support_skill": "self.skill_id"
+              },
+              "delta": "self.units",
+              "sign": -1,
+              "on": "self.date"
+            }
+          ]
+        },
+        "else": {
+          "table": "idle_slot",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "slot_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "žádné hovory ve frontě"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

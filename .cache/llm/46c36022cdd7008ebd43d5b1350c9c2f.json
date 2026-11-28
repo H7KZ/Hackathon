@@ -1,0 +1,11 @@
+{
+  "key": "46c36022cdd7008ebd43d5b1350c9c2f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT store_id, product_id IN ('x') AS dummy, count(*) FILTER (WHERE order_date<'2024-03-01') AS n_before, avg(delay_days) FILTER (WHERE order_date<'2024-03-01') AS d_before, count(*) FILTER (WHERE order_date>='2024-03-01') AS n_after, avg(delay_days) FILTER (WHERE order_date>='2024-03-01') AS d_after FROM purchase_order GROUP BY 1,2 ORDER BY 1"
+    }
+  }
+}

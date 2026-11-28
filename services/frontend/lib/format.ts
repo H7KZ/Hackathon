@@ -1,6 +1,6 @@
 /** Czech number/date formatting for every number shown in the UI (docs/design/brand.md). */
 
-export type Format = "text" | "number" | "int" | "percent" | "delta" | "date" | "pass" | "yesno";
+export type Format = "text" | "number" | "int" | "percent" | "delta" | "date" | "datetime" | "pass" | "yesno";
 
 const num = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 1 });
 const int = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 });
@@ -22,6 +22,11 @@ export function formatValue(value: unknown, format: Format = "text"): string {
   if (format === "pass") return value === true ? "✓ splněno" : "✗ nesplněno";
   if (format === "yesno") return value === true ? "✓ ano" : "✗ ne";
   if (format === "date") return formatDate(toText(value));
+  if (format === "datetime") {
+    const text = toText(value);
+    const time = /[T ](\d{2}:\d{2})/.exec(text)?.[1];
+    return time ? `${formatDate(text)} ${time}` : formatDate(text);
+  }
   if (typeof value !== "number") return toText(value);
   switch (format) {
     case "int":

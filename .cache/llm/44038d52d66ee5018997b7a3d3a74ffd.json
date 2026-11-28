@@ -1,0 +1,11 @@
+{
+  "key": "44038d52d66ee5018997b7a3d3a74ffd",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('month', date) AS m, reason, count(*) AS n, count(DISTINCT product_id) AS prods FROM lost_sale GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

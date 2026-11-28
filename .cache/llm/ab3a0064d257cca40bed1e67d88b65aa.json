@@ -1,0 +1,159 @@
+{
+  "key": "ab3a0064d257cca40bed1e67d88b65aa",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_baseline",
+        "phase": 0,
+        "title": "Běžný provoz před aktualizací",
+        "description": "Routery běží na starém firmwaru, poruch je málo a podpora zvládá hovory bez dlouhých front.",
+        "start": "2025-01-06",
+        "end": "2025-03-02"
+      },
+      {
+        "id": "sp_rollout",
+        "phase": 1,
+        "title": "Plošné nasazení nového firmwaru na vybrané modely",
+        "description": "Společnost NetKomp začíná hromadně aktualizovat routery modelů RMO-001 a RMO-002, takže rychle přibývá zařízení s novým firmwarem.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "start": "2025-03-03",
+        "end": "2025-03-17"
+      },
+      {
+        "id": "sp_issues",
+        "phase": 2,
+        "title": "Nárůst poruch po aktualizaci",
+        "description": "Na aktualizovaných routerech RMO-001 a RMO-002 přibývá ztrát Wi-Fi, restartů a špatných konfigurací. Hovorů na podporu je výrazně víc, fronty agentů rostou a zákazníci čekají déle.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "start": "2025-03-03",
+        "end": "2025-03-24"
+      }
+    ],
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.2,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-03",
+            "end": "2025-03-17",
+            "to": 2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          5
+        ]
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-03",
+            "end": "2025-03-24",
+            "to": 6,
+            "storyPointId": "sp_issues"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_calls_per_day_up",
+        "storyPointId": "sp_issues",
+        "description": "Počet hovorů na podporu za den od zařízení modelů RMO-001 a RMO-002 po aktualizaci výrazně vzroste.",
+        "sql": "SELECT period, AVG(cnt)::DOUBLE AS value FROM (SELECT CASE WHEN CAST(c.date AS DATE) < DATE '2025-03-03' THEN 'before' WHEN CAST(c.date AS DATE) >= DATE '2025-03-24' THEN 'after' END AS period, CAST(c.date AS DATE) AS day, COUNT(*) AS cnt FROM main.support_call c JOIN main.device d ON c.device_id = d.id WHERE d.router_model_id IN ('RMO-001','RMO-002') GROUP BY 1, 2) WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_wait_up",
+        "storyPointId": "sp_issues",
+        "description": "Průměrná doba čekání na hovor se prodlouží, protože fronty agentů překračují práh.",
+        "sql": "SELECT CASE WHEN CAST(date AS DATE) < DATE '2025-03-03' THEN 'before' WHEN CAST(date AS DATE) >= DATE '2025-03-24' THEN 'after' END AS period, AVG(wait_minutes)::DOUBLE AS value FROM main.support_call WHERE CAST(date AS DATE) < DATE '2025-03-03' OR CAST(date AS DATE) >= DATE '2025-03-24' GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_escalations_up",
+        "storyPointId": "sp_issues",
+        "description": "Počet eskalací za den u zařízení modelů RMO-001 a RMO-002 vzroste, protože do procesu vstupuje více hovorů při stejné pravděpodobnosti vyřešení.",
+        "sql": "SELECT period, AVG(cnt)::DOUBLE AS value FROM (SELECT CASE WHEN CAST(e.date AS DATE) < DATE '2025-03-03' THEN 'before' WHEN CAST(e.date AS DATE) >= DATE '2025-03-24' THEN 'after' END AS period, CAST(e.date AS DATE) AS day, COUNT(*) AS cnt FROM main.escalation e JOIN main.support_call c ON e.call_id = c.id JOIN main.device d ON c.device_id = d.id WHERE d.router_model_id IN ('RMO-001','RMO-002') GROUP BY 1, 2) WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_firmware_updates_up",
+        "storyPointId": "sp_rollout",
+        "description": "Počet aktualizací firmwaru za den u modelů RMO-001 a RMO-002 vzroste oproti období před nasazením.",
+        "sql": "SELECT period, AVG(cnt)::DOUBLE AS value FROM (SELECT CASE WHEN CAST(date AS DATE) < DATE '2025-03-03' THEN 'before' WHEN CAST(date AS DATE) >= DATE '2025-03-17' AND CAST(date AS DATE) < DATE '2025-04-14' THEN 'after' END AS period, CAST(date AS DATE) AS day, COUNT(*) AS cnt FROM main.firmware_update WHERE router_model_id IN ('RMO-001','RMO-002') GROUP BY 1, 2) WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_control_unaffected_calls_stable",
+        "storyPointId": "sp_issues",
+        "description": "Kontrola: počet hovorů za den od zařízení neovlivněných modelů (RMO-003 až RMO-006) zůstává stabilní.",
+        "sql": "SELECT period, AVG(cnt)::DOUBLE AS value FROM (SELECT CASE WHEN CAST(c.date AS DATE) < DATE '2025-03-03' THEN 'before' WHEN CAST(c.date AS DATE) >= DATE '2025-03-24' THEN 'after' END AS period, CAST(c.date AS DATE) AS day, COUNT(*) AS cnt FROM main.support_call c JOIN main.device d ON c.device_id = d.id WHERE d.router_model_id NOT IN ('RMO-001','RMO-002') GROUP BY 1, 2) WHERE period IS NOT NULL GROUP BY period",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.25
+        }
+      },
+      {
+        "id": "exp_control_visit_duration_stable",
+        "storyPointId": "sp_issues",
+        "description": "Kontrola: průměrná délka návštěvy technika zůstává stabilní, protože se nezměnila.",
+        "sql": "SELECT CASE WHEN CAST(date AS DATE) < DATE '2025-03-03' THEN 'before' WHEN CAST(date AS DATE) >= DATE '2025-03-24' THEN 'after' END AS period, AVG(duration_minutes)::DOUBLE AS value FROM main.technician_visit WHERE CAST(date AS DATE) < DATE '2025-03-03' OR CAST(date AS DATE) >= DATE '2025-03-24' GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.15
+        }
+      }
+    ]
+  }
+}

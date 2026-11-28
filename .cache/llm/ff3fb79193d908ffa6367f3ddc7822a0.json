@@ -1,0 +1,11 @@
+{
+  "key": "ff3fb79193d908ffa6367f3ddc7822a0",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT strftime(date_trunc('week', shipped_date), '%Y-%m-%d') wk, count(*) n, avg(is_late::int) late_rate, avg(delay_days) avg_delay FROM delivery GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

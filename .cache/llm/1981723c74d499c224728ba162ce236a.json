@@ -1,0 +1,33 @@
+{
+  "key": "1981723c74d499c224728ba162ce236a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04b_expectations",
+  "output": {
+    "queries": [
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_supplier_order_control",
+        "sql": "WITH w AS (SELECT 'before' AS period, DATE '2024-01-29' AS s, DATE '2024-03-01' AS e UNION ALL SELECT 'after', DATE '2024-04-22', DATE '2024-07-01') SELECT w.period AS period, CAST((SELECT COUNT(*) FROM main.purchase_order t WHERE CAST(t.order_date AS DATE) >= w.s AND CAST(t.order_date AS DATE) < w.e) AS DOUBLE) / date_diff('day', w.s, w.e) AS value FROM w"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_late_delivery",
+        "sql": "WITH w AS (SELECT 'before' AS period, DATE '2024-01-29' AS s, DATE '2024-03-01' AS e UNION ALL SELECT 'after', DATE '2024-04-22', DATE '2024-07-01') SELECT w.period AS period, CAST((SELECT COUNT(*) FROM main.purchase_order t WHERE CAST(t.order_date AS DATE) >= w.s AND CAST(t.order_date AS DATE) < w.e AND CAST(t.is_late AS INTEGER) = 1) AS DOUBLE) / date_diff('day', w.s, w.e) AS value FROM w"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_stock",
+        "sql": "WITH w AS (SELECT 'before' AS period, DATE '2024-01-29' AS s, DATE '2024-03-01' AS e UNION ALL SELECT 'after', DATE '2024-04-22', DATE '2024-07-01') SELECT w.period AS period, CAST(AVG(CASE WHEN t.value <= 0 THEN 1.0 ELSE 0.0 END) AS DOUBLE) AS value FROM w JOIN main.stock_snapshot t ON CAST(t.date AS DATE) >= w.s AND CAST(t.date AS DATE) < w.e GROUP BY w.period"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_sale",
+        "sql": "WITH w AS (SELECT 'before' AS period, DATE '2024-01-29' AS s, DATE '2024-03-01' AS e UNION ALL SELECT 'after', DATE '2024-04-22', DATE '2024-07-01') SELECT w.period AS period, CAST((SELECT COUNT(*) FROM main.sale t WHERE CAST(t.date AS DATE) >= w.s AND CAST(t.date AS DATE) < w.e) AS DOUBLE) / date_diff('day', w.s, w.e) AS value FROM w"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_lost_sale",
+        "sql": "WITH w AS (SELECT 'before' AS period, DATE '2024-01-29' AS s, DATE '2024-03-01' AS e UNION ALL SELECT 'after', DATE '2024-04-22', DATE '2024-07-01') SELECT w.period AS period, CAST((SELECT COUNT(*) FROM main.lost_sale t WHERE CAST(t.date AS DATE) >= w.s AND CAST(t.date AS DATE) < w.e) AS DOUBLE) / date_diff('day', w.s, w.e) AS value FROM w"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_complaint",
+        "sql": "WITH w AS (SELECT 'before' AS period, DATE '2024-01-29' AS s, DATE '2024-03-01' AS e UNION ALL SELECT 'after', DATE '2024-04-22', DATE '2024-07-01') SELECT w.period AS period, CAST((SELECT COUNT(*) FROM main.complaint t WHERE CAST(t.date AS DATE) >= w.s AND CAST(t.date AS DATE) < w.e) AS DOUBLE) / date_diff('day', w.s, w.e) AS value FROM w"
+      }
+    ]
+  }
+}

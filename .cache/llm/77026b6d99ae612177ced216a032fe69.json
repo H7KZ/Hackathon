@@ -1,0 +1,11 @@
+{
+  "key": "77026b6d99ae612177ced216a032fe69",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT category, supplier_id, CASE WHEN order_date < '2024-02-26' THEN 'before' ELSE 'after' END p, count(*) n, round(avg(is_late::int),2) late_rate, round(avg(delay_days),1) avg_delay, round(avg(is_short::int),2) short_rate FROM purchase_order GROUP BY 1,2,3 ORDER BY 1,2,3"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # API orchestrator: design (variant A approved and implemented)
 
-**Status:** core + routes + SSE implemented in `services/api/src/{orchestrator,sessionStore,routes/sessions,adapters/}`. Tested against fake ports (`API_FAKE=all` runs the whole flow without LLM). Handoffs per team: [`docs/handoffs/`](handoffs/README.md). The real adapters (`adapters/*.ts`) still return "zatím není implementováno" for `cascade.whatIf`, `dataer.compare` and `dataer.detective`. Cascade A5 is missing too: for now, upload `05_scenario` with `PUT /sessions/:id/artifacts/05_scenario` and then `approve`.
+**Status (2026-11-28):** fully integrated. Real adapters for every port (cascade incl. A5 + whatIf, noiser, dataer incl. compare, detective, tables/preview); the UI drives the whole flow over REST + SSE. Verified end to end with real LLM calls on five prompts: [`docs/runs/2026-11-28-live-e2e-3.md`](runs/2026-11-28-live-e2e-3.md). `API_FAKE=all` still runs the flow without LLM or DuckDB (Playwright `tests/e2e/flow.spec.ts`).
 
 Owner: `services/api`. Research: [`docs/research/api-orchestration.md`](research/api-orchestration.md).
 
@@ -83,7 +83,7 @@ GET  /sessions/:id                                            → SessionState
 GET  /sessions/:id/events              (SSE, Last-Event-ID)
 POST /sessions/:id/commands            SessionCommand union    → 202 { seq } | 409
 PUT  /sessions/:id/artifacts/:name     artifact JSON           → 202 | 409 | 422
-GET  /sessions/:id/datasets/:d/evidence | /tables/:t | /compare/:other | /detective
+GET  /sessions/:id/datasets/:d/evidence | /tables | /tables/:t?limit= | /compare/:other | /detective
 ```
 - Pros: one zod union in `@s2d/schema/api` is shared by the core, the route and the UI. 409 is handled in one place. A new command doesn't touch `app.ts` (a conflict hotspot).
 - Cons: a discriminated-union body is less self-documenting than separate routes.
@@ -100,6 +100,9 @@ GET  /sessions/:id/datasets/:d/evidence | /tables/:t | /compare/:other | /detect
 
 ## Contract changes (need the `packages/schema` owner's approval)
 
+Done 2026-11-28: moved unchanged from `services/api/src/contract.draft.ts` (deleted) to the places below; `CompileError` moved to `packages/schema/src/errors.ts` (re-exported by `/api`) so `api.ts` and `artifacts.ts` do not import each other.
+
+
 - `@s2d/schema/api`: `SessionStatus`, `SessionState`, `SessionCommand`, `SessionEvent`, `DatasetEvidence`, `DetectiveResult`.
 - `@s2d/schema/artifacts`: `CascadeEvent`.
 - `@s2d/llm`: optional `abortSignal` in the request (cascade cancel).
@@ -110,3 +113,6 @@ One line per change to `services/api/src/ports.ts` (date, team, what changed, wh
 
 - 2026-11-27, API: `dataer.evidence(dbPath, expectations)`. Expectations come from the scenario (SPEC rule 7) and run on the sandbox.
 - 2026-11-27, API: adapters split into `src/adapters/{cascade,noiser,dataer}.ts` (one file per team). Fakes in `src/adapters/fake.ts`, enabled with `API_FAKE`.
+- 2026-11-28, API (integration): `dataer.tables(db)` and `dataer.preview(db, table, limit)` (schema `main` only, read-only; `TableInfo`/`TablePreview` in `@s2d/schema/evidence`). Routes `GET …/datasets/:d/tables` → `{tables}` and `GET …/datasets/:d/tables/:t?limit=` → `TablePreview` (404 for unknown or ground-truth tables).
+- 2026-11-28, API (integration): `approve` takes optional `settings` (`GenerationSettings`: seed, scale, noise %, kept expectation ids), applied by `src/settings.ts` to the dataset copy of `05_scenario` (curves never change). `resume` also works after a draft that `failed` or was `cancelled` (its `job.json` is kept).
+- 2026-11-28, API (integration): `noiser.run` returns `Promise<RunResult>`; the adapter runs the engine in a `worker_threads` worker (`runScenarioInWorker` from `@s2d/noiser`), so `GET /health` and SSE answer during large generations (live run 3 saw ECONNRESET). Fakes are async; the orchestrator awaits.

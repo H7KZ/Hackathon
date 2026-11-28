@@ -1,0 +1,72 @@
+{
+  "key": "88099b3b824b0905b65a5ebabba1ebdb",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04a_overlay",
+  "output": {
+    "name": "Výpadky zásob kvůli pozdním dodávkám Domex Distribuce",
+    "start": "2024-01-01",
+    "end": "2024-08-31",
+    "storyPoints": [
+      {
+        "id": "sp_pocatek_zpozdeni",
+        "phase": 1,
+        "title": "Začátek pozdních dodávek",
+        "description": "Od března začíná problémový dodavatel Domex Distribuce dodávat zboží pozdě. Pravděpodobnost zpoždění roste, první zásoby na prodejnách se ztenčují.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-002"
+          ]
+        },
+        "start": "2024-03-01",
+        "end": "2024-04-15"
+      },
+      {
+        "id": "sp_eskalace",
+        "phase": 2,
+        "title": "Zhoršování spolehlivosti dodávek",
+        "description": "Zpoždění se množí, objednávky dorazí o 7–21 dní později. Vznikají výpadky zásob, neuskutečněné nákupy a přibývá stížností. Poptávka zůstává stabilní.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-002"
+          ]
+        },
+        "start": "2024-04-15",
+        "end": "2024-06-01"
+      },
+      {
+        "id": "sp_trvale_zpozdeni",
+        "phase": 3,
+        "title": "Trvale vysoká míra zpoždění",
+        "description": "Dodavatel zůstává nespolehlivý. Výpadky zásob přetrvávají, tržby sítě prodejen klesají a část zákazníků odchází ke konkurenci.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-002"
+          ]
+        },
+        "start": "2024-06-01"
+      }
+    ],
+    "levers": [
+      {
+        "lever": "late_prob_problem",
+        "values": [
+          {
+            "storyPointId": "sp_pocatek_zpozdeni",
+            "value": 0.25
+          },
+          {
+            "storyPointId": "sp_eskalace",
+            "value": 0.5
+          },
+          {
+            "storyPointId": "sp_trvale_zpozdeni",
+            "value": 0.6
+          }
+        ]
+      }
+    ]
+  }
+}

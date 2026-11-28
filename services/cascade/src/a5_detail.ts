@@ -15,7 +15,8 @@ import {
   checkExpectationTables,
   checkModelShape,
 } from "./checks";
-import { formatFeedback, repairLoop, type RepairLoopOptions } from "./loop";
+import { formatFeedback, formatHistory, repairLoop, type RepairLoopOptions } from "./loop";
+import { describeLeverReach } from "./reach";
 import type { CascadeInput } from "./steps";
 
 /** What the A5 agent returns: only the parts code cannot derive. Not an artifact (05 is the Scenario). */
@@ -74,13 +75,26 @@ export function scenarioId(runId: string): string {
 export function a5Detail(
   llm: Llm,
   a: A5Input,
-  opts: Pick<RepairLoopOptions<ScenarioDetail>, "onEvent" | "signal" | "onRejected" | "verify">,
+  opts: Pick<
+    RepairLoopOptions<ScenarioDetail>,
+    "onEvent" | "signal" | "onRejected" | "verify" | "initial" | "firstN"
+  >,
 ) {
+  const verify = opts.verify;
   return repairLoop<ScenarioDetail>({
     step: "05_scenario",
     maxIterations: A5_MAX_ITERATIONS,
     ...opts,
-    ask: (feedback, previous, n) =>
+    // the agent always edits its best attempt so far, never a regression (live run 3, podpora)
+    keepBest: true,
+    // a failed expectation also says where the levers sit and whether a chain reaches the measured table
+    verify:
+      verify &&
+      (async (s) => {
+        const errors = await verify(s);
+        return errors.length > 0 ? [...errors, ...describeLeverReach(s, errors, a.influences)] : errors;
+      }),
+    ask: (feedback, previous, n, history) =>
       llm.object({
         schemaName: "05_scenario",
         schema: ScenarioDetail,
@@ -91,8 +105,13 @@ export function a5Detail(
           "03_influences": a.influences,
           "04_story": a.story,
           ...(feedback.length > 0 && {
-            [`Previous attempt (this is attempt ${n})`]: previous ?? "(did not match the schema)",
-            "Compiler errors (fix all of them, keep everything else unchanged)": formatFeedback(feedback),
+            [`Best attempt so far (this is attempt ${n})`]: previous ?? "(did not match the schema)",
+            "Errors of that attempt (fix all of them, keep everything else unchanged)":
+              formatFeedback(feedback),
+          }),
+          ...(history.length > 1 && {
+            "Earlier attempts (what each one failed on; do not repeat a change that made it worse)":
+              formatHistory(history),
           }),
         }),
       }),

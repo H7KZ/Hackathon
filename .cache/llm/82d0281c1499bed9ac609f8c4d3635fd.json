@@ -1,0 +1,1343 @@
+{
+  "key": "82d0281c1499bed9ac609f8c4d3635fd",
+  "model": "openai:gpt-5",
+  "schemaName": "02_model",
+  "output": {
+    "entities": [
+      {
+        "name": "marketing_campaign",
+        "count": 2,
+        "idPrefix": "CMP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "categorical",
+            "values": [
+              "Jarní akviziční kampaň",
+              "Always On výkon"
+            ]
+          },
+          "type": {
+            "gen": "categorical",
+            "values": [
+              "akvizice",
+              "always_on"
+            ]
+          },
+          "channel": {
+            "gen": "categorical",
+            "values": [
+              "sociální sítě",
+              "vyhledávání",
+              "displej"
+            ]
+          },
+          "discount_code": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.type",
+              "value": "akvizice"
+            },
+            "then": {
+              "gen": "const",
+              "value": "JARO"
+            },
+            "else": {
+              "gen": "const",
+              "value": ""
+            }
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 4000,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "email": {
+            "gen": "fake",
+            "kind": "email"
+          },
+          "city": {
+            "gen": "fake",
+            "kind": "city"
+          },
+          "segment": {
+            "gen": "categorical",
+            "values": [
+              "rekreační běžec",
+              "silniční cyklista",
+              "věrný multisport",
+              "dárkový nakupující"
+            ],
+            "weights": [
+              0.4,
+              0.2,
+              0.25,
+              0.15
+            ]
+          },
+          "loyalty_tier": {
+            "gen": "categorical",
+            "values": [
+              "žádný",
+              "klub"
+            ],
+            "weights": [
+              0.8,
+              0.2
+            ]
+          },
+          "acq_weight_spring": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.segment",
+              "value": "rekreační běžec"
+            },
+            "then": {
+              "gen": "const",
+              "value": 3
+            },
+            "else": {
+              "gen": "if",
+              "cond": {
+                "kind": "fieldEq",
+                "path": "self.segment",
+                "value": "dárkový nakupující"
+              },
+              "then": {
+                "gen": "const",
+                "value": 2
+              },
+              "else": {
+                "gen": "const",
+                "value": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "supplier",
+        "count": 3,
+        "idPrefix": "SUP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          },
+          "lead_time_days": {
+            "gen": "uniformInt",
+            "min": 14,
+            "max": 28
+          }
+        }
+      },
+      {
+        "name": "product",
+        "count": 120,
+        "idPrefix": "PRD",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "productName"
+          },
+          "category": {
+            "gen": "categorical",
+            "values": [
+              "běh",
+              "cyklistika",
+              "elektronika",
+              "oblečení"
+            ]
+          },
+          "supplier_id": {
+            "gen": "pick",
+            "entity": "supplier"
+          },
+          "price": {
+            "gen": "normal",
+            "mean": 1800,
+            "sd": 700,
+            "min": 150,
+            "max": 12000,
+            "round": true
+          },
+          "popularity": {
+            "gen": "normal",
+            "mean": 10,
+            "sd": 5,
+            "min": 1,
+            "max": 20,
+            "round": true
+          }
+        }
+      },
+      {
+        "name": "courier",
+        "count": 2,
+        "idPrefix": "CRR",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          },
+          "sla_days": {
+            "gen": "uniformInt",
+            "min": 1,
+            "max": 2
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "stock",
+        "keys": [
+          "product"
+        ],
+        "initial": {
+          "gen": "normal",
+          "mean": 80,
+          "sd": 25,
+          "min": 0,
+          "max": 200,
+          "round": true
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "stock_snapshot",
+          "visibility": "observed"
+        }
+      },
+      {
+        "id": "cust_orders",
+        "keys": [
+          "customer"
+        ],
+        "initial": {
+          "gen": "const",
+          "value": 0
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "customer_orders_snapshot",
+          "visibility": "observed"
+        }
+      },
+      {
+        "id": "engagement",
+        "keys": [
+          "customer"
+        ],
+        "initial": {
+          "gen": "const",
+          "value": 0
+        },
+        "min": 0
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "web_session",
+        "table": "web_session",
+        "per": [
+          "marketing_campaign"
+        ],
+        "rate": {
+          "curve": "spring_acq",
+          "scale": 50
+        },
+        "schedule": {
+          "everyDays": 1,
+          "phase": "random"
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "campaign_id": {
+            "gen": "ref",
+            "path": "key.marketing_campaign"
+          },
+          "campaign_type": {
+            "gen": "lookup",
+            "entity": "marketing_campaign",
+            "key": "key.marketing_campaign",
+            "field": "type"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "customer_id": {
+            "gen": "pick",
+            "entity": "customer",
+            "weightBy": "acq_weight_spring"
+          },
+          "is_discount_exposed": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.campaign_type",
+              "value": "akvizice"
+            },
+            "then": {
+              "gen": "bernoulli",
+              "p": 0.7
+            },
+            "else": {
+              "gen": "bernoulli",
+              "p": 0.1
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "checkout_start",
+        "table": "checkout_start",
+        "source": "web_session",
+        "p": {
+          "curve": "visit_to_checkout",
+          "scale": 0.12
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "session_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "campaign_id": {
+            "gen": "ref",
+            "path": "source.campaign_id"
+          },
+          "campaign_type": {
+            "gen": "ref",
+            "path": "source.campaign_type"
+          },
+          "used_discount": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "source.is_discount_exposed",
+              "value": true
+            },
+            "then": {
+              "gen": "bernoulli",
+              "p": 0.6
+            },
+            "else": {
+              "gen": "bernoulli",
+              "p": 0.05
+            }
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product",
+            "weightBy": "popularity"
+          },
+          "quantity": {
+            "gen": "uniformInt",
+            "min": 1,
+            "max": 2
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "first_vs_repeat",
+        "source": "checkout_start",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "cust_orders",
+          "keys": {
+            "customer": "source.customer_id"
+          },
+          "value": 1
+        },
+        "then": {
+          "table": "repeat_checkout_intent",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "origin_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "campaign_id": {
+              "gen": "ref",
+              "path": "source.campaign_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "used_discount": {
+              "gen": "ref",
+              "path": "source.used_discount"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        },
+        "else": {
+          "table": "first_checkout_intent",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "origin_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "campaign_id": {
+              "gen": "ref",
+              "path": "source.campaign_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "used_discount": {
+              "gen": "ref",
+              "path": "source.used_discount"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "stock_check_first",
+        "source": "first_checkout_intent",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "stock",
+          "keys": {
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "order_first_intent",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "intent_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "campaign_id": {
+              "gen": "ref",
+              "path": "source.campaign_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "used_discount": {
+              "gen": "ref",
+              "path": "source.used_discount"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        },
+        "else": {
+          "table": "lost_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "vyprodáno"
+            },
+            "stage": {
+              "gen": "const",
+              "value": "před objednávkou"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "stock_check_repeat",
+        "source": "repeat_checkout_intent",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "stock",
+          "keys": {
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "order_repeat_intent",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "intent_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "campaign_id": {
+              "gen": "ref",
+              "path": "source.campaign_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "used_discount": {
+              "gen": "ref",
+              "path": "source.used_discount"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        },
+        "else": {
+          "table": "lost_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "vyprodáno"
+            },
+            "stage": {
+              "gen": "const",
+              "value": "před objednávkou"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "order_first",
+        "table": "order",
+        "source": "stock_check_first:then",
+        "p": {
+          "curve": "checkout_to_order",
+          "scale": 0.55
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "campaign_id": {
+            "gen": "ref",
+            "path": "source.campaign_id"
+          },
+          "quantity": {
+            "gen": "ref",
+            "path": "source.quantity"
+          },
+          "price_unit": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "source.product_id",
+            "field": "price"
+          },
+          "order_units": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "cust_orders",
+            "keys": {
+              "customer": "self.customer_id"
+            },
+            "delta": "self.order_units",
+            "sign": 1,
+            "on": "self.date"
+          },
+          {
+            "flow": "stock",
+            "keys": {
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": -1,
+            "on": "self.date"
+          }
+        ]
+      },
+      {
+        "type": "derive",
+        "id": "order_repeat",
+        "table": "order",
+        "source": "stock_check_repeat:then",
+        "p": {
+          "curve": "checkout_to_order",
+          "scale": 0.35
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "campaign_id": {
+            "gen": "ref",
+            "path": "source.campaign_id"
+          },
+          "quantity": {
+            "gen": "ref",
+            "path": "source.quantity"
+          },
+          "price_unit": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "source.product_id",
+            "field": "price"
+          },
+          "order_units": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "cust_orders",
+            "keys": {
+              "customer": "self.customer_id"
+            },
+            "delta": "self.order_units",
+            "sign": 1,
+            "on": "self.date"
+          },
+          {
+            "flow": "stock",
+            "keys": {
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": -1,
+            "on": "self.date"
+          }
+        ]
+      },
+      {
+        "type": "derive",
+        "id": "shipment_first",
+        "table": "shipment",
+        "source": "order_first",
+        "p": 0.97,
+        "lag": {
+          "min": 0,
+          "max": 2
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "courier_id": {
+            "gen": "pick",
+            "entity": "courier"
+          },
+          "delay_days": {
+            "gen": "lookup",
+            "entity": "courier",
+            "key": "self.courier_id",
+            "field": "sla_days"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "delivered_date": {
+            "gen": "dateOffset",
+            "base": "self.date",
+            "days": "self.delay_days"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "shipment_repeat",
+        "table": "shipment",
+        "source": "order_repeat",
+        "p": 0.97,
+        "lag": {
+          "min": 0,
+          "max": 2
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "courier_id": {
+            "gen": "pick",
+            "entity": "courier"
+          },
+          "delay_days": {
+            "gen": "lookup",
+            "entity": "courier",
+            "key": "self.courier_id",
+            "field": "sla_days"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "delivered_date": {
+            "gen": "dateOffset",
+            "base": "self.date",
+            "days": "self.delay_days"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "onboarding_email",
+        "table": "onboarding_email",
+        "source": "order_first",
+        "p": 1,
+        "lag": {
+          "min": 0,
+          "max": 1
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "points": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "engagement",
+            "keys": {
+              "customer": "self.customer_id"
+            },
+            "delta": "self.points",
+            "sign": 1,
+            "on": "self.date"
+          }
+        ]
+      },
+      {
+        "type": "derive",
+        "id": "email_open",
+        "table": "email_open",
+        "source": "onboarding_email",
+        "p": {
+          "curve": "open_rate",
+          "scale": 0.45
+        },
+        "lag": {
+          "min": 0,
+          "max": 2
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "points": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "engagement",
+            "keys": {
+              "customer": "self.customer_id"
+            },
+            "delta": "self.points",
+            "sign": 1,
+            "on": "self.date"
+          }
+        ]
+      },
+      {
+        "type": "arrival",
+        "id": "replenishment",
+        "table": "supplier_delivery",
+        "per": [
+          "product"
+        ],
+        "rate": 0.02,
+        "schedule": {
+          "everyDays": 1,
+          "phase": "random"
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "key.product"
+          },
+          "supplier_id": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "key.product",
+            "field": "supplier_id"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "quantity": {
+            "gen": "poisson",
+            "lambda": 30
+          },
+          "delay_days": {
+            "gen": "uniformInt",
+            "min": 7,
+            "max": 21
+          },
+          "delivered_date": {
+            "gen": "dateOffset",
+            "base": "self.date",
+            "days": "self.delay_days"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": 1,
+            "on": "self.delivered_date"
+          }
+        ]
+      },
+      {
+        "type": "derive",
+        "id": "second_intent",
+        "table": "second_intent",
+        "source": "order_first",
+        "p": {
+          "curve": "second_intent",
+          "scale": 0.2
+        },
+        "lag": {
+          "min": 7,
+          "max": 45
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product",
+            "weightBy": "popularity"
+          },
+          "quantity": {
+            "gen": "uniformInt",
+            "min": 1,
+            "max": 2
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "second_engagement_split",
+        "source": "second_intent",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "engagement",
+          "keys": {
+            "customer": "source.customer_id"
+          },
+          "value": 1
+        },
+        "then": {
+          "table": "second_intent_engaged",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "origin_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        },
+        "else": {
+          "table": "second_intent_not_engaged",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "origin_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "stock_check_second_eng",
+        "source": "second_engagement_split:then",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "stock",
+          "keys": {
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "second_ready_eng",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "intent_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        },
+        "else": {
+          "table": "lost_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "vyprodáno"
+            },
+            "stage": {
+              "gen": "const",
+              "value": "před objednávkou"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "stock_check_second_not",
+        "source": "second_engagement_split:else",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "stock",
+          "keys": {
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "second_ready_not",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "intent_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        },
+        "else": {
+          "table": "lost_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "vyprodáno"
+            },
+            "stage": {
+              "gen": "const",
+              "value": "před objednávkou"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "order_second_eng",
+        "table": "order",
+        "source": "stock_check_second_eng:then",
+        "p": {
+          "curve": "checkout_to_order",
+          "scale": 0.35
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "quantity": {
+            "gen": "ref",
+            "path": "source.quantity"
+          },
+          "order_units": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "cust_orders",
+            "keys": {
+              "customer": "self.customer_id"
+            },
+            "delta": "self.order_units",
+            "sign": 1,
+            "on": "self.date"
+          },
+          {
+            "flow": "stock",
+            "keys": {
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": -1,
+            "on": "self.date"
+          }
+        ]
+      },
+      {
+        "type": "derive",
+        "id": "order_second_not",
+        "table": "order",
+        "source": "stock_check_second_not:then",
+        "p": {
+          "curve": "checkout_to_order",
+          "scale": 0.08
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "quantity": {
+            "gen": "ref",
+            "path": "source.quantity"
+          },
+          "order_units": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "cust_orders",
+            "keys": {
+              "customer": "self.customer_id"
+            },
+            "delta": "self.order_units",
+            "sign": 1,
+            "on": "self.date"
+          },
+          {
+            "flow": "stock",
+            "keys": {
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": -1,
+            "on": "self.date"
+          }
+        ]
+      }
+    ]
+  }
+}

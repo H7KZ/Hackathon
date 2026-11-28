@@ -1,0 +1,11 @@
+{
+  "key": "d0ef536313f222381e9d2157e63caf57",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select store_id, case when date<'2025-04-01' then 'pred' else 'po' end obdobi, count(*) n, count(distinct date) dnu, round(count(*)*1.0/count(distinct date),2) za_den, min(date) od from lost_visit group by 1,2 order by 1,2"
+    }
+  }
+}

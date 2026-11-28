@@ -1,0 +1,126 @@
+{
+  "key": "7460a6391d9649828278f480fef882d4",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_spring_campaign",
+        "phase": 1,
+        "title": "Jarní kampaň přivede vlnu nových zákazníků",
+        "description": "Od začátku dubna jarní kampaň výrazně zvýší intenzitu objednávek zákazníků ze segmentu kampaň. Pravděpodobnosti opakovaného nákupu, vrácení i retenčního e-mailu zůstávají konstantní.",
+        "segment": {
+          "field": "self.customer_segment",
+          "values": [
+            "kampaň"
+          ]
+        },
+        "start": "2025-04-01",
+        "end": "2025-04-07"
+      },
+      {
+        "id": "sp_campaign_fade",
+        "phase": 2,
+        "title": "Doznění kampaně",
+        "description": "Po skončení kampaně se intenzita objednávek segmentu kampaň vrací na běžnou úroveň. Většina nových zákazníků podruhé nenakoupí, protože pravděpodobnost opakovaného nákupu zůstává nízká.",
+        "segment": {
+          "field": "self.customer_segment",
+          "values": [
+            "kampaň"
+          ]
+        },
+        "start": "2025-04-30",
+        "end": "2025-05-15"
+      }
+    ],
+    "curves": [
+      {
+        "id": "order_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.customer_segment",
+          "ids": [
+            "kampaň"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-07",
+            "to": 3,
+            "storyPointId": "sp_spring_campaign"
+          },
+          {
+            "kind": "decay",
+            "start": "2025-04-30",
+            "end": "2025-05-15",
+            "to": 1,
+            "storyPointId": "sp_campaign_fade"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "late_prob",
+        "baseline": 0.08,
+        "segments": []
+      },
+      {
+        "id": "return_prob",
+        "baseline": 0.06,
+        "segments": []
+      },
+      {
+        "id": "retention_email_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "repeat_campaign_prob",
+        "baseline": 0.12,
+        "segments": []
+      },
+      {
+        "id": "repeat_loyal_prob",
+        "baseline": 0.45,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_campaign_sales_up",
+        "storyPointId": "sp_spring_campaign",
+        "description": "Počet denních prodejů zákazníkům ze segmentu kampaň v dubnu výrazně vzroste oproti březnu.",
+        "sql": "SELECT 'before' AS period, COUNT(*) / 31.0 AS value FROM main.sale WHERE customer_segment = 'kampaň' AND date BETWEEN DATE '2025-03-01' AND DATE '2025-03-31' UNION ALL SELECT 'after' AS period, COUNT(*) / 23.0 AS value FROM main.sale WHERE customer_segment = 'kampaň' AND date BETWEEN DATE '2025-04-08' AND DATE '2025-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_loyal_sales_stable",
+        "storyPointId": "sp_spring_campaign",
+        "description": "Kontrola: denní prodeje stálých zákazníků kampaň neovlivní.",
+        "sql": "SELECT 'before' AS period, COUNT(*) / 31.0 AS value FROM main.sale WHERE customer_segment = 'stálý' AND date BETWEEN DATE '2025-03-01' AND DATE '2025-03-31' UNION ALL SELECT 'after' AS period, COUNT(*) / 23.0 AS value FROM main.sale WHERE customer_segment = 'stálý' AND date BETWEEN DATE '2025-04-08' AND DATE '2025-04-30'",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.2
+        }
+      },
+      {
+        "id": "exp_campaign_sales_fade",
+        "storyPointId": "sp_campaign_fade",
+        "description": "Po doznění kampaně denní prodeje segmentu kampaň klesnou oproti vrcholu kampaně.",
+        "sql": "SELECT 'before' AS period, COUNT(*) / 23.0 AS value FROM main.sale WHERE customer_segment = 'kampaň' AND date BETWEEN DATE '2025-04-08' AND DATE '2025-04-30' UNION ALL SELECT 'after' AS period, COUNT(*) / 31.0 AS value FROM main.sale WHERE customer_segment = 'kampaň' AND date BETWEEN DATE '2025-05-16' AND DATE '2025-06-15'",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.3
+        }
+      }
+    ]
+  }
+}

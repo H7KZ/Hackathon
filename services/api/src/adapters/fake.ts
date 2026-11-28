@@ -51,6 +51,39 @@ function fakeSeries(storyPoints: Scenario["storyPoints"], seed: number) {
   return [{ table: "objednavky", dateColumn: "date", metric: "rows", points }];
 }
 
+const pad = (n: number) => String(n + 1).padStart(6, "0");
+/** Two small observed tables for the Data view (rows are generated on demand). */
+const FAKE_TABLES = [
+  {
+    name: "prodejna",
+    rows: 5,
+    columns: [
+      { name: "id", type: "VARCHAR" },
+      { name: "mesto", type: "VARCHAR" },
+    ],
+    row: (i: number) => ({
+      id: `STO-00${String(i + 1)}`,
+      mesto: ["Praha", "Brno", "Ostrava", "Plzeň", "Olomouc"][i % 5],
+    }),
+  },
+  {
+    name: "objednavky",
+    rows: 1200,
+    columns: [
+      { name: "id", type: "VARCHAR" },
+      { name: "date", type: "DATE" },
+      { name: "prodejna_id", type: "VARCHAR" },
+      { name: "mnozstvi", type: "BIGINT" },
+    ],
+    row: (i: number) => ({
+      id: `objednavky-${pad(i)}`,
+      date: new Date(Date.UTC(2025, 0, 1 + Math.floor(i / 10))).toISOString().slice(0, 10),
+      prodejna_id: `STO-00${String((i % 5) + 1)}`,
+      mnozstvi: 1 + ((i * 7) % 5),
+    }),
+  },
+];
+
 export function fakePorts(opts: FakeOptions) {
   const { scenario } = opts;
   const calls: FakeCalls = { produced: [], whatIf: [], noiserSeeds: [], detective: 0 };
@@ -107,7 +140,7 @@ export function fakePorts(opts: FakeOptions) {
     noiser: {
       run(s, seed) {
         calls.noiserSeeds.push(seed);
-        return {
+        return Promise.resolve({
           tables: [],
           storyPoints: s.storyPoints,
           meta: {
@@ -116,7 +149,7 @@ export function fakePorts(opts: FakeOptions) {
             scenarioHash: JSON.stringify(s).length.toString(),
             engineVersion: "fake",
           },
-        };
+        });
       },
     },
     dataer: {
@@ -142,6 +175,20 @@ export function fakePorts(opts: FakeOptions) {
       },
       compare() {
         return Promise.resolve([{ metric: "objednavky.count", a: 100, b: 85, delta: -15, relChange: -0.15 }]);
+      },
+      tables() {
+        return Promise.resolve(FAKE_TABLES.map(({ name, rows, columns }) => ({ name, rows, columns })));
+      },
+      preview(_dbPath, table, limit) {
+        const t = FAKE_TABLES.find((x) => x.name === table);
+        if (!t) return Promise.reject(new Error(`Tabulka "${table}" neexistuje.`));
+        const n = Math.min(200, Math.max(1, limit), t.rows);
+        return Promise.resolve({
+          name: t.name,
+          rows: t.rows,
+          columns: t.columns,
+          rowsShown: Array.from({ length: n }, (_, i) => t.row(i)),
+        });
       },
       async detective(_dbPath, { onEvent, signal }) {
         if (opts.delayMs) await wait(opts.delayMs, signal);

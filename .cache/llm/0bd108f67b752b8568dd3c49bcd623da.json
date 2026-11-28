@@ -1,0 +1,226 @@
+{
+  "key": "0bd108f67b752b8568dd3c49bcd623da",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_baseline",
+        "phase": 0,
+        "title": "Běžný provoz před aktualizací",
+        "description": "Zařízení běží na starém firmwaru, poruch je málo, hovory na podporu jsou řešeny rychle a fronty agentů zůstávají pod prahem.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004",
+            "RMO-005",
+            "RMO-006"
+          ]
+        },
+        "start": "2025-01-01",
+        "end": "2025-02-28"
+      },
+      {
+        "id": "sp_rollout",
+        "phase": 1,
+        "title": "Plošné nasazení nového firmwaru",
+        "description": "Společnost NetKomp rozesílá aktualizaci firmwaru na routery. Roste intenzita aktualizací a podíl nového firmwaru mezi hlášenými problémy.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004",
+            "RMO-005",
+            "RMO-006"
+          ]
+        },
+        "start": "2025-03-01",
+        "end": "2025-03-21"
+      },
+      {
+        "id": "sp_issue_surge",
+        "phase": 2,
+        "title": "Prudký nárůst poruch po aktualizaci",
+        "description": "Nový firmware způsobuje ztrátu Wi-Fi, restarty a špatnou konfiguraci. Míra vzniku problémů na zařízení prudce roste, a tím i počet hovorů na podporu.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004",
+            "RMO-005",
+            "RMO-006"
+          ]
+        },
+        "start": "2025-03-10",
+        "end": "2025-03-20"
+      },
+      {
+        "id": "sp_backlog",
+        "phase": 3,
+        "title": "Přetížená podpora a dlouhé čekání",
+        "description": "Fronty agentů přesáhnou práh, doba čekání na linku se několikanásobně prodlouží a přibývá eskalací, výjezdů techniků a kompenzací.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004",
+            "RMO-005",
+            "RMO-006"
+          ]
+        },
+        "start": "2025-03-25"
+      }
+    ],
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.2,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-21",
+            "to": 3,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "rollout_old",
+        "baseline": 1,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-21",
+            "to": 0.2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_new",
+        "baseline": 0,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-21",
+            "to": 0.8,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_fix",
+        "baseline": 0,
+        "segments": []
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-10",
+            "end": "2025-03-20",
+            "to": 10,
+            "storyPointId": "sp_issue_surge"
+          }
+        ],
+        "clamp": [
+          0,
+          20
+        ]
+      },
+      {
+        "id": "call_prob",
+        "baseline": 0.6,
+        "segments": []
+      },
+      {
+        "id": "remote_resolve_prob",
+        "baseline": 0.6,
+        "segments": []
+      },
+      {
+        "id": "churn_prob",
+        "baseline": 0.1,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_calls_per_day_up",
+        "storyPointId": "sp_issue_surge",
+        "description": "Počet hovorů na podporu za den po aktualizaci výrazně vzroste.",
+        "sql": "SELECT 'before' AS period, COUNT(*) * 1.0 / 54 AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-06' AND DATE '2025-02-28' UNION ALL SELECT 'after' AS period, COUNT(*) * 1.0 / 30 AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-04-01' AND DATE '2025-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_wait_up",
+        "storyPointId": "sp_backlog",
+        "description": "Průměrná doba čekání na podporu (minuty) se po aktualizaci prodlouží.",
+        "sql": "SELECT 'before' AS period, AVG(wait_minutes) AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-06' AND DATE '2025-02-28' UNION ALL SELECT 'after' AS period, AVG(wait_minutes) AS value FROM main.support_call WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-04-01' AND DATE '2025-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_escalations_up",
+        "storyPointId": "sp_backlog",
+        "description": "Počet eskalací za den vzroste, protože do procesu vstupuje více hovorů.",
+        "sql": "SELECT 'before' AS period, COUNT(*) * 1.0 / 54 AS value FROM main.escalation WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-06' AND DATE '2025-02-28' UNION ALL SELECT 'after' AS period, COUNT(*) * 1.0 / 30 AS value FROM main.escalation WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-04-01' AND DATE '2025-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_visits_up",
+        "storyPointId": "sp_backlog",
+        "description": "Počet výjezdů techniků za den vzroste v důsledku více eskalací.",
+        "sql": "SELECT 'before' AS period, COUNT(*) * 1.0 / 54 AS value FROM main.technician_visit WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-06' AND DATE '2025-02-28' UNION ALL SELECT 'after' AS period, COUNT(*) * 1.0 / 30 AS value FROM main.technician_visit WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-04-01' AND DATE '2025-04-30'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_control_visit_duration_stable",
+        "storyPointId": "sp_backlog",
+        "description": "Kontrola: průměrná délka výjezdu technika (minuty) se nemění, protože je to konstantní parametr procesu.",
+        "sql": "SELECT 'before' AS period, AVG(duration_minutes) AS value FROM main.technician_visit WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-01-06' AND DATE '2025-02-28' UNION ALL SELECT 'after' AS period, AVG(duration_minutes) AS value FROM main.technician_visit WHERE CAST(\"date\" AS DATE) BETWEEN DATE '2025-04-01' AND DATE '2025-04-30'",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.15
+        }
+      }
+    ]
+  }
+}

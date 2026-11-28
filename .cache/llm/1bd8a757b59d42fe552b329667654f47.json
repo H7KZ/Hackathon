@@ -1,0 +1,66 @@
+{
+  "key": "1bd8a757b59d42fe552b329667654f47",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "order_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.customer_segment",
+          "ids": [
+            "kampaň"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-05-01",
+            "end": "2025-05-07",
+            "to": 3,
+            "storyPointId": "sp_spring_campaign"
+          },
+          {
+            "kind": "decay",
+            "start": "2025-05-30",
+            "end": "2025-06-15",
+            "to": 1,
+            "storyPointId": "sp_campaign_fade"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "late_prob",
+        "baseline": 0.08,
+        "segments": []
+      },
+      {
+        "id": "return_prob",
+        "baseline": 0.06,
+        "segments": []
+      },
+      {
+        "id": "retention_email_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "repeat_campaign_prob",
+        "baseline": 0.12,
+        "segments": []
+      },
+      {
+        "id": "repeat_loyal_prob",
+        "baseline": 0.45,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Začátek jarní kampaně i její doznívání jsou posunuty o měsíc později (z dubna na květen, doznění z konce dubna na konec května), ostatní parametry zůstávají beze změny."
+  }
+}

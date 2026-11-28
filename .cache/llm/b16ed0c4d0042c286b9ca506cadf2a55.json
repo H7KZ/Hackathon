@@ -1,0 +1,347 @@
+{
+  "key": "b16ed0c4d0042c286b9ca506cadf2a55",
+  "model": "openai:gpt-5",
+  "schemaName": "02_model",
+  "output": {
+    "entities": [
+      {
+        "name": "warehouse",
+        "count": 1,
+        "idPrefix": "WAR",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "const",
+            "value": "Centrální sklad"
+          },
+          "city": {
+            "gen": "fake",
+            "kind": "city"
+          }
+        }
+      },
+      {
+        "name": "product",
+        "count": 800,
+        "idPrefix": "PRO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "productName"
+          },
+          "kategorie": {
+            "gen": "categorical",
+            "values": [
+              "velké spotřebiče",
+              "malé spotřebiče"
+            ],
+            "weights": [
+              0.4,
+              0.6
+            ]
+          },
+          "supplier_tier": {
+            "gen": "categorical",
+            "values": [
+              "hlavní",
+              "sekundární"
+            ],
+            "weights": [
+              0.6,
+              0.4
+            ]
+          },
+          "demand_weight": {
+            "gen": "uniformInt",
+            "min": 1,
+            "max": 100
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 40000,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "city": {
+            "gen": "fake",
+            "kind": "city"
+          },
+          "segment": {
+            "gen": "categorical",
+            "values": [
+              "rychlostní",
+              "cenový"
+            ],
+            "weights": [
+              0.5,
+              0.5
+            ]
+          }
+        }
+      },
+      {
+        "name": "channel",
+        "count": 2,
+        "idPrefix": "CHA",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "categorical",
+            "values": [
+              "Přímý",
+              "Cenovka.cz"
+            ]
+          },
+          "typ": {
+            "gen": "categorical",
+            "values": [
+              "vlastní",
+              "srovnávač"
+            ],
+            "weights": [
+              0.5,
+              0.5
+            ]
+          }
+        }
+      },
+      {
+        "name": "courier",
+        "count": 1,
+        "idPrefix": "CRR",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "const",
+            "value": "SprintKurýr Logistics"
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "stock",
+        "keys": [
+          "product"
+        ],
+        "initial": {
+          "gen": "normal",
+          "mean": 5,
+          "sd": 2,
+          "min": 0,
+          "max": 30,
+          "round": true
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "stock_snapshot",
+          "visibility": "observed"
+        }
+      },
+      {
+        "id": "backlog",
+        "keys": [
+          "product"
+        ],
+        "initial": {
+          "gen": "const",
+          "value": 0
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "backlog_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "purchase_order",
+        "table": "purchase_order",
+        "per": [
+          "product"
+        ],
+        "rate": 0.01,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "key.product"
+          },
+          "warehouse_id": {
+            "gen": "pick",
+            "entity": "warehouse"
+          },
+          "supplier_tier": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "key.product",
+            "field": "supplier_tier"
+          },
+          "quantity": {
+            "gen": "uniformInt",
+            "min": 6,
+            "max": 12
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "po_partial",
+        "source": "purchase_order",
+        "cond": {
+          "kind": "bernoulli",
+          "p": {
+            "curve": "partial_rate"
+          }
+        },
+        "then": {
+          "table": "po_partial",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "purchase_order_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "supplier_tier": {
+              "gen": "ref",
+              "path": "source.supplier_tier"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "part_qty": {
+              "gen": "uniformInt",
+              "min": 1,
+              "max": 3
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        },
+        "else": {
+          "table": "po_not_partial",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "purchase_order_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "supplier_tier": {
+              "gen": "ref",
+              "path": "source.supplier_tier"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "supplier_delivery_full",
+        "table": "supplier_delivery",
+        "source": "po_partial:else",
+        "p": 1,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "purchase_order_id": {
+            "gen": "ref",
+            "path": "source.purchase_order_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "quantity": {
+            "gen": "ref",
+            "path": "source.quantity"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "delay_days": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "source.supplier_tier",
+              "value": "hlavní"
+            },
+            "then": {
+              "gen": "normal",
+              "mean": {
+                "curve": "main_delay_mean"
+              },
+              "sd": {
+                "curve": "main_delay_sd"
+              },
+              "min": 0,
+              "max": 30,
+              "round": true
+            },
+            "else": {
+              "gen": "normal",
+              "mean": {
+                "curve": "sec_delay_mean"
+              },
+              "sd": {
+                "curve": "sec_delay_sd"
+              },
+              "min": 0,
+              "max": 20,
+              "round": true
+            }
+          },
+          "delivered_date": {
+            "gen": "dateOffset",
+            "base": "self.date",
+            "days": "self.delay_days"
+          }
+        }
+      }
+    ]
+  }
+}

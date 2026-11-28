@@ -37,8 +37,8 @@ You own your part of the API. Change it as your implementation needs, under thes
    - adjust the call site in `services/api/src/orchestrator.ts`,
    - add one line to "Port changes" at the bottom of [`docs/api-orchestrator.md`](../api-orchestrator.md).
 3. **These must stay green:** `pnpm vitest run services/api` (32 tests: goal loops L1–L7, routes/SSE, config). If you deliberately change a loop's behavior, change its test in the same commit and say why in the PR.
-4. **Shared hotspots** (`orchestrator.ts`, `contract.draft.ts`, `routes/sessions.ts`, `app.ts`): keep changes small and announce them in the team chat before you push.
-5. **Contract:** session types live in `services/api/src/contract.draft.ts` until the `packages/schema` owner approves them. Then they move unchanged to `@s2d/schema/api` (and `CascadeEvent` to `/artifacts`) and the draft file is deleted. Until then, extend the draft and **never** define types in parallel elsewhere.
+4. **Shared hotspots** (`orchestrator.ts`, `packages/schema/src/api.ts`, `routes/sessions.ts`, `app.ts`): keep changes small and announce them in the team chat before you push.
+5. **Contract:** session types live in `@s2d/schema/api` (`CascadeEvent` in `@s2d/schema/artifacts`). Change them there first and **never** define types in parallel elsewhere.
 
 ## Definition of done (every team)
 
@@ -56,8 +56,9 @@ You own your part of the API. Change it as your implementation needs, under thes
 
 PowerShell: `$env:API_FAKE="cascade"; pnpm dev`, or a line in `.env`.
 
-## Known state (2026-11-27)
+## Known state (2026-11-28)
 
-- Real adapters: `cascade.run` works up to `04_story` (A1–A4); everything else is waiting for you.
-- **Demo path without A5:** `PUT /sessions/:id/artifacts/05_scenario` with `scenarios/supplier_delay.json`, then `approve`. That still needs `runScenario` (noiser).
-- With `LLM_OFFLINE=1` and no cache, a session ends `failed` with a readable error (verified against the real server).
+- Every port has its real adapter and the UI is wired to all of them (draft → timeline editor → approve with settings → dataset with chart, evidence and table previews → detective → what-if → comparison; cancel and resume).
+- Live end-to-end runs on five prompts, with the reports: [run 3](../runs/2026-11-28-live-e2e-3.md), [run 4](../runs/2026-11-28-live-e2e-4.md) (all v1 prompts ready on the first approve). Reproduce: `. scripts/live-env.sh`, start the API, `pnpm e2e:live --api http://localhost:4000`.
+- `pnpm demo` replays the recorded prompts offline (`LLM_OFFLINE=1`, models pinned): all three landing examples, verified in the browser. Other prompts or edited stories need a live model; the UI then says so instead of failing silently.
+- With `LLM_OFFLINE=1` and no cache, the session ends `failed` with a readable error and a "Zkusit znovu" card (resume).

@@ -1,0 +1,97 @@
+{
+  "key": "4a464ae977d7981163ca456066a9b7fb",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "supplier_order.is_late",
+        "to": "supplier_order.delay_days",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Pozdní dodávka znamená zpoždění 7–21 dnů místo 0–1 dne."
+      },
+      {
+        "from": "supplier_order.delay_days",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.8,
+        "delayDays": 7,
+        "rationale": "Delší zpoždění odkládá naskladnění, takže zásoby na prodejnách klesají."
+      },
+      {
+        "from": "stock",
+        "to": "stock_snapshot",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Snímek zásob přímo zaznamenává aktuální stav toku zásob."
+      },
+      {
+        "from": "stock",
+        "to": "sale",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Vyšší zásoby zvyšují podíl pokusů o nákup, které skončí prodejem."
+      },
+      {
+        "from": "stock",
+        "to": "lost_sale",
+        "direction": "negative",
+        "weight": 0.75,
+        "delayDays": 0,
+        "rationale": "Nižší zásoby zvyšují počet neuskutečněných nákupů, protože zboží chybí."
+      },
+      {
+        "from": "customer_demand",
+        "to": "purchase_attempt",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Poptávka zákazníků vytváří pokusy o nákup; sama zůstává stabilní."
+      },
+      {
+        "from": "purchase_attempt",
+        "to": "availability_check",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Každý pokus o nákup se vyhodnocuje podle dostupnosti zboží."
+      },
+      {
+        "from": "availability_check",
+        "to": "sale",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Při dostupném zboží větev vytvoří prodej."
+      },
+      {
+        "from": "availability_check",
+        "to": "lost_sale",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Při nedostupném zboží větev vytvoří ztracený prodej."
+      },
+      {
+        "from": "lost_sale",
+        "to": "complaint",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 2,
+        "rationale": "Část zákazníků s neuskutečněným nákupem podá stížnost s malým zpožděním."
+      },
+      {
+        "from": "lost_sale",
+        "to": "competitor_switch",
+        "direction": "positive",
+        "weight": 0.55,
+        "delayDays": 3,
+        "rationale": "Část zákazníků po neúspěšném nákupu odejde ke konkurenci."
+      }
+    ]
+  }
+}

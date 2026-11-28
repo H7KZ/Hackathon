@@ -1,0 +1,11 @@
+{
+  "key": "084a8b966e2d995a0cc629e0d6b2c82a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date, count(*) AS n, count(DISTINCT customer_id) AS custs FROM sale WHERE customer_segment='kampaň' AND date>='2025-02-25' AND date<='2025-03-15' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

@@ -31,6 +31,30 @@ describe("story checks", () => {
     const unwired = JSON.parse(JSON.stringify(base).replaceAll('{"curve":"late_prob"}', "0.05")) as unknown;
     expect(checkCurveCoverage(unwired, base).map((e) => e.path)).toEqual(["curves.late_prob"]);
   });
+
+  it("a bending curve may stay unused when a used curve already moves an earlier point (live run 3: podpora)", () => {
+    const sp1 = base.storyPoints.find((p) => p.phase >= 1);
+    if (!sp1) throw new Error("fixture has no story point");
+    const later = { ...sp1, id: "sp_outcome", phase: sp1.phase + 1, start: sp1.start };
+    const seg = (storyPointId: string) => ({ kind: "step" as const, start: sp1.start, to: 2, storyPointId });
+    const plan = {
+      storyPoints: [...base.storyPoints, later],
+      curves: [
+        ...base.curves,
+        { id: "redundant", baseline: 1, segments: [seg(sp1.id)] },
+        { id: "outcome_rate", baseline: 1, segments: [seg("sp_outcome")] },
+      ],
+    };
+    expect(checkCurveCoverage(base, plan)).toEqual([]);
+    // nothing used at all: the story never shows, so every bending curve is still demanded
+    const unwired = JSON.parse(JSON.stringify(base).replaceAll('{"curve":"late_prob"}', "0.05")) as unknown;
+    expect(checkCurveCoverage(unwired, plan).map((e) => e.path)).toContain("curves.late_prob");
+  });
+
+  it("a flat 04_story curve (no segments) carries no story and may stay unused (live run 3: A5 deadlock)", () => {
+    const flat = { curves: [...base.curves, { id: "complaint_prob", baseline: 0.3, segments: [] }] };
+    expect(checkCurveCoverage(base, flat)).toEqual([]);
+  });
 });
 
 describe("checks in the cascade", () => {

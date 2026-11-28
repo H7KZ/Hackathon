@@ -12,6 +12,13 @@ import { observedTables } from "../checks";
 import { leverPeriods } from "./curves";
 
 export const MIN_CHANGE = 0.1;
+/**
+ * A metric reached through the SUCCESS outcome of a branch (sales when some shelves are empty) is the
+ * normal, high-volume outcome: the story removes only a share of it. v1 A4 calibrates such totals at 5 %
+ * (live runs reached -7..-9 %); the causal design measured sale -8.2 % / -8.6 % against a flat 10 % in
+ * live run 3, with the direction right. Rare outcomes (the failure branch, probabilistic events) keep 10 %.
+ */
+export const MIN_CHANGE_DILUTED = 0.05;
 /*
  * States are measured as the share of snapshot rows at zero (stock-out share), not availability:
  * availability sits near 1, so a real drop is compressed (live run: -6..-10% on every seed, while the
@@ -182,7 +189,7 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
         // a state is measured as its stock-out share (EXPECTATION_SQL), which moves against the level
         direction:
           first.net.sign * first.move.sign * (node.kind === "state" ? -1 : 1) > 0 ? "increase" : "decrease",
-        minRelChange: MIN_CHANGE,
+        minRelChange: diluted(map, first.net.path.edges) ? MIN_CHANGE_DILUTED : MIN_CHANGE,
         ...(focus && { focus: { ...focus, mode: "only" as const } }),
         path: first.net.path.edges,
       });
@@ -197,4 +204,12 @@ export function deriveHypotheses(map: CausalMap, overlay: StoryOverlay, plan: Pr
     }
   }
   return out;
+}
+
+/** The path leaves a branch through its success (positive) outcome: the metric is diluted volume. */
+function diluted(map: CausalMap, edgeIds: readonly string[]): boolean {
+  return edgeIds.some((id) => {
+    const e = map.edges.find((x) => x.id === id);
+    return e?.sign === "positive" && map.nodes.find((n) => n.id === e.from)?.kind === "branch";
+  });
 }

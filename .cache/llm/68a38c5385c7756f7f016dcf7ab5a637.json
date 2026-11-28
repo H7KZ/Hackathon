@@ -1,0 +1,11 @@
+{
+  "key": "68a38c5385c7756f7f016dcf7ab5a637",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT supplier_id, date_trunc('month', date) AS m, count(*) AS n, sum(quantity) AS qty, avg(quantity) AS avg_qty, sum(CASE WHEN quantity=0 THEN 1 ELSE 0 END) AS zero_n FROM supplier_delivery GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

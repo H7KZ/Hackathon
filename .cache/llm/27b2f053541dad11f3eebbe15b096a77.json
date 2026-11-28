@@ -1,0 +1,181 @@
+{
+  "key": "27b2f053541dad11f3eebbe15b096a77",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03a_causal_map",
+  "output": {
+    "nodes": [
+      {
+        "id": "late_prob_problem",
+        "kind": "lever",
+        "description": "Pravděpodobnost pozdní dodávky u problémového dodavatele (Domex Distribuce) – od března roste",
+        "baseline": 0.08
+      },
+      {
+        "id": "demand",
+        "kind": "lever",
+        "description": "Násobitel poptávky zákazníků – zůstává stabilní, neklesá",
+        "baseline": 1
+      },
+      {
+        "id": "product_supplier",
+        "kind": "attribute",
+        "description": "Přiřazení produktu k dodavateli a jeho profilu (problémový/spolehlivý) – určuje, kterých objednávek se zpoždění týká",
+        "table": "product"
+      },
+      {
+        "id": "supplier_order",
+        "kind": "event",
+        "description": "Týdenní objednávka zboží u dodavatele pro prodejnu a produkt",
+        "table": "purchase_order"
+      },
+      {
+        "id": "late_delivery",
+        "kind": "event",
+        "description": "Pozdní dodávka objednaného zboží (zpoždění 7–21 dní oproti slibu)",
+        "table": "purchase_order"
+      },
+      {
+        "id": "stock",
+        "kind": "state",
+        "description": "Stav zásob produktu na prodejně, doplňovaný dodávkami a čerpaný prodeji",
+        "table": "stock_snapshot"
+      },
+      {
+        "id": "purchase_attempt",
+        "kind": "event",
+        "description": "Pokus zákazníka o nákup produktu v prodejně",
+        "table": "purchase_attempt"
+      },
+      {
+        "id": "availability_check",
+        "kind": "branch",
+        "description": "Rozhodnutí podle zásob: je dostatek zboží pro požadované množství? ano = prodej, ne = ztracený prodej"
+      },
+      {
+        "id": "sale",
+        "kind": "event",
+        "description": "Uskutečněný prodej, ze kterého se odvozují tržby",
+        "table": "sale"
+      },
+      {
+        "id": "lost_sale",
+        "kind": "event",
+        "description": "Neuskutečněný nákup kvůli nedostupnosti zboží",
+        "table": "lost_sale"
+      },
+      {
+        "id": "complaint",
+        "kind": "event",
+        "description": "Stížnost zákazníka na nedostupnost zboží",
+        "table": "complaint"
+      },
+      {
+        "id": "competitor_switch",
+        "kind": "event",
+        "description": "Odchod zákazníka ke konkurenci po neuskutečněném nákupu",
+        "table": "competitor_switch"
+      }
+    ],
+    "edges": [
+      {
+        "id": "late_prob_to_late_delivery",
+        "from": "late_prob_problem",
+        "to": "late_delivery",
+        "type": "probabilistic",
+        "sign": "positive",
+        "p": 0.08,
+        "rationale": "Vyšší pravděpodobnost zpoždění problémového dodavatele znamená více pozdních dodávek."
+      },
+      {
+        "id": "order_to_late_delivery",
+        "from": "supplier_order",
+        "to": "late_delivery",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Každá objednávka má skutečné datum dodání, které může být oproti slibu zpožděné."
+      },
+      {
+        "id": "supplier_routes_late_delivery",
+        "from": "product_supplier",
+        "to": "late_delivery",
+        "type": "attribute",
+        "sign": "positive",
+        "rationale": "Dodavatel produktu určuje, zda se použije pravděpodobnost zpoždění problémového nebo normálního dodavatele."
+      },
+      {
+        "id": "order_to_stock",
+        "from": "supplier_order",
+        "to": "stock",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Doručená objednávka v den dodání zvyšuje zásoby o objednané množství."
+      },
+      {
+        "id": "late_delivery_to_stock",
+        "from": "late_delivery",
+        "to": "stock",
+        "type": "mechanical",
+        "sign": "negative",
+        "rationale": "Pozdní dodávky odkládají doplnění zásob, takže zásoby jsou nižší a vznikají výpadky."
+      },
+      {
+        "id": "demand_to_attempt",
+        "from": "demand",
+        "to": "purchase_attempt",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Vyšší míra poptávky vytváří více pokusů o nákup."
+      },
+      {
+        "id": "attempt_to_check",
+        "from": "purchase_attempt",
+        "to": "availability_check",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Každý pokus o nákup prochází kontrolou dostupnosti zboží."
+      },
+      {
+        "id": "stock_to_check",
+        "from": "stock",
+        "to": "availability_check",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Úroveň zásob rozhoduje, zda je zboží dostupné; vyšší zásoby znamenají víc prodejů a méně ztracených prodejů."
+      },
+      {
+        "id": "check_to_sale",
+        "from": "availability_check",
+        "to": "sale",
+        "type": "mechanical",
+        "sign": "positive",
+        "rationale": "Při dostatku zásob se nákup uskuteční a vznikne prodej (tržba); prodej následně snižuje zásoby ve stejném toku, ale mimo tuto acyklickou mapu."
+      },
+      {
+        "id": "check_to_lost_sale",
+        "from": "availability_check",
+        "to": "lost_sale",
+        "type": "mechanical",
+        "sign": "negative",
+        "rationale": "Čím více zásob je k dispozici, tím méně nákupů končí větví else a ztraceným prodejem; při nedostatku zásob vzniká ztracený prodej."
+      },
+      {
+        "id": "lost_sale_to_complaint",
+        "from": "lost_sale",
+        "to": "complaint",
+        "type": "probabilistic",
+        "sign": "positive",
+        "p": 0.15,
+        "rationale": "Část zákazníků s neuskutečněným nákupem podá stížnost."
+      },
+      {
+        "id": "lost_sale_to_competitor",
+        "from": "lost_sale",
+        "to": "competitor_switch",
+        "type": "probabilistic",
+        "sign": "positive",
+        "p": 0.2,
+        "rationale": "Část zákazníků po neuskutečněném nákupu přejde ke konkurenci."
+      }
+    ]
+  }
+}

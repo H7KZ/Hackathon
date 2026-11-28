@@ -1,0 +1,11 @@
+{
+  "key": "87d8f01b09fde452ec33b81b05d9af8c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT po.supplier_id, po.category, count(*) n, count(distinct po.product_id) prods, avg(po.is_late::int) late_rate FROM purchase_order po WHERE po.order_date>='2024-03-02' GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "key": "c7a7367e98cbf5262c0164c38bd3df37",
+  "model": "openai:gpt-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp1",
+        "phase": 1,
+        "title": "Start jarní akviziční kampaně",
+        "description": "Intenzita kampaně „Jarní akviziční kampaň“ rychle roste a přivádí více nových návštěv na web.",
+        "entity": {
+          "name": "marketing_campaign",
+          "ids": [
+            "CMP-001"
+          ]
+        },
+        "start": "2025-03-01",
+        "end": "2025-03-14"
+      },
+      {
+        "id": "sp2",
+        "phase": 2,
+        "title": "Nově získaní zákazníci málo opakují nákup",
+        "description": "Zákazníci získaní během jarní kampaně projevují nízkou ochotu k druhému nákupu; snižuje se pravděpodobnost vzniku druhého záměru.",
+        "entity": {
+          "name": "marketing_campaign",
+          "ids": [
+            "CMP-001"
+          ]
+        },
+        "start": "2025-04-15",
+        "end": "2025-06-30"
+      },
+      {
+        "id": "sp3",
+        "phase": 3,
+        "title": "Konec kampaně a návrat návštěvnosti k normálu",
+        "description": "Po ukončení jarní kampaně se intenzita návštěvnosti vrací zpět k obvyklé úrovni.",
+        "entity": {
+          "name": "marketing_campaign",
+          "ids": [
+            "CMP-001"
+          ]
+        },
+        "start": "2025-05-01",
+        "end": "2025-05-07"
+      }
+    ],
+    "curves": [
+      {
+        "id": "spring_acq",
+        "baseline": 1,
+        "scope": {
+          "field": "self.campaign_id",
+          "ids": [
+            "CMP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-14",
+            "to": 2.2,
+            "storyPointId": "sp1"
+          },
+          {
+            "kind": "step",
+            "start": "2025-03-15",
+            "to": 2.2,
+            "storyPointId": "sp1"
+          },
+          {
+            "kind": "decay",
+            "start": "2025-05-01",
+            "end": "2025-05-07",
+            "to": 1,
+            "storyPointId": "sp3"
+          }
+        ],
+        "clamp": [
+          0.1,
+          4
+        ]
+      },
+      {
+        "id": "second_intent",
+        "baseline": 1,
+        "scope": {
+          "field": "self.campaign_id",
+          "ids": [
+            "CMP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-15",
+            "to": 0.35,
+            "storyPointId": "sp2"
+          }
+        ],
+        "clamp": [
+          0,
+          1.5
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_sessions_acq_increase",
+        "storyPointId": "sp1",
+        "description": "Denní návštěvy webu z akviziční kampaně (CMP-001) výrazně rostou během kampaně oproti předchozímu období.",
+        "sql": "WITH b AS (\n  SELECT date, COUNT(*) AS c\n  FROM main.web_session\n  WHERE campaign_id = 'CMP-001'\n    AND date BETWEEN '2025-02-15' AND '2025-02-28'\n  GROUP BY date\n), a AS (\n  SELECT date, COUNT(*) AS c\n  FROM main.web_session\n  WHERE campaign_id = 'CMP-001'\n    AND date BETWEEN '2025-03-15' AND '2025-04-15'\n  GROUP BY date\n)\nSELECT 'before' AS period, AVG(c) AS value FROM b\nUNION ALL\nSELECT 'after'  AS period, AVG(c) AS value FROM a;",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_second_intent_drop",
+        "storyPointId": "sp2",
+        "description": "Mezi zákazníky nabytými po startu kampaně klesá denní počet druhých záměrů nákupu po 15. 4.",
+        "sql": "WITH cohort AS (\n  SELECT o.customer_id, MIN(o.date) AS first_date\n  FROM main.order o\n  GROUP BY o.customer_id\n  HAVING MIN(o.date) BETWEEN '2025-03-01' AND '2025-04-30'\n), b AS (\n  SELECT si.date, COUNT(*) AS c\n  FROM main.second_intent si\n  JOIN cohort co ON si.customer_id = co.customer_id\n  WHERE si.date BETWEEN '2025-04-01' AND '2025-04-14'\n  GROUP BY si.date\n), a AS (\n  SELECT si.date, COUNT(*) AS c\n  FROM main.second_intent si\n  JOIN cohort co ON si.customer_id = co.customer_id\n  WHERE si.date BETWEEN '2025-04-16' AND '2025-06-15'\n  GROUP BY si.date\n)\nSELECT 'before' AS period, AVG(c) AS value FROM b\nUNION ALL\nSELECT 'after'  AS period, AVG(c) AS value FROM a;",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_control_sessions_stable_rest",
+        "storyPointId": "sp2",
+        "description": "Kontrola: denní návštěvy webu z neovlivněných kampaní (vše mimo CMP-001) zůstávají stabilní přes stejné období.",
+        "sql": "WITH b AS (\n  SELECT date, COUNT(*) AS c\n  FROM main.web_session\n  WHERE campaign_id <> 'CMP-001'\n    AND date BETWEEN '2025-02-15' AND '2025-02-28'\n  GROUP BY date\n), a AS (\n  SELECT date, COUNT(*) AS c\n  FROM main.web_session\n  WHERE campaign_id <> 'CMP-001'\n    AND date BETWEEN '2025-03-15' AND '2025-04-15'\n  GROUP BY date\n)\nSELECT 'before' AS period, AVG(c) AS value FROM b\nUNION ALL\nSELECT 'after'  AS period, AVG(c) AS value FROM a;",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.05
+        }
+      }
+    ]
+  }
+}

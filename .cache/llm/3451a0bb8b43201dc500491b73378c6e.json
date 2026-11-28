@@ -1,0 +1,59 @@
+{
+  "key": "3451a0bb8b43201dc500491b73378c6e",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.2,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-03",
+            "end": "2025-03-17",
+            "to": 2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          5
+        ]
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-03",
+            "end": "2025-03-24",
+            "to": 3.5,
+            "storyPointId": "sp_issues"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Nárůst pravděpodobnosti poruch na modelech RMO-001 a RMO-002 je poloviční (cíl křivky issue_rate z 6 na 3,5, tedy nárůst o 2,5 místo 5), zatímco nasazení firmwaru a vše ostatní zůstává beze změny."
+  }
+}

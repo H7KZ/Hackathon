@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface CacheEntry {
@@ -23,7 +23,11 @@ export function cacheKey(parts: {
 }
 
 export class DiskCache {
-  constructor(private readonly dir: string) {}
+  /** `trace`: a file that gets the key of every hit appended (LLM_CACHE_TRACE), to commit only what a replay reads. */
+  constructor(
+    private readonly dir: string,
+    private readonly trace?: string,
+  ) {}
 
   private file(key: string): string {
     return join(this.dir, `${key}.json`);
@@ -33,7 +37,14 @@ export class DiskCache {
     const f = this.file(key);
     if (!existsSync(f)) return undefined;
     try {
-      return JSON.parse(readFileSync(f, "utf8")) as CacheEntry;
+      const entry = JSON.parse(readFileSync(f, "utf8")) as CacheEntry;
+      if (this.trace)
+        appendFileSync(
+          this.trace,
+          `${key}
+`,
+        );
+      return entry;
     } catch {
       return undefined; // corrupt entry = miss
     }

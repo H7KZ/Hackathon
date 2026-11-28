@@ -1,0 +1,11 @@
+{
+  "key": "97e014fce874dd3cb874f57ca751f80a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select f.date, f.router_model_id, count(*) n from firmware_update f where f.router_model_id in ('RMO-001','RMO-002') and f.date between '2025-02-26' and '2025-03-12' group by all order by 1,2"
+    }
+  }
+}

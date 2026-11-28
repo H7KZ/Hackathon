@@ -1,0 +1,11 @@
+{
+  "key": "a7bc072615cbda80a941829e30b56cb6",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select strftime(date_trunc('week',date),'%Y-%m-%d') as wk, reason, store_id, count(*) n from lost_visit group by 1,2,3 order by 1,2,3"
+    }
+  }
+}

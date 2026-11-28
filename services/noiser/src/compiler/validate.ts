@@ -261,7 +261,8 @@ export function compileScenario(raw: unknown): CompileResult {
           `${path}.curve`,
           c.scope.field,
           scope,
-          (m) => `The scope field "${c.scope?.field ?? ""}" of curve "${c.id}" cannot be resolved here: ${m}`,
+          (m) =>
+            `The scope field "${c.scope?.field ?? ""}" of curve "${c.id}" cannot be resolved here, so the curve would stay at its baseline: ${m} To move a category of records (e.g. a customer segment), put the curve on a field declared after the field holding the category, or on a derive/branch p that reads source.<field>.`,
         );
       }
     });
@@ -275,7 +276,7 @@ export function compileScenario(raw: unknown): CompileResult {
           path,
           scope.self.length > 0
             ? `"${v}" is not available here. self.* sees only fields declared earlier in the same record; available: ${list(scope.self.map((f) => `self.${f}`))}.`
-            : `"${v}" is not available here: no field of the record exists yet (first field, condition or filter). Use source.*, key.* or day.`,
+            : `"${v}" is not available here: no field of the record exists yet (first field, condition, filter, an arrival rate or a derive p, which are evaluated before the record). Use ${scope.keys?.length ? list(scope.keys.map((k) => `key.${k}`)) + ", " : ""}source.*, key.* or day.`,
         );
       }
       if (v.startsWith("source.") && scope.source === null) {
@@ -326,10 +327,14 @@ export function compileScenario(raw: unknown): CompileResult {
     if (p.type === "arrival") {
       checkRecord(p.fields, p.effects, at, {});
       checkScope(p.where, `${at}.where`, { self: [] });
+      // the rate is evaluated per key before any record exists (live run 3: a self.* scope never matched)
+      checkScope(p.rate, `${at}.rate`, { self: [], source: null, keys: p.per });
     } else {
       const source = sourceFields(p.source);
-      if (p.type === "derive") checkRecord(p.fields, p.effects, at, { source });
-      else {
+      if (p.type === "derive") {
+        checkScope(p.p, `${at}.p`, { self: [], source });
+        checkRecord(p.fields, p.effects, at, { source });
+      } else {
         checkScope(p.cond, `${at}.cond`, { self: [], source });
         if (p.then) checkRecord(p.then.fields, p.then.effects, `${at}.then`, { source });
         if (p.else) checkRecord(p.else.fields, p.else.effects, `${at}.else`, { source });

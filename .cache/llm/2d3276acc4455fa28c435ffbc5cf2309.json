@@ -1,0 +1,47 @@
+{
+  "key": "2d3276acc4455fa28c435ffbc5cf2309",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatel SUP-001 se od 4. 3. 2024 skokově zhoršil: podíl zpožděných dodávek vzrostl z cca 6 % na 57–70 % a průměrné zpoždění z ~3 na ~10 dní. SUP-002 zůstal beze změny. Následky se projevily s časovým odstupem. Od 16. 3. 2024 vznikají backordery u produktů SUP-001 (vrchol v dubnu, 125 případů u 10 produktů). Od 18. 3. přibývají reklamace s důvodem zpoždění dodávky, od 22. 3. storna objednávek a od 27. 3. refundace. Vrchol těchto následků nastal v dubnu a v květnu mírně klesl.",
+        "findings": [
+          {
+            "claim": "Dodavatel SUP-001 se od 4. 3. 2024 začal systematicky zpožďovat: podíl zpožděných dodávek vzrostl z ~6 % na ~60–70 % a průměrné zpoždění z ~3 na ~10 dní. SUP-002 se nezměnil.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-03-04",
+            "supportingSql": "SELECT supplier_id, date_trunc('month', order_date) m, count(*) n, avg(delay_days) avg_delay, avg(CASE WHEN is_delayed THEN 1.0 ELSE 0 END) delayed_share FROM supplier_delivery GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Od 16. 3. 2024 vznikají backordery u produktů dodavatele SUP-001 (březen 55, duben 125, květen 66), zatímco dříve šlo o ojedinělé případy.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-03-16",
+            "supportingSql": "SELECT p.supplier_id, date_trunc('month', b.date) m, count(*) n, count(distinct b.product_id) prods, min(b.date) first_d FROM order_backorder b JOIN product p ON p.id=b.product_id GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Reklamace s důvodem zpoždění dodávky se od 18. 3. 2024 zvýšily z 2 v lednu na 20 v březnu a 44 v dubnu.",
+            "entities": [
+              "zpoždění dodávky"
+            ],
+            "start": "2024-03-18",
+            "supportingSql": "SELECT reason, date_trunc('month', date) m, count(*) n FROM complaint GROUP BY 1,2 ORDER BY 2,1"
+          },
+          {
+            "claim": "Storna objednávek (od 22. 3. 2024) a refundace (od 27. 3. 2024) vzrostly po zpoždění dodávek SUP-001 a vrcholily v dubnu (29 storen, 28 refundací).",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-03-22",
+            "supportingSql": "SELECT 'cancel' t, date_trunc('month', CAST(ts AS DATE)) m, count(*) n FROM order_cancellation GROUP BY 1,2 UNION ALL SELECT 'refund', date_trunc('month', CAST(ts AS DATE)), count(*) FROM refund GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

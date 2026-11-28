@@ -1,0 +1,11 @@
+{
+  "key": "098e11b93acae6d90e7f571254f60903",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT * FROM lost_sale ORDER BY date LIMIT 8"
+    }
+  }
+}

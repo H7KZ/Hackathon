@@ -1,0 +1,11 @@
+{
+  "key": "7fdf9047029e1dc62b771aece6ac7f23",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT p.supplier_id, date_trunc('month', b.date) m, count(*) n, count(distinct b.product_id) prods, min(b.date) first_d FROM order_backorder b JOIN product p ON p.id=b.product_id GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

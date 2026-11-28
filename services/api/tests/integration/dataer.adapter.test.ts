@@ -6,7 +6,7 @@ import { createLlm } from "@s2d/llm";
 import { compileScenario, runScenario } from "@s2d/noiser";
 import { fakeGenerate, loadScenarioFixture, makeTempDir } from "@s2d/test-utils";
 import type { RunResult } from "@s2d/schema/run";
-import { DatasetEvidence, DetectiveResult } from "../../src/contract.draft";
+import { DatasetEvidence, DetectiveResult } from "@s2d/schema/api";
 import { dataerPort } from "../../src/adapters/dataer";
 
 const scenario = (() => {

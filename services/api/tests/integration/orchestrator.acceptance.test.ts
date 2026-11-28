@@ -193,6 +193,63 @@ describe("L6 control: busy, cancel, interrupt, resume", () => {
   });
 });
 
+describe("L6b recovery after a failed or cancelled draft", () => {
+  it("resume re-runs a failed draft, reusing the artifacts it already wrote", async () => {
+    const first = setup({ failAt: "03_influences" });
+    const id = await drafted(first.orch);
+    expect(first.orch.get(id).status).toBe("failed");
+    const second = setup();
+    second.orch.command(id, { type: "resume" });
+    await second.orch.idle(id);
+    expect(second.orch.get(id).status).toBe("awaiting_refinement");
+    expect(second.calls.produced).toEqual(["03_influences", "04_story"]);
+  });
+
+  it("resume continues a cancelled draft", async () => {
+    let open!: () => void;
+    const { orch } = setup({ gate: new Promise((r) => (open = r)) });
+    const { sessionId: id } = await orch.create(PROMPT);
+    orch.command(id, { type: "cancel" });
+    open();
+    await orch.idle(id);
+    expect(orch.get(id).status).toBe("cancelled");
+    orch.command(id, { type: "resume" });
+    await orch.idle(id);
+    expect(orch.get(id).status).toBe("awaiting_refinement");
+  });
+
+  it("a finished job leaves nothing to resume", async () => {
+    const { orch } = setup();
+    const id = await drafted(orch);
+    expect(orch.command(id, { type: "resume" }).errors?.[0]?.message).toMatch(/Není co obnovit/);
+  });
+});
+
+describe("L3b approve with UI settings", () => {
+  it("applies seed, kept hypotheses and noise to the dataset scenario, not to 05_scenario", async () => {
+    const { orch, calls, scenario } = setup();
+    const id = await drafted(orch);
+    const keep = scenario.expectations.slice(0, 2).map((e) => e.id);
+    orch.command(id, {
+      type: "approve",
+      settings: { seed: 7, expectations: keep, noise: { missing: 2, duplicates: 1, hourJitter: true } },
+    });
+    await orch.idle(id);
+    expect(orch.get(id)).toMatchObject({ status: "ready", datasets: [{ id: "d1", seed: 7 }] });
+    expect(calls.noiserSeeds).toEqual([7]);
+    const used = JSON.parse(
+      readFileSync(join(tmp.dir, id, "datasets/d1/scenario.json"), "utf8"),
+    ) as typeof scenario;
+    expect(used.expectations.map((e) => e.id)).toEqual(keep);
+    expect(used.noise?.hourJitter).toBe(true);
+    expect(Object.keys(used.noise?.duplicates ?? {}).length).toBeGreaterThan(0);
+    const designed = JSON.parse(
+      readFileSync(join(tmp.dir, id, "05_scenario.json"), "utf8"),
+    ) as typeof scenario;
+    expect(designed.meta.seed).toBe(scenario.meta.seed);
+  });
+});
+
 describe("L7 event log", () => {
   it("seq strictly increases and replay after a seq returns exactly the later events", async () => {
     const { orch } = setup();

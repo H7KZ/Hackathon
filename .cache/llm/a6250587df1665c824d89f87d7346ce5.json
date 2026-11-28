@@ -1,0 +1,11 @@
+{
+  "key": "a6250587df1665c824d89f87d7346ce5",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', date) AS w, count(*) AS n, sum(quantity) AS qty FROM sale GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "key": "0046e221a8e527bd1756db2dac148b11",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select date_trunc('week',f.date) w, f.router_model_id, f.firmware_version, count(*) n from firmware_update f group by all order by 1,2,3"
+    }
+  }
+}

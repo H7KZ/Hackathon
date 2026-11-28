@@ -3,7 +3,8 @@
  * An existing artifact file is reused instead of calling the agent again, so a hand-edited
  * artifact re-runs only the steps after it (SPEC §2 rule 9) — delete later files to recompute them.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
@@ -23,6 +24,7 @@ import {
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
+import { seedRobust } from "./gate";
 import { checkCausalMap } from "./causal/map";
 import { finishCausal } from "./causal/assemble";
 import { deriveHypotheses } from "./causal/hypotheses";
@@ -37,7 +39,14 @@ import {
   checkStoryPlan,
 } from "./checks";
 import type { OnEvent } from "./events";
-import { formatFeedback, withSchemaRetry } from "./loop";
+import {
+  attemptRank,
+  formatFeedback,
+  withSchemaRetry,
+  type Attempt,
+  type Feedback,
+  type Stage,
+} from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
 
 export interface CascadeOptions {
@@ -62,7 +71,7 @@ export interface CascadeOptions {
 export type CascadeDesign = "v1" | "causal";
 
 /** Causal design: how many times a failed story gate on 05 goes back to 4b. */
-export const GATE_REPAIRS = 2;
+export const GATE_REPAIRS = 3;
 
 /** Artifacts each design writes, in order. `until` must name one of them. */
 export const DESIGN_STEPS: Record<CascadeDesign, readonly ArtifactName[]> = {
@@ -138,9 +147,16 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
-  const rejected = (name: ArtifactName) => (n: number, value: unknown) => {
-    writeFileSync(join(dir, `${name}.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
-  };
+  const rejected =
+    (name: ArtifactName, key?: string) => (n: number, value: unknown, feedback: Feedback, stage: Stage) => {
+      // a schema-invalid answer may have no value at all; keep the file parseable for a resume
+      writeFileSync(join(dir, `${name}.rejected-${n}.json`), `${JSON.stringify(value ?? null, null, 2)}\n`);
+      if (key !== undefined)
+        writeFileSync(
+          join(dir, `${name}.rejected-${n}.feedback.json`),
+          `${JSON.stringify({ key, stage, feedback }, null, 2)}\n`,
+        );
+    };
   const llm = (name: ArtifactName, check?: (value: unknown) => CompileError[]) =>
     withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal, check });
   const company = await step("01_company", CompanySpec, () => a1Company(llm("01_company"), input));
@@ -213,9 +229,11 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     const scenario = await step("05_scenario", Scenario, async () => {
       // Story gate failures (weak effect, drift) go back to 4b, which owns rates, counts and initial
       // values; map, overlay, curves and SQL stay fixed. Same idea as v1, where A5 gets them.
+      // The code-derived story must also hold on >= 4/5 other seeds (live run 4: seed 42 was luck).
+      const verify = opts.verify && seedRobust(opts.verify);
       for (let round = 0; ; round++) {
         const res = finishCausal({ input, runId: opts.runId, plan, overlay, story });
-        const errors = res.ok ? ((await opts.verify?.(res.scenario)) ?? []) : res.errors;
+        const errors = res.ok ? ((await verify?.(res.scenario)) ?? []) : res.errors;
         if (res.ok && errors.length === 0) return res.scenario;
         const repairable = res.ok && round < GATE_REPAIRS;
         if (repairable) {
@@ -294,6 +312,10 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   );
   if (!shouldRun("05_scenario")) return { dir, company, model, influences, story };
   const scenario = await step("05_scenario", Scenario, async () => {
+    // a new run after A5 gave up continues from its best rejected attempt for the same story, with the
+    // history of all of them: with the disk cache, starting over at attempt 1 would only replay the same answers
+    const key = storyKey(story);
+    const resume = bestRejected(dir, "05_scenario", key);
     const res = await a5Detail(
       opts.llm,
       { input, runId: opts.runId, model, influences, story },
@@ -301,8 +323,12 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         onEvent: opts.onEvent,
         signal: opts.signal,
         verify: opts.verify,
-        // kept next to the artifacts so a failed A5 can be inspected or fixed by hand
-        onRejected: rejected("05_scenario"),
+        // kept next to the artifacts so a failed A5 can be inspected, fixed by hand or resumed
+        onRejected: rejected("05_scenario", key),
+        ...(resume && {
+          initial: { previous: resume.previous, feedback: resume.feedback, history: resume.history },
+          firstN: resume.lastN + 1,
+        }),
       },
     );
     if (res.ok) return res.scenario;
@@ -316,4 +342,54 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     );
   });
   return { dir, company, model, influences, story, scenario };
+}
+
+/** Identity of the story an A5 attempt was made for (an edited 04_story must not resume old attempts). */
+function storyKey(story: { storyPoints: unknown; curves: unknown; expectations: unknown }): string {
+  return createHash("sha256")
+    .update(JSON.stringify([story.storyPoints, story.curves, story.expectations]))
+    .digest("hex")
+    .slice(0, 16);
+}
+
+/**
+ * The rejected attempts of `name` made for this story: the best one (stage reached, then fewest errors;
+ * the later one on a tie) with its feedback, the history of all of them, and the highest attempt number.
+ */
+function bestRejected(dir: string, name: ArtifactName, key: string) {
+  const suffix = ".feedback.json";
+  const prefix = `${name}.rejected-`;
+  const ns = readdirSync(dir)
+    .filter((f) => f.startsWith(prefix) && f.endsWith(suffix))
+    .map((f) => Number(f.slice(prefix.length, -suffix.length)))
+    .filter((n) => Number.isInteger(n))
+    .sort((a, b) => a - b);
+  const history: Attempt[] = [];
+  let best: { n: number; rank: number; feedback: Feedback; previous: unknown } | undefined;
+  for (const n of ns) {
+    const side = JSON.parse(readFileSync(join(dir, `${prefix}${n}${suffix}`), "utf8")) as {
+      key: string;
+      stage?: Stage;
+      feedback: Feedback;
+    };
+    if (side.key !== key) continue;
+    // files written before stages were stored: an expectation failure means the story gate was reached
+    const stage: Stage =
+      side.stage ??
+      (side.feedback.some((f) => typeof f !== "string" && f.path.startsWith("expectations"))
+        ? "story gate"
+        : "check");
+    history.push({ n, stage, feedback: side.feedback });
+    const rank = attemptRank({ stage, feedback: side.feedback });
+    if (best && rank < best.rank) continue;
+    let previous: unknown;
+    try {
+      previous = JSON.parse(readFileSync(join(dir, `${prefix}${n}.json`), "utf8"));
+    } catch {
+      continue; // an older run wrote "undefined" for an answer that had no value
+    }
+    best = { n, rank, feedback: side.feedback, previous };
+  }
+  if (!best) return undefined;
+  return { previous: best.previous, feedback: best.feedback, history, lastN: history.at(-1)?.n ?? best.n };
 }

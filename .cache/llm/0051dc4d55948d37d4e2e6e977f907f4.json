@@ -1,0 +1,11 @@
+{
+  "key": "0051dc4d55948d37d4e2e6e977f907f4",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', date) AS wk, count(*) AS n FROM escalation GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

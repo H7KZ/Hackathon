@@ -87,3 +87,22 @@ describe("scoreFindings — a finding counts only for its nearest story point (l
     expect(scoreFindings([f(["SUP-001"], "2025-03-09")], mixed).recall).toBe(0.5);
   });
 });
+
+describe("scoreFindings — segment story points (live run 3: campaign customers)", () => {
+  const truth = [{ id: "sp_campaign", entityIds: [], segmentValues: ["kampaň"], start: "2025-03-15" }];
+  const f = (entities: string[], start: string) => ({
+    claim: "x",
+    entities,
+    start,
+    supportingSql: "SELECT 1",
+  });
+
+  it("matches a finding that names the segment value (case and spacing ignored)", () => {
+    expect(scoreFindings([f(["Kampaň ", "stálý"], "2025-03-15")], truth).recall).toBe(1);
+  });
+
+  it("still needs the date window and the value itself", () => {
+    expect(scoreFindings([f(["kampaň"], "2025-04-15")], truth).recall).toBe(0);
+    expect(scoreFindings([f(["stálý"], "2025-03-15")], truth).recall).toBe(0);
+  });
+});

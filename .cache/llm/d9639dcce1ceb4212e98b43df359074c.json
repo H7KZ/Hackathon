@@ -1,0 +1,11 @@
+{
+  "key": "d9639dcce1ceb4212e98b43df359074c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT 'lost_sale' t, strftime(date_trunc('week', date), '%Y-%m-%d') wk, count(*) n FROM lost_sale GROUP BY 1,2 UNION ALL SELECT 'return', strftime(date_trunc('week', date), '%Y-%m-%d'), count(*) FROM return_request GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

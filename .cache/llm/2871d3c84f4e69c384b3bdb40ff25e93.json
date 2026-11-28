@@ -1,0 +1,11 @@
+{
+  "key": "2871d3c84f4e69c384b3bdb40ff25e93",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select date_trunc('week',s.date) w, d.router_model_id rm, count(*) n, avg(s.wait_minutes) wait, sum(case when s.firmware_version='nový' then 1 else 0 end) nov from support_call s join device d on d.id=s.device_id where s.date>='2025-02-17' group by all order by 1,2"
+    }
+  }
+}

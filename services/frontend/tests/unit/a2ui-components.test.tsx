@@ -117,6 +117,29 @@ describe("layout and data components respond to the user", () => {
     expect(document.querySelectorAll("td.ok, td.fail").length).toBeGreaterThan(0);
   });
 
+  it("Table renders duplicate row ids (noise duplicates) without React key warnings (live run 4)", () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const store = createSurfaceStore();
+    store.apply(
+      a2ui.create({
+        surfaceId: "s",
+        components: [
+          {
+            id: "root",
+            component: "Table",
+            columns: [{ key: "id", label: "id" }],
+            rows: { "@path": "/rows" },
+          },
+        ],
+        dataModel: { rows: [{ id: "visit-000003" }, { id: "visit-000003" }] },
+      }),
+    );
+    render(<A2uiSurface store={store} surfaceId="s" onAction={vi.fn()} />);
+    expect(screen.getAllByRole("row")).toHaveLength(3);
+    expect(err.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
+    err.mockRestore();
+  });
+
   it("Kpi formats Czech numbers and a signed delta", () => {
     mount("Kpi");
     const norm = (s: string | null | undefined) => (s ?? "").replace(/\s/g, " ");

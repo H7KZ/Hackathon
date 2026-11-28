@@ -104,7 +104,7 @@ describe("runCascade A1–A5", () => {
     ]);
     expect(JSON.stringify(loops[0]?.feedback)).toContain("missing_curve");
     expect(r.fake.calls[5]?.prompt).toContain("missing_curve");
-    expect(r.fake.calls[5]?.prompt).toContain("Compiler errors");
+    expect(r.fake.calls[5]?.prompt).toContain("Errors of that attempt");
   });
 
   it("treats a schema-invalid agent answer as feedback, not a crash", async () => {
@@ -130,6 +130,20 @@ describe("runCascade A1–A5", () => {
     expect(
       Array.from({ length: max }, (_, i) => existsSync(join(r.dir, `05_scenario.rejected-${i + 1}.json`))),
     ).toEqual(Array.from({ length: max }, () => true));
+  });
+
+  it("running again after A5 gave up continues the repair at attempt max+1 (a retry is a new try, not a cached replay)", async () => {
+    const { A5_MAX_ITERATIONS: max } = await import("../../src/a5_detail");
+    const r = run([...ALL, ...Array.from({ length: max }, () => brokenDetail), detail]);
+    await expect(r.promise).rejects.toThrow(/does not compile/);
+    const events: CascadeEvent[] = [];
+    await runCascade(input, { llm: r.llm, runsDir: r.runsDir, runId: "r1", onEvent: (e) => events.push(e) });
+    const loops = events.filter((e) => e.type === "loop.iteration");
+    expect(loops.map((e) => [e.n, e.ok])).toEqual([[max + 1, true]]);
+    const prompt = r.fake.calls.at(-1)?.prompt ?? "";
+    expect(prompt).toContain(`this is attempt ${String(max + 1)}`);
+    expect(prompt).toContain("missing_curve"); // the last rejected attempt and its errors are shown back
+    expect(existsSync(join(r.dir, "05_scenario.json"))).toBe(true);
   });
 
   it("an aborted signal stops the run between steps", async () => {

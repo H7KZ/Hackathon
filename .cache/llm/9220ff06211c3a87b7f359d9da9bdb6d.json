@@ -1,0 +1,11 @@
+{
+  "key": "9220ff06211c3a87b7f359d9da9bdb6d",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('month', date) AS m, issue_type, firmware_version, count(*) AS n, avg(wait_minutes) AS w FROM support_call GROUP BY 1,2,3 ORDER BY 1,2,3"
+    }
+  }
+}

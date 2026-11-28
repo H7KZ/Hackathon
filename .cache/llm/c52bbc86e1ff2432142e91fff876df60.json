@@ -1,0 +1,11 @@
+{
+  "key": "c52bbc86e1ff2432142e91fff876df60",
+  "model": "openai:gpt-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "WITH a AS (\n  SELECT date,\n         COUNT(*) AS attempts,\n         AVG(CASE WHEN succeeded THEN 1.0 ELSE 0 END) AS success_rate,\n         AVG(CASE WHEN issue_roll THEN 1.0 ELSE 0 END) AS rollout_share\n  FROM cpe_update_attempt\n  GROUP BY 1\n), i AS (\n  SELECT ua.date,\n         COUNT(*) AS issues\n  FROM cpe_issue ci\n  JOIN cpe_update_attempt ua ON ci.update_attempt_id = ua.id\n  GROUP BY 1\n)\nSELECT a.date,\n       attempts,\n       ROUND(success_rate*100,1) AS success_pct,\n       COALESCE(issues,0) AS issues,\n       ROUND(COALESCE(issues,0)*100.0/attempts,2) AS issues_per_100,\n       ROUND(rollout_share*100,1) AS rollout_pct\nFROM a\nLEFT JOIN i USING (date)\nORDER BY date"
+    }
+  }
+}

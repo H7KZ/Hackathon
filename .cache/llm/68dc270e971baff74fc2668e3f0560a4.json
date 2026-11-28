@@ -1,0 +1,69 @@
+{
+  "key": "68dc270e971baff74fc2668e3f0560a4",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "E-commerce – online obchod se sportovním vybavením (běh, cyklistika, fitness, outdoor)",
+    "size": "1 e-shop, 1 sklad, 28 zaměstnanců, cca 12 000 aktivních zákazníků ročně, sortiment přibližně 3 500 produktů",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "Velkoobchod SportDistribuce CZ",
+        "description": "Hlavní tuzemský dodavatel běžeckého a fitness vybavení, dodává zboží do 2 až 3 dnů."
+      },
+      {
+        "kind": "supplier",
+        "name": "Alpine Gear Europe",
+        "description": "Zahraniční dodavatel outdoorového oblečení a vybavení s delší dodací lhůtou a vyššími minimálními objednávkami."
+      },
+      {
+        "kind": "customer",
+        "name": "Noví zákazníci z jarní kampaně",
+        "description": "Zákazníci získaní slevovou a reklamní kampaní na jaře, citliví na cenu, s nízkou loajalitou a většinou jen jedním nákupem."
+      },
+      {
+        "kind": "customer",
+        "name": "Stálí sportovní zákazníci",
+        "description": "Pravidelně nakupující aktivní sportovci, kteří se vracejí kvůli sortimentu, službám a věrnostnímu programu."
+      },
+      {
+        "kind": "competitor",
+        "name": "Sportisimo",
+        "description": "Velký konkurent s kamennými prodejnami a agresivními slevovými akcemi."
+      },
+      {
+        "kind": "competitor",
+        "name": "Hudy Sport Online",
+        "description": "Specializovaný konkurent v oblasti outdoorového vybavení s širokým sortimentem a rychlým doručením."
+      },
+      {
+        "kind": "partner",
+        "name": "Zásilkovna",
+        "description": "Dopravce a výdejní síť, jejíž spolehlivost a rychlost doručení ovlivňuje spokojenost zákazníků."
+      },
+      {
+        "kind": "partner",
+        "name": "Marketingová agentura PromoKlik",
+        "description": "Externí agentura provozující placenou reklamu a e-mailové kampaně včetně jarní akce."
+      },
+      {
+        "kind": "employee",
+        "name": "Tým zákaznické podpory",
+        "description": "Řeší dotazy, reklamace a vrácení zboží, ovlivňuje zkušenost nových zákazníků po prvním nákupu."
+      },
+      {
+        "kind": "employee",
+        "name": "Marketingový tým",
+        "description": "Plánuje kampaně, slevové kódy a retenční e-maily po prvním nákupu."
+      }
+    ],
+    "keyProcesses": [
+      "Akvizice zákazníků jarní kampaní (reklama, slevový kód, registrace a první objednávka)",
+      "Zpracování objednávky, balení a expedice ze skladu",
+      "Doručení zásilky a případné vrácení či reklamace zboží",
+      "Retenční komunikace po prvním nákupu (e-maily, věrnostní program, doporučení produktů)",
+      "Rozhodnutí zákazníka o opakovaném nákupu (pravděpodobnost návratu podle zkušenosti, ceny a konkurenční nabídky)",
+      "Doplňování zásob od dodavatelů a řízení dostupnosti produktů"
+    ]
+  }
+}

@@ -121,7 +121,9 @@ export async function whatIf(
         instructions: WHAT_IF,
         prompt: userPrompt({
           Question: question,
-          "Base scenario": base,
+          // meta.id comes from the session id: kept out of the prompt so the cache key (and thus an
+          // offline demo replay) does not change per session; applyWhatIf keeps the real id
+          "Base scenario": { ...base, meta: { ...base.meta, id: "scenario" } },
           ...(feedback.length > 0 && {
             [`Previous attempt (this is attempt ${n})`]: previous ?? "(did not match the schema)",
             "Errors (fix all of them, keep everything else unchanged)": formatFeedback(feedback),

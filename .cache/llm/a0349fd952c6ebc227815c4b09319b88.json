@@ -1,0 +1,496 @@
+{
+  "key": "a0349fd952c6ebc227815c4b09319b88",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03b_processes",
+  "output": {
+    "entities": [
+      {
+        "name": "store",
+        "count": 5,
+        "idPrefix": "STO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "city"
+          },
+          "region": {
+            "gen": "categorical",
+            "values": [
+              "Praha",
+              "Brno",
+              "Ostrava",
+              "Plzeň",
+              "Olomouc"
+            ]
+          }
+        }
+      },
+      {
+        "name": "supplier",
+        "count": 3,
+        "idPrefix": "SUP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          },
+          "profile": {
+            "gen": "categorical",
+            "values": [
+              "problémový",
+              "spolehlivý"
+            ],
+            "weights": [
+              0.34,
+              0.66
+            ]
+          }
+        }
+      },
+      {
+        "name": "product",
+        "count": 30,
+        "idPrefix": "PRO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "productName"
+          },
+          "category": {
+            "gen": "categorical",
+            "values": [
+              "kuchyňské potřeby",
+              "nádobí",
+              "drogerie",
+              "úklid",
+              "nářadí",
+              "zahrada"
+            ]
+          },
+          "supplier_id": {
+            "gen": "pick",
+            "entity": "supplier"
+          },
+          "unit_price": {
+            "gen": "normal",
+            "mean": 250,
+            "sd": 120,
+            "min": 20,
+            "max": 2000,
+            "round": true
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 600,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "store_id": {
+            "gen": "pick",
+            "entity": "store"
+          },
+          "segment": {
+            "gen": "categorical",
+            "values": [
+              "domácnost",
+              "kutil a zahradník"
+            ],
+            "weights": [
+              0.7,
+              0.3
+            ]
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "stock",
+        "keys": [
+          "store",
+          "product"
+        ],
+        "initial": {
+          "gen": "uniformInt",
+          "min": 14,
+          "max": 20
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "stock_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "supplier_order",
+        "table": "purchase_order",
+        "per": [
+          "store",
+          "product"
+        ],
+        "schedule": {
+          "everyDays": 7,
+          "phase": "random"
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "key.store"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "key.product"
+          },
+          "supplier_id": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "key.product",
+            "field": "supplier_id"
+          },
+          "supplier_profile": {
+            "gen": "lookup",
+            "entity": "supplier",
+            "key": "self.supplier_id",
+            "field": "profile"
+          },
+          "quantity": {
+            "gen": "topUp",
+            "flow": "stock",
+            "keys": {
+              "store": "key.store",
+              "product": "key.product"
+            },
+            "target": 18
+          },
+          "order_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "lead_days": {
+            "gen": "uniformInt",
+            "min": 2,
+            "max": 3
+          },
+          "promised_date": {
+            "gen": "dateOffset",
+            "base": "self.order_date",
+            "days": "self.lead_days"
+          },
+          "is_late": {
+            "gen": "bernoulli",
+            "p": {
+              "curve": "late_prob_problem"
+            }
+          },
+          "delay_days": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.is_late",
+              "value": true
+            },
+            "then": {
+              "gen": "uniformInt",
+              "min": 21,
+              "max": 35
+            },
+            "else": {
+              "gen": "const",
+              "value": 0
+            }
+          },
+          "delivered_date": {
+            "gen": "dateOffset",
+            "base": "self.promised_date",
+            "days": "self.delay_days"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "store": "key.store",
+              "product": "key.product"
+            },
+            "delta": "self.quantity",
+            "sign": 1,
+            "on": "self.delivered_date"
+          }
+        ]
+      },
+      {
+        "type": "arrival",
+        "id": "customer_demand",
+        "table": "purchase_attempt",
+        "per": [
+          "customer"
+        ],
+        "rate": {
+          "curve": "demand",
+          "scale": 0.25
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "key.customer"
+          },
+          "store_id": {
+            "gen": "lookup",
+            "entity": "customer",
+            "key": "key.customer",
+            "field": "store_id"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product"
+          },
+          "quantity": {
+            "gen": "const",
+            "value": 1
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "branch",
+        "id": "availability_check",
+        "source": "customer_demand",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "stock",
+          "keys": {
+            "store": "source.store_id",
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "attempt_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "unit_price": {
+              "gen": "lookup",
+              "entity": "product",
+              "key": "source.product_id",
+              "field": "unit_price"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "stock",
+              "keys": {
+                "store": "source.store_id",
+                "product": "source.product_id"
+              },
+              "delta": "self.quantity",
+              "sign": -1
+            }
+          ]
+        },
+        "else": {
+          "table": "lost_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "attempt_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "unit_price": {
+              "gen": "lookup",
+              "entity": "product",
+              "key": "source.product_id",
+              "field": "unit_price"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "stockout_complaint",
+        "table": "complaint",
+        "source": "availability_check:else",
+        "p": 0.15,
+        "lag": {
+          "min": 0,
+          "max": 3
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "lost_sale_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "supplier_id": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "source.product_id",
+            "field": "supplier_id"
+          },
+          "reason": {
+            "gen": "categorical",
+            "values": [
+              "zboží není skladem",
+              "opakovaná nedostupnost",
+              "pozdní doplnění zásob"
+            ],
+            "weights": [
+              0.5,
+              0.3,
+              0.2
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "competitor_switch",
+        "table": "competitor_switch",
+        "source": "availability_check:else",
+        "p": 0.2,
+        "lag": {
+          "min": 0,
+          "max": 5
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "lost_sale_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "competitor": {
+            "gen": "categorical",
+            "values": [
+              "Velký řetězec DIY marketů",
+              "Internetový obchod s domácími potřebami"
+            ],
+            "weights": [
+              0.6,
+              0.4
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      }
+    ],
+    "trace": {
+      "late_prob_to_late_delivery": "/processes/0/fields/is_late",
+      "order_to_late_delivery": "/processes/0",
+      "supplier_routes_late_delivery": "/processes/0/fields/supplier_id",
+      "order_to_stock": "/processes/0/effects/0",
+      "late_delivery_to_stock": "/processes/0/effects/0",
+      "demand_to_attempt": "/processes/1/rate",
+      "attempt_to_check": "/processes/2",
+      "stock_to_check": "/processes/2/cond",
+      "check_to_sale": "/processes/2/then",
+      "check_to_lost_sale": "/processes/2",
+      "lost_sale_to_complaint": "/processes/3/p",
+      "lost_sale_to_competitor": "/processes/4/p"
+    }
+  }
+}

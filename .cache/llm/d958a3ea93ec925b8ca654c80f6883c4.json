@@ -1,0 +1,11 @@
+{
+  "key": "d958a3ea93ec925b8ca654c80f6883c4",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select table_name, string_agg(column_name,',') cols from information_schema.columns where table_name in ('escalation','customer_churn','compensation','repeat_call','agent_backlog_snapshot','router_model','remote_resolution','technician_visit') group by all"
+    }
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "key": "92fedf624ac64c647764ae30b8891e86",
+  "model": "openai:gpt-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp1",
+        "phase": 1,
+        "title": "Od března se prodlužují dodací lhůty notebooků od dodavatele",
+        "description": "Dodávky notebooků do DC se začínají opožďovat, což snižuje dostupnost zásob pro alokace na prodejny.",
+        "entity": {
+          "name": "product",
+          "ids": [
+            "SKU-001",
+            "SKU-002",
+            "SKU-003",
+            "SKU-004",
+            "SKU-005",
+            "SKU-006",
+            "SKU-007",
+            "SKU-008",
+            "SKU-009",
+            "SKU-010",
+            "SKU-011",
+            "SKU-012",
+            "SKU-013",
+            "SKU-014",
+            "SKU-015",
+            "SKU-016",
+            "SKU-017",
+            "SKU-018",
+            "SKU-019",
+            "SKU-020",
+            "SKU-021",
+            "SKU-022",
+            "SKU-023",
+            "SKU-024",
+            "SKU-025",
+            "SKU-026",
+            "SKU-027",
+            "SKU-028",
+            "SKU-029",
+            "SKU-030"
+          ]
+        },
+        "start": "2024-03-01"
+      }
+    ],
+    "curves": [
+      {
+        "id": "nb_supplier_delay",
+        "baseline": 0.12,
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "to": 0.6,
+            "storyPointId": "sp1"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_backorder_nb_increase",
+        "storyPointId": "sp1",
+        "description": "Backorder požadavků na notebooky na prodejnách výrazně vzroste po 1. 3.",
+        "sql": "SELECT 'before' AS period, COALESCE(SUM(1.0)/NULLIF(COUNT(DISTINCT b.date),0),0) AS value\nFROM backorder b\nJOIN product p ON p.id = b.product_id\nWHERE p.category = 'notebook' AND b.date < '2024-03-01'\nUNION ALL\nSELECT 'after' AS period, COALESCE(SUM(1.0)/NULLIF(COUNT(DISTINCT b.date),0),0) AS value\nFROM backorder b\nJOIN product p ON p.id = b.product_id\nWHERE p.category = 'notebook' AND b.date >= '2024-03-01'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_lost_nb_increase",
+        "storyPointId": "sp1",
+        "description": "Ztracené prodeje notebooků na prodejnách po 1. 3. výrazně vzrostou.",
+        "sql": "SELECT 'before' AS period, COALESCE(SUM(1.0)/NULLIF(COUNT(DISTINCT l.date),0),0) AS value\nFROM lost_sale_nb l\nWHERE l.date < '2024-03-01'\nUNION ALL\nSELECT 'after' AS period, COALESCE(SUM(1.0)/NULLIF(COUNT(DISTINCT l.date),0),0) AS value\nFROM lost_sale_nb l\nWHERE l.date >= '2024-03-01'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_complaint_nb_increase",
+        "storyPointId": "sp1",
+        "description": "Stížnosti na nedostupnost notebooků po 1. 3. výrazně přibudou.",
+        "sql": "SELECT 'before' AS period, COALESCE(SUM(1.0)/NULLIF(COUNT(DISTINCT c.date),0),0) AS value\nFROM complaint c\nJOIN product p ON p.id = c.product_id\nWHERE p.category = 'notebook' AND c.date < '2024-03-01'\nUNION ALL\nSELECT 'after' AS period, COALESCE(SUM(1.0)/NULLIF(COUNT(DISTINCT c.date),0),0) AS value\nFROM complaint c\nJOIN product p ON p.id = c.product_id\nWHERE p.category = 'notebook' AND c.date >= '2024-03-01'",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_shipment_nb_decrease",
+        "storyPointId": "sp1",
+        "description": "Expedice notebooků z DC na prodejny po 1. 3. klesnou vlivem opožděných dodávek do DC.",
+        "sql": "SELECT 'before' AS period, COALESCE(SUM(s.quantity)*1.0/NULLIF(COUNT(DISTINCT s.date),0),0) AS value\nFROM store_shipment s\nJOIN product p ON p.id = s.product_id\nWHERE p.category = 'notebook' AND s.date < '2024-03-01'\nUNION ALL\nSELECT 'after' AS period, COALESCE(SUM(s.quantity)*1.0/NULLIF(COUNT(DISTINCT s.date),0),0) AS value\nFROM store_shipment s\nJOIN product p ON p.id = s.product_id\nWHERE p.category = 'notebook' AND s.date >= '2024-03-01'",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "ctrl_sales_non_nb_stable",
+        "storyPointId": "sp1",
+        "description": "Prodané množství zboží mimo notebooky zůstává stabilní (kontrola na neovlivněný sortiment).",
+        "sql": "SELECT 'before' AS period, COALESCE(SUM(s.quantity)*1.0/NULLIF(COUNT(DISTINCT s.date),0),0) AS value\nFROM store_sale s\nJOIN product p ON p.id = s.product_id\nWHERE p.category <> 'notebook' AND s.date < '2024-03-01'\nUNION ALL\nSELECT 'after' AS period, COALESCE(SUM(s.quantity)*1.0/NULLIF(COUNT(DISTINCT s.date),0),0) AS value\nFROM store_sale s\nJOIN product p ON p.id = s.product_id\nWHERE p.category <> 'notebook' AND s.date >= '2024-03-01'",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.05
+        }
+      }
+    ]
+  }
+}

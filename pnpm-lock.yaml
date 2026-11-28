@@ -327,6 +327,9 @@ importers:
       '@s2d/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
     devDependencies:
       '@s2d/test-utils':
         specifier: workspace:*

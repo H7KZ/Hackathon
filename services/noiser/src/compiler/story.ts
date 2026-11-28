@@ -60,8 +60,37 @@ export function checkStoryRefs(s: StoryRefs): CompileError[] {
   const names = s.entities.map((e) => `"${e.name}"`).join(", ");
 
   s.storyPoints.forEach((sp, i) => {
+    // a curve scoped by category values (segment "kampaň") is about a group, not entity rows (live run 3:
+    // A4 invented CUS-001..005 for "campaign customers", so the detective's correct finding scored 0)
+    const groupScope = s.curves.find(
+      (c) =>
+        c.scope &&
+        c.scope.field !== "day" &&
+        c.scope.ids.length > 0 &&
+        c.scope.ids.every((id) => !ENTITY_ID.test(id)) &&
+        c.segments.some((seg) => seg.storyPointId === sp.id),
+    )?.scope;
+    if (groupScope) {
+      const hint = `"segment": {"field": "${groupScope.field}", "values": ${JSON.stringify(groupScope.ids)}}`;
+      if (!sp.segment) {
+        err(
+          `storyPoints[${i}].segment`,
+          `Story point "${sp.id}" drives a curve scoped to the category values ${JSON.stringify(groupScope.ids)}, so it is about that group of records, not about entity ids. Add ${hint} (entity is then optional; never invent entity ids for a group).`,
+        );
+        return;
+      }
+      sp.segment.values.forEach((v, j) => {
+        if (!groupScope.ids.includes(v))
+          err(
+            `storyPoints[${i}].segment.values[${j}]`,
+            `Segment value "${v}" of story point "${sp.id}" is not used by its curve scope ${JSON.stringify(groupScope.ids)}; use those values: ${hint}.`,
+          );
+      });
+      if (!sp.entity) return;
+    }
     const at = `storyPoints[${i}].entity`;
     if (!sp.entity) {
+      if (sp.segment) return;
       if (!drivers.has(sp.id)) return;
       const ids = scopeOf.get(sp.id);
       const owner = ids?.map((id) => ENTITY_ID.exec(id)?.[1]).find(Boolean);

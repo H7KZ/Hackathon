@@ -9,7 +9,9 @@ import { parseArgs } from "node:util";
 import { createLlm } from "@s2d/llm";
 import { runCascade, storyGate } from "@s2d/cascade";
 import { loadConfig } from "../config";
+import { dataerPort } from "../adapters/dataer";
 import { gen } from "./gen";
+import { compareCmd, detectiveCmd, evidenceCmd } from "./inspect";
 
 const [command, ...rest] = process.argv.slice(2);
 const cfg = loadConfig();
@@ -63,11 +65,31 @@ async function main(): Promise<number> {
       console.log(`artifacts in ${res.dir}`);
       return 0;
     }
-    case "evidence":
-    case "detective":
-    case "compare":
-      console.error(`${command}: not implemented yet`);
-      return 2;
+    case "evidence": {
+      const { positionals, values } = parseArgs({
+        args: rest,
+        allowPositionals: true,
+        options: { scenario: { type: "string" } },
+      });
+      const db = positionals[0];
+      if (!db) return usage("evidence <db> [--scenario <scenario.json>]");
+      const ok = await evidenceCmd(dataerPort(), resolve(cfg.root, db), {
+        ...(values.scenario === undefined ? {} : { scenario: resolve(cfg.root, values.scenario) }),
+      });
+      return ok ? 0 : 1;
+    }
+    case "compare": {
+      const [a, b] = rest;
+      if (!a || !b) return usage("compare <dbA> <dbB>");
+      await compareCmd(dataerPort(), resolve(cfg.root, a), resolve(cfg.root, b));
+      return 0;
+    }
+    case "detective": {
+      const [db] = rest;
+      if (!db) return usage("detective <db>");
+      await detectiveCmd(dataerPort(), resolve(cfg.root, db));
+      return 0;
+    }
     default:
       return usage("<gen|cascade|evidence|detective|compare> ...");
   }
@@ -81,7 +103,7 @@ function usage(text: string): number {
 main().then(
   (code) => process.exit(code),
   (err: unknown) => {
-    console.error(err);
+    console.error(err instanceof Error ? err.message : err);
     process.exit(1);
   },
 );

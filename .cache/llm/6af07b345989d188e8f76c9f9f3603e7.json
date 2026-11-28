@@ -1,0 +1,89 @@
+{
+  "key": "6af07b345989d188e8f76c9f9f3603e7",
+  "model": "openai:gpt-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "dc_purchase_order.delay_days",
+        "to": "dc_stock",
+        "direction": "negative",
+        "weight": 0.8,
+        "delayDays": 7,
+        "rationale": "Delší dodací lhůty notebooků od distributora posouvají příjem do DC, a tím dočasně snižují dostupnou zásobu."
+      },
+      {
+        "from": "dc_stock",
+        "to": "allocate_or_backorder.cond",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Vyšší zásoba v DC zvyšuje pravděpodobnost, že požadavek prodejny bude uspokojen (splněna podmínka alokace)."
+      },
+      {
+        "from": "allocate_or_backorder.cond",
+        "to": "store_shipment",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Při splnění podmínky alokace se tvoří expedice na prodejny."
+      },
+      {
+        "from": "allocate_or_backorder.cond",
+        "to": "backorder",
+        "direction": "negative",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Častější splnění podmínky alokace snižuje počet backorderů."
+      },
+      {
+        "from": "store_shipment",
+        "to": "store_stock",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 1,
+        "rationale": "Odeslané zásilky navyšují zásobu na prodejně po doručení (typicky následující den)."
+      },
+      {
+        "from": "store_stock",
+        "to": "sell_or_oos.cond",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Vyšší okamžitá zásoba na prodejně zvyšuje šanci, že poptávku lze obsloužit."
+      },
+      {
+        "from": "sell_or_oos.cond",
+        "to": "store_sale",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Při splnění podmínky dostupnosti vzniká realizovaný prodej."
+      },
+      {
+        "from": "sell_or_oos.cond",
+        "to": "lost_sale",
+        "direction": "negative",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Splněná podmínka dostupnosti snižuje počet ztracených prodejů."
+      },
+      {
+        "from": "lost_sale",
+        "to": "lost_sale_nb",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Část ztracených prodejů spadá do kategorie notebooků (rozdělení dle kategorie)."
+      },
+      {
+        "from": "lost_sale_nb",
+        "to": "complaint",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 1,
+        "rationale": "Ztracené prodeje notebooků generují část stížností na nedostupnost s krátkým zpožděním."
+      }
+    ]
+  }
+}

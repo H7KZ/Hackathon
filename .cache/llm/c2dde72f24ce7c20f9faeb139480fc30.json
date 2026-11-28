@@ -1,0 +1,55 @@
+{
+  "key": "c2dde72f24ce7c20f9faeb139480fc30",
+  "model": "openai:gpt-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_push",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-04",
+            "to": 2.5,
+            "storyPointId": "sp1"
+          }
+        ],
+        "clamp": [
+          0,
+          100
+        ]
+      },
+      {
+        "id": "issue_prob",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-05",
+            "to": 0.12,
+            "storyPointId": "sp2"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Rollout i nárůst poruch byly posunuty zhruba o měsíc na nejpozdější možné termíny v rámci simulace (4.–5. 4. 2025), aby se efekt projevil až na konci období."
+  }
+}

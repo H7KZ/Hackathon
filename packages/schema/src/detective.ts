@@ -20,6 +20,8 @@ export type DetectiveReport = z.infer<typeof DetectiveReport>;
 export const TruthPoint = z.object({
   id: z.string(),
   entityIds: z.array(z.string()),
+  /** Category values of a segment story point (e.g. "kampaň"); a finding naming one in `entities` matches. */
+  segmentValues: z.array(z.string()).optional(),
   start: z.iso.date(),
 });
 export type TruthPoint = z.infer<typeof TruthPoint>;

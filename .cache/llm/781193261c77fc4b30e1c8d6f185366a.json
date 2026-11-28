@@ -1,0 +1,59 @@
+{
+  "key": "781193261c77fc4b30e1c8d6f185366a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.2,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-03",
+            "end": "2025-04-17",
+            "to": 2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          5
+        ]
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-03",
+            "end": "2025-04-24",
+            "to": 6,
+            "storyPointId": "sp_issues"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Obě křivky (nasazení firmwaru i nárůst poruch) jsou posunuté o měsíc později, na začátek dubna, a ostatní parametry zůstávají beze změny."
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "key": "a696e7408448382f60e488b090d7dfbe",
+  "model": "openai:gpt-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Poskytovatel internetového připojení (ISP; pevné připojení a domácí routery/CPE)",
+    "size": "Regionální ISP: 25 000 aktivních přípojek, 60 zaměstnanců, interní NOC a call centrum (cca 12 agentů ve směně)",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "Orion Routers a.s.",
+        "description": "Výrobce zákaznických routerů (CPE) a dodavatel firmwaru; poskytuje nástroje pro hromadné aktualizace a technickou podporu na úrovni L3."
+      },
+      {
+        "kind": "supplier",
+        "name": "FiberNet Solutions s.r.o.",
+        "description": "Dodavatel síťových prvků (OLT/OLT, switche, optické trasy) a servisních smluv; ovlivňuje spolehlivost přístupové sítě."
+      },
+      {
+        "kind": "supplier",
+        "name": "TeleCloud CZ",
+        "description": "Poskytovatel ACD/IVR/softphone platformy pro call centrum; parametry směrování hovorů a dostupnost systému určují průchodnost front."
+      },
+      {
+        "kind": "partner",
+        "name": "CallHub CZ",
+        "description": "Externí partnerské call centrum pro pokrytí špiček; aktivuje se dle nastavených prahů obsazenosti fronty a SLA."
+      },
+      {
+        "kind": "partner",
+        "name": "LogiDistrib s.r.o.",
+        "description": "Logistický partner pro skladování a distribuci CPE; termíny dodávek ovlivňují tempo výměn a instalací."
+      },
+      {
+        "kind": "other",
+        "name": "ČTÚ – Český telekomunikační úřad",
+        "description": "Regulátor; dohlíží na kvalitu služeb a řešení stížností, stanovuje informační povinnosti při incidentech."
+      },
+      {
+        "kind": "customer",
+        "name": "Domácnosti v bytových domech",
+        "description": "Masový segment s řízenými dodávkami CPE; vyšší náchylnost k volání při výpadcích a změnách chování routeru."
+      },
+      {
+        "kind": "customer",
+        "name": "SMB klienti",
+        "description": "Malé a střední firmy; vyšší citlivost na dostupnost, definované SLA a větší pravděpodobnost eskalací."
+      },
+      {
+        "kind": "competitor",
+        "name": "NetPlus Internet s.r.o.",
+        "description": "Regionální konkurent s vlastní optickou infrastrukturou; láká zákazníky na garance dostupnosti a rychlou podporu."
+      },
+      {
+        "kind": "competitor",
+        "name": "FiberWay a.s.",
+        "description": "Celostátní poskytovatel; konkuruje cenou balíčků a kombinací mobilních služeb."
+      },
+      {
+        "kind": "employee",
+        "name": "L1 technická podpora",
+        "description": "První linie podpory (telefon/chat); rychlost obsluhy a míra vyřešení při prvním kontaktu závisí na skriptech a znalostní bázi."
+      },
+      {
+        "kind": "employee",
+        "name": "Síťoví inženýři (NOC)",
+        "description": "Monitoring a řízení sítě; vyhodnocují incidenty, koordinují změny a rollbacky firmwaru."
+      },
+      {
+        "kind": "employee",
+        "name": "Terénní technici",
+        "description": "Instalace a servis u zákazníků; provádějí výměny CPE a sběr logů při eskalacích."
+      }
+    ],
+    "keyProcesses": [
+      "Správa a rollout firmwaru CPE/routerů: plánování kohort (pilot→vlny), definiční okna auto-aktualizací, prah pro rollback; parametry ovlivňují pravděpodobnost chyb po aktualizaci a rozložení zásahu v čase.",
+      "Change management a řízení rizik: schvalování změn, velikost pilotní skupiny, freeze okna; kalibrace snižuje pravděpodobnost nasazení problematické verze.",
+      "Proaktivní monitoring CPE a sítě: detekční citlivost, falešně pozitivní/negativní poměry, frekvence heartbeatů; nastavuje včasnost identifikace regresí po updatech.",
+      "Komunikace o incidentech a známých problémech: šablony a kanály (SMS/e‑mail/web banner), míra pokrytí a kadence; snižuje pravděpodobnost, že zákazník volá po zjištění výpadku.",
+      "Příjem hovorů a IVR směrování: struktura stromu IVR, míra samoobsluhy/deflection, pravidla priority a overflow; určuje tok hovorů do front a na partnery.",
+      "Obsluha front L1 podpory: rychlost obsluhy agenta (service rate), adherence ke směnám a shrinkage; parametry určují kapacitní průchodnost fronty.",
+      "Eskalace L2/L3 a řešení tiketů: prahy pro eskalaci, doba odezvy dodavatelů, kvalita diagnostiky; formuje dobu uzavření příčin volání spojených s firmwarem.",
+      "Workforce management call centra: plánování směn, real‑time řízení (WFM), pravidla pro aktivaci overflow; ovlivňuje disponibilní kapacitu v čase špiček.",
+      "Onboarding a výměny CPE: tempo instalací/výměn, kvalita konfigurace out‑of‑the‑box; nastavuje velikost a heterogenitu instalované báze pro budoucí updaty.",
+      "Knowledge management a skripty: rychlost aktualizace článků po změně firmwaru, pokrytí symptomů; ovlivňuje pravděpodobnost vyřešení při prvním kontaktu a dobu hovoru.",
+      "Telemetry a sběr logů z CPE: granularita a retence logů, souhlas uživatelů; zvyšuje schopnost korelovat update s chováním zařízení.",
+      "Vendor management (výrobce routerů): kadence hotfixů, SLA na analýzu regresí; určuje dobu reakce na zjištěné problémy po aktualizaci."
+    ]
+  }
+}

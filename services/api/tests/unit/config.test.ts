@@ -18,6 +18,18 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ CASCADE_DESIGN: "v2" }, "/repo")).toThrow(/CASCADE_DESIGN/);
   });
 
+  it("RUNS_DIR moves session state (relative to the repo root)", () => {
+    expect(loadConfig({}, "/repo").runsDir.replaceAll("\\", "/")).toBe("/repo/runs");
+    expect(loadConfig({ RUNS_DIR: "runs-b" }, "/repo").runsDir.replaceAll("\\", "/")).toMatch(/runs-b$/);
+  });
+
+  it("CORS_ORIGIN takes a comma list", () => {
+    expect(loadConfig({}, "/repo").corsOrigin).toEqual(["http://localhost:3000"]);
+    expect(
+      loadConfig({ CORS_ORIGIN: "http://localhost:3000, http://localhost:3310" }, "/repo").corsOrigin,
+    ).toEqual(["http://localhost:3000", "http://localhost:3310"]);
+  });
+
   it("fails fast on an invalid port", () => {
     expect(() => loadConfig({ API_PORT: "abc" }, "/repo")).toThrow(/API_PORT/);
   });

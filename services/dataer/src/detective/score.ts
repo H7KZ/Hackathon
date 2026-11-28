@@ -1,4 +1,4 @@
-/** Scores detective findings against truth.story_points (SPEC §3.E): entity match, start within ±14 days, nearest point. */
+/** Scores detective findings against truth.story_points (SPEC §3.E): entity or segment match, start within ±14 days, nearest point. */
 import type { DetectiveScore, Finding, TruthPoint } from "@s2d/schema/detective";
 
 export const DATE_TOLERANCE_DAYS = 14;
@@ -10,7 +10,15 @@ function dayDiff(a: string, b: string): number {
   return Math.abs(da - db) / 86_400_000;
 }
 
-const sharesEntity = (f: Finding, p: TruthPoint) => f.entities.some((e) => p.entityIds.includes(e));
+/** Entity ids compare exactly; segment values (free text like "kampaň") ignore case, spacing and quotes. */
+const norm = (v: string) =>
+  v
+    .normalize("NFC")
+    .replace(/["'„“”‚‘’]/g, "")
+    .trim()
+    .toLocaleLowerCase("cs-CZ");
+const sharesEntity = (f: Finding, p: TruthPoint) =>
+  f.entities.some((e) => p.entityIds.includes(e) || (p.segmentValues ?? []).some((v) => norm(v) === norm(e)));
 
 /**
  * A finding may match a story point only if it names one of its entities, starts within ±14 days, AND

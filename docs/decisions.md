@@ -12,6 +12,37 @@ Template:
 - **Affects:** <workspaces / files>
 ```
 
+
+
+
+## 2026-11-28 — Run-3 follow-up: A5 repair strategy, causal gate, worker, replayable detective
+
+- **Decision:** (1) A5 edits its **best** rejected attempt (stage reached: schema < compile < check < story gate, then fewest errors), sees the history of all attempts with recurring errors marked, and each failed expectation gets a "lever reach" line (where the levers sit, the process chain to the measured table or its absence). Resume starts from the best attempt. (2) `compileScenario` checks curve scopes on arrival `rate` and derive `p` (a `self.*` scope there never matches). (3) Causal design: hypotheses reached through a branch's success outcome need 5 % (`MIN_CHANGE_DILUTED`), others 10 %; its story gate also demands ≥ 4/5 of seeds 1..5 (`seedRobust`) and 4b gets 3 rounds. v1 keeps the single-seed gate. (4) `Ports.noiser.run` is async; the engine runs in a `worker_threads` worker (same output). (5) The DuckDB sandbox is single-threaded so detective SQL results, and thus the replay, are deterministic. (6) `LLM_CACHE_TRACE` lists the recordings a replay reads.
+- **Why:** live run 3: marketing and podpora failed 5 A5 attempts (a silent no-op scope, regressions between attempts); causal fell short by 1.4 points at seed 42 and on seeds 1..5 its sale effect was −1..−5 %; ECONNRESET during engine runs; a podpora replay missed the cache because of row order. Live run 4 ([report](runs/2026-11-28-live-e2e-4.md)): all 4 v1 cases ready on the first approve.
+- **Who:** integration (agent), items 1, 3, 4, 5 of the run-3 follow-up.
+- **Affects:** `services/cascade` (loop, a5_detail, reach, gate, causal/hypotheses, cascade), `services/noiser` (compiler, worker), `services/api` (ports, adapters), `services/dataer` (sandbox), `packages/llm` (cache trace), `.cache/llm/`.
+
+## 2026-11-28 — Segment story points; detective scores category values
+
+- **Decision:** `StoryPoint.segment = {field, values}` (optional) names a group of records by category values (e.g. customer segment "kampaň"). The compiler (`checkStoryRefs`) demands it on a story point whose curve is scoped by non-id values, instead of an entity (A4 invented CUS-001..005 in live run 3). `writeRun` stores `segment_field` and `segment_values` (JSON) in `truth.story_points`; `TruthPoint.segmentValues`; a point is findable with phase ≥ 1 and an entity id **or** a segment value. `scoreFindings` matches a finding's `entities` against ids (exact) or segment values (case, spacing and quotes ignored); the date window and nearest-point rule stay. The detective prompt says `entities` may hold the category values of a group. Precision stays one match per point: true downstream findings count as unmatched (precision is a lower bound), so the honest-scoring rules of run 2 hold.
+- **Why:** marketing ("campaign customers") scored recall 0 although the detective named "kampaň" and the exact date.
+- **Who:** integration (agent), item 2 of the run-3 follow-up.
+- **Affects:** `packages/schema` (`scenario.ts`, `detective.ts`), `services/noiser/src/compiler/story.ts`, `services/dataer` (store, truth, score, detective prompt), `services/cascade/src/prompts` (A4, causal overlay). Prompt changes change the cache keys of A4, overlay and the detective.
+
+## 2026-11-28 — Session contract moved to `@s2d/schema/api`
+
+- **Decision:** `SessionStatus`, `SessionInput`, `DatasetInfo`, `SessionState`, `GenerationSettings`, `SessionCommand`, `SessionEvent`, `DatasetEvidence`, `DetectiveResult` moved unchanged from `services/api/src/contract.draft.ts` (deleted) to `packages/schema/src/api.ts`; `CascadeEvent` to `artifacts.ts` (cascade imports it instead of its mirror type). `CompileError` lives in `errors.ts` and `/api` re-exports it, so `api.ts` ↔ `artifacts.ts` has no import cycle. The frontend imports the types from `@s2d/schema/api`.
+- **Why:** one source of truth (hard rule 6); the draft was waiting only for this move.
+- **Who:** integration (agent), item 6 of the run-3 follow-up.
+- **Affects:** `packages/schema`, `services/api`, `services/cascade/src/events.ts`, `services/frontend/lib`.
+
+## 2026-11-28 — Integration: UI settings travel with approve; e2e on own ports; live harness and offline demo
+
+- **Decision:** (1) The story editor sends `approve.settings` (seed, scale, noise %, kept hypotheses); the API applies them to the dataset copy of `05_scenario` (`services/api/src/settings.ts`), never to curves. In live mode the editor hides what the API cannot apply (period, company size, ramp length). (2) Only story points that drive the edited curve are draggable; outcome points stay untouched on edit. (3) New port `dataer.tables/preview` + routes for the Data tab and totals. (4) `resume` also re-runs a failed or cancelled draft. (5) Playwright uses its own ports (API 4310, UI 3310) and never reuses a running server; `E2E_REAL=1` runs the real stack. (6) `pnpm e2e:live` (`scripts/live-e2e.mjs`) drives real sessions and writes a report; `pnpm demo` replays the committed cache with every LLM step pinned to one model.
+- **Why:** before this, editor settings were silently ignored in live mode, editing one knot could add segments for outcome points and break the story, and the e2e config could attach to a dev server already running on :4000.
+- **Who:** integration agent (asked by the frontend owner to integrate everything end to end).
+- **Affects:** `services/api` (contract.draft `GenerationSettings`, orchestrator, routes, CLI), `services/dataer` (`src/preview`), `packages/schema/src/evidence.ts` (`TableInfo`, `TablePreview`), `services/frontend` (live source, story surface, e2e), `scripts/`, `.cache/llm/` (recordings of the live run).
+
 ## 2026-11-27 — Causal cascade (D1–D4) built behind `design: "causal"`, v1 stays default
 
 - **Decision:** the typed causal map design is implemented next to the A1–A5 cascade, not instead of it. `CascadeOptions.design` (`CASCADE_DESIGN` in the API, `--design` in the CLI) picks `"v1"` (default) or `"causal"`: 4a `03a_causal_map`, 4b `03b_processes` with `trace`, `04a_overlay` (lever × story point matrix, curves built by code), `04b_expectations` (hypotheses derived by code, LLM writes only SQL), `04_story` and `05_scenario` assembled by code. v1 also gets two code checks: `03_influences` endpoints must name parts of `02_model`, and A5 curves may drive only map roots. `ArtifactName` gains `03a_causal_map`, `03b_processes`, `04a_overlay`, `04b_expectations`; `ArtifactSchemas` in `@s2d/schema/artifacts` is the one artifact → schema map.

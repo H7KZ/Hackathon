@@ -1,0 +1,11 @@
+{
+  "key": "499fa18a9b63ee76203bd333992b81e2",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select date_trunc('week',date) w, count(*) n, avg(wait_minutes) wait, count(distinct agent_id) agents, sum(case when firmware_version='nový' then 1 else 0 end) nov from support_call group by all order by 1"
+    }
+  }
+}

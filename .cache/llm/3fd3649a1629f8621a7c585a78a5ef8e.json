@@ -1,0 +1,805 @@
+{
+  "key": "3fd3649a1629f8621a7c585a78a5ef8e",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "05_scenario",
+  "output": {
+    "name": "NetKomp aktualizace routerů a přetížená podpora",
+    "start": "2025-01-01",
+    "end": "2025-04-30",
+    "entities": [
+      {
+        "name": "router_model",
+        "count": 6,
+        "idPrefix": "RMO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "productName"
+          },
+          "vendor": {
+            "gen": "const",
+            "value": "NetKomp"
+          },
+          "typ_pripojeni": {
+            "gen": "categorical",
+            "values": [
+              "optika",
+              "bezdrát"
+            ],
+            "weights": [
+              0.6,
+              0.4
+            ]
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 1500,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "city": {
+            "gen": "fake",
+            "kind": "city"
+          },
+          "segment": {
+            "gen": "categorical",
+            "values": [
+              "domácnost",
+              "malá firma"
+            ],
+            "weights": [
+              0.85,
+              0.15
+            ]
+          }
+        }
+      },
+      {
+        "name": "device",
+        "count": 1800,
+        "idPrefix": "DEV",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "pick",
+            "entity": "customer"
+          },
+          "router_model_id": {
+            "gen": "pick",
+            "entity": "router_model"
+          }
+        }
+      },
+      {
+        "name": "agent",
+        "count": 22,
+        "idPrefix": "AGT",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "shift": {
+            "gen": "categorical",
+            "values": [
+              "ranní",
+              "odpolední",
+              "noční"
+            ],
+            "weights": [
+              0.4,
+              0.4,
+              0.2
+            ]
+          }
+        }
+      },
+      {
+        "name": "technician",
+        "count": 15,
+        "idPrefix": "TEC",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "region": {
+            "gen": "fake",
+            "kind": "city"
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "agent_backlog",
+        "keys": [
+          "agent"
+        ],
+        "initial": {
+          "gen": "const",
+          "value": 0
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "agent_backlog_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "firmware_update",
+        "table": "firmware_update",
+        "per": [
+          "device"
+        ],
+        "rate": {
+          "curve": "update_rollout",
+          "scale": 0.01
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "device_id": {
+            "gen": "ref",
+            "path": "key.device"
+          },
+          "customer_id": {
+            "gen": "lookup",
+            "entity": "device",
+            "key": "key.device",
+            "field": "customer_id"
+          },
+          "router_model_id": {
+            "gen": "lookup",
+            "entity": "device",
+            "key": "key.device",
+            "field": "router_model_id"
+          },
+          "firmware_version": {
+            "gen": "const",
+            "value": "nový"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "arrival",
+        "id": "device_issue",
+        "table": "device_issue",
+        "per": [
+          "device"
+        ],
+        "rate": {
+          "curve": "issue_rate",
+          "scale": 0.003
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "device_id": {
+            "gen": "ref",
+            "path": "key.device"
+          },
+          "customer_id": {
+            "gen": "lookup",
+            "entity": "device",
+            "key": "key.device",
+            "field": "customer_id"
+          },
+          "router_model_id": {
+            "gen": "lookup",
+            "entity": "device",
+            "key": "key.device",
+            "field": "router_model_id"
+          },
+          "firmware_version": {
+            "gen": "if",
+            "cond": {
+              "kind": "bernoulli",
+              "p": {
+                "curve": "rollout_new"
+              }
+            },
+            "then": {
+              "gen": "const",
+              "value": "nový"
+            },
+            "else": {
+              "gen": "if",
+              "cond": {
+                "kind": "bernoulli",
+                "p": {
+                  "curve": "rollout_old"
+                }
+              },
+              "then": {
+                "gen": "const",
+                "value": "starý"
+              },
+              "else": {
+                "gen": "const",
+                "value": "starý"
+              }
+            }
+          },
+          "issue_type": {
+            "gen": "categorical",
+            "values": [
+              "ztráta Wi-Fi",
+              "restarty routeru",
+              "špatná konfigurace",
+              "pomalé připojení"
+            ],
+            "weights": [
+              0.3,
+              0.3,
+              0.2,
+              0.2
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "derive",
+        "id": "device_issue_after_update_a",
+        "table": "device_issue",
+        "source": "firmware_update",
+        "p": 0.9,
+        "lag": {
+          "min": 0,
+          "max": 1
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "device_id": {
+            "gen": "ref",
+            "path": "source.device_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "router_model_id": {
+            "gen": "ref",
+            "path": "source.router_model_id"
+          },
+          "firmware_version": {
+            "gen": "const",
+            "value": "nový"
+          },
+          "issue_type": {
+            "gen": "categorical",
+            "values": [
+              "ztráta Wi-Fi",
+              "restarty routeru",
+              "špatná konfigurace",
+              "pomalé připojení"
+            ],
+            "weights": [
+              0.35,
+              0.35,
+              0.25,
+              0.05
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "derive",
+        "id": "device_issue_after_update_b",
+        "table": "device_issue",
+        "source": "firmware_update",
+        "p": 0.9,
+        "lag": {
+          "min": 0,
+          "max": 1
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "device_id": {
+            "gen": "ref",
+            "path": "source.device_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "router_model_id": {
+            "gen": "ref",
+            "path": "source.router_model_id"
+          },
+          "firmware_version": {
+            "gen": "const",
+            "value": "nový"
+          },
+          "issue_type": {
+            "gen": "categorical",
+            "values": [
+              "ztráta Wi-Fi",
+              "restarty routeru",
+              "špatná konfigurace",
+              "pomalé připojení"
+            ],
+            "weights": [
+              0.35,
+              0.35,
+              0.25,
+              0.05
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "derive",
+        "id": "device_issue_after_update_c",
+        "table": "device_issue",
+        "source": "firmware_update",
+        "p": 0.9,
+        "lag": {
+          "min": 0,
+          "max": 1
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "device_id": {
+            "gen": "ref",
+            "path": "source.device_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "router_model_id": {
+            "gen": "ref",
+            "path": "source.router_model_id"
+          },
+          "firmware_version": {
+            "gen": "const",
+            "value": "nový"
+          },
+          "issue_type": {
+            "gen": "categorical",
+            "values": [
+              "ztráta Wi-Fi",
+              "restarty routeru",
+              "špatná konfigurace",
+              "pomalé připojení"
+            ],
+            "weights": [
+              0.35,
+              0.35,
+              0.25,
+              0.05
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "derive",
+        "id": "support_call",
+        "table": "support_call",
+        "source": "device_issue",
+        "p": {
+          "curve": "call_prob"
+        },
+        "lag": {
+          "min": 0,
+          "max": 2
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "issue_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "device_id": {
+            "gen": "ref",
+            "path": "source.device_id"
+          },
+          "agent_id": {
+            "gen": "pick",
+            "entity": "agent"
+          },
+          "issue_type": {
+            "gen": "ref",
+            "path": "source.issue_type"
+          },
+          "firmware_version": {
+            "gen": "ref",
+            "path": "source.firmware_version"
+          },
+          "units": {
+            "gen": "const",
+            "value": 1
+          },
+          "wait_minutes": {
+            "gen": "if",
+            "cond": {
+              "kind": "flowGt",
+              "flow": "agent_backlog",
+              "keys": {
+                "agent": "self.agent_id"
+              },
+              "value": 5
+            },
+            "then": {
+              "gen": "normal",
+              "mean": 25,
+              "sd": 8,
+              "min": 3,
+              "round": true
+            },
+            "else": {
+              "gen": "normal",
+              "mean": 6,
+              "sd": 3,
+              "min": 1,
+              "round": true
+            }
+          },
+          "priority": {
+            "gen": "categorical",
+            "values": [
+              "běžná",
+              "vysoká"
+            ],
+            "weights": [
+              0.85,
+              0.15
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "agent_backlog",
+            "keys": {
+              "agent": "self.agent_id"
+            },
+            "delta": "self.units",
+            "sign": 1
+          }
+        ]
+      },
+      {
+        "type": "branch",
+        "id": "call_resolution",
+        "source": "support_call",
+        "lag": {
+          "min": 2,
+          "max": 6
+        },
+        "cond": {
+          "kind": "and",
+          "conds": [
+            {
+              "kind": "bernoulli",
+              "p": {
+                "curve": "remote_resolve_prob"
+              }
+            },
+            {
+              "kind": "or",
+              "conds": [
+                {
+                  "kind": "not",
+                  "cond": {
+                    "kind": "fieldEq",
+                    "path": "source.firmware_version",
+                    "value": "nový"
+                  }
+                },
+                {
+                  "kind": "bernoulli",
+                  "p": 0.6
+                }
+              ]
+            }
+          ]
+        },
+        "then": {
+          "table": "remote_resolution",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "call_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "agent_id": {
+              "gen": "ref",
+              "path": "source.agent_id"
+            },
+            "units": {
+              "gen": "const",
+              "value": 1
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "agent_backlog",
+              "keys": {
+                "agent": "source.agent_id"
+              },
+              "delta": "self.units",
+              "sign": -1
+            }
+          ]
+        },
+        "else": {
+          "table": "escalation",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "call_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "agent_id": {
+              "gen": "ref",
+              "path": "source.agent_id"
+            },
+            "units": {
+              "gen": "const",
+              "value": 1
+            },
+            "reason": {
+              "gen": "categorical",
+              "values": [
+                "nutný výjezd technika",
+                "porucha zařízení",
+                "nevyřešeno na dálku"
+              ],
+              "weights": [
+                0.4,
+                0.3,
+                0.3
+              ]
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "agent_backlog",
+              "keys": {
+                "agent": "source.agent_id"
+              },
+              "delta": "self.units",
+              "sign": -1
+            }
+          ]
+        }
+      },
+      {
+        "type": "derive",
+        "id": "technician_visit",
+        "table": "technician_visit",
+        "source": "call_resolution:else",
+        "p": 0.6,
+        "lag": {
+          "min": 1,
+          "max": 5
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "escalation_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "technician_id": {
+            "gen": "pick",
+            "entity": "technician"
+          },
+          "duration_minutes": {
+            "gen": "normal",
+            "mean": 60,
+            "sd": 20,
+            "min": 15,
+            "round": true
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "repeat_call",
+        "table": "repeat_call",
+        "source": "call_resolution:then",
+        "p": 0.15,
+        "lag": {
+          "min": 1,
+          "max": 4
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "original_call_id": {
+            "gen": "ref",
+            "path": "source.call_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "agent_id": {
+            "gen": "pick",
+            "entity": "agent"
+          },
+          "wait_minutes": {
+            "gen": "normal",
+            "mean": 12,
+            "sd": 6,
+            "min": 1,
+            "round": true
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "compensation",
+        "table": "compensation",
+        "source": "call_resolution:else",
+        "p": 0.2,
+        "lag": {
+          "min": 3,
+          "max": 10
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "escalation_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "amount_czk": {
+            "gen": "normal",
+            "mean": 300,
+            "sd": 100,
+            "min": 50,
+            "round": true
+          },
+          "reason": {
+            "gen": "const",
+            "value": "kompenzace za výpadek služby"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "customer_churn",
+        "table": "customer_churn",
+        "source": "compensation",
+        "p": {
+          "curve": "churn_prob"
+        },
+        "lag": {
+          "min": 5,
+          "max": 30
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "compensation_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "reason": {
+            "gen": "const",
+            "value": "nespokojenost s kvalitou služby"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      }
+    ]
+  }
+}

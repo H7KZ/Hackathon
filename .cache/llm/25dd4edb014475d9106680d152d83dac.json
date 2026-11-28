@@ -1,0 +1,48 @@
+{
+  "key": "25dd4edb014475d9106680d152d83dac",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "notebook_late_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-04-01",
+            "to": 0.6,
+            "storyPointId": "sp_late_deliveries"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "notebook_short_prob",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Začátek zpožďování dodávek od dodavatele SUP-002 se posunul z 1. března na 1. dubna, ostatní parametry zůstaly beze změny."
+  }
+}

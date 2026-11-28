@@ -1,0 +1,46 @@
+{
+  "key": "5e245b78106ac87a0b1b5f8a8a3228db",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.08,
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-04-01",
+            "end": "2024-04-25",
+            "to": 0.2,
+            "storyPointId": "sp_zpozdeni_zacina"
+          },
+          {
+            "kind": "step",
+            "start": "2024-04-25",
+            "end": "2024-05-22",
+            "to": 0.4,
+            "storyPointId": "sp_zpozdeni_roste"
+          },
+          {
+            "kind": "step",
+            "start": "2024-05-22",
+            "to": 0.55,
+            "storyPointId": "sp_zpozdeni_vrchol"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Všechny tři stupně růstu pravděpodobnosti pozdní dodávky jsme posunuli o měsíc později (začátek 1. dubna, růst 25. dubna, vrchol 22. května), takže ostatní parametry zůstávají beze změny."
+  }
+}

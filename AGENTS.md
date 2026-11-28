@@ -60,10 +60,12 @@ Agents must ask first before:
 ```
 pnpm install
 pnpm dev                     # api :4000 + UI :3000
+pnpm demo                    # same, real services replaying the recorded LLM cache offline
 pnpm test:watch              # TDD loop across all workspaces
 pnpm verify:fast             # boundaries + typecheck + lint + unit tests (~30 s) — run after every change
 pnpm verify                  # format + boundaries + root lint + typecheck + lint + all tests + build — before commit / freeze
-pnpm test:e2e                # Playwright smoke (needs `pnpm --filter @s2d/frontend exec playwright install chromium`)
+pnpm test:e2e                # Playwright: landing + full flow on fake services (own ports 4310/3310)
+pnpm e2e:live --api <url>    # live harness over a running API, every workflow phase per prompt -> out/live-e2e/ (paid unless LLM_OFFLINE=1)
 pnpm evals                   # LLM agent evals (offline from .cache/llm; EVAL_LIVE=1 records)
 pnpm gen scenarios/supplier_delay.json --seed 42
 pnpm cascade "<story>" "<company>"

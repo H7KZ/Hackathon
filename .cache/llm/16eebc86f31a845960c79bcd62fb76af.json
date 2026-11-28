@@ -1,0 +1,11 @@
+{
+  "key": "16eebc86f31a845960c79bcd62fb76af",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT s.date, sum(CASE WHEN d.router_model_id IN ('RMO-001','RMO-002') AND s.firmware_version='nový' THEN 1 ELSE 0 END) AS new_fw_001_002, sum(CASE WHEN NOT (d.router_model_id IN ('RMO-001','RMO-002') AND s.firmware_version='nový') THEN 1 ELSE 0 END) AS other, avg(s.wait_minutes) AS w FROM support_call s JOIN device d ON d.id=s.device_id WHERE s.date BETWEEN '2025-02-28' AND '2025-03-22' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

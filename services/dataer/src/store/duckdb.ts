@@ -42,11 +42,16 @@ export async function openStore(path: string, opts: { readOnly?: boolean } = {})
   return open(path, opts.readOnly ? { access_mode: "READ_ONLY" } : {});
 }
 
-/** Read-only, no file/network access, configuration locked. Use for evidence and the detective. */
+/**
+ * Read-only, no file/network access, configuration locked. Use for evidence and the detective.
+ * Single-threaded: LLM SQL often has GROUP BY / string_agg without ORDER BY, whose row order varies with
+ * threads; the detective's next prompt contains those rows, so a varying order broke the offline replay.
+ */
 export function openSandbox(path: string): Promise<Store> {
   return open(path, {
     access_mode: "READ_ONLY",
     enable_external_access: "false",
+    threads: "1",
     lock_configuration: "true",
   });
 }
@@ -121,7 +126,18 @@ export async function writeRun(path: string, run: RunResult): Promise<void> {
       {
         name: "story_points",
         visibility: "ground_truth",
-        columns: ["id", "phase", "title", "description", "entity_name", "entity_ids", "start", "end"],
+        columns: [
+          "id",
+          "phase",
+          "title",
+          "description",
+          "entity_name",
+          "entity_ids",
+          "segment_field",
+          "segment_values",
+          "start",
+          "end",
+        ],
         rows: run.storyPoints.map((sp) => ({
           id: sp.id,
           phase: sp.phase,
@@ -129,6 +145,9 @@ export async function writeRun(path: string, run: RunResult): Promise<void> {
           description: sp.description,
           entity_name: sp.entity?.name ?? null,
           entity_ids: sp.entity?.ids.join(",") ?? null,
+          segment_field: sp.segment?.field ?? null,
+          // JSON: category values may contain commas
+          segment_values: sp.segment ? JSON.stringify(sp.segment.values) : null,
           start: sp.start,
           end: sp.end ?? null,
         })),

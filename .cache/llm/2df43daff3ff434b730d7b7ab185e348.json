@@ -1,0 +1,81 @@
+{
+  "key": "2df43daff3ff434b730d7b7ab185e348",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Gastronomie – kavárny s vlastní pražírnou (HoReCa / maloobchod s kávou)",
+    "size": "4 kavárny v Brně, vlastní pražírna, cca 28 zaměstnanců (baristé, pražiči, vedoucí provozoven, administrativa)",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "Importér zelené kávy Brazil Direct s.r.o.",
+        "description": "Dodává zelenou kávu (arabica) z Brazílie a Etiopie; změna nákupních cen v dubnu stála za zdražením nápojů o 15 %."
+      },
+      {
+        "kind": "supplier",
+        "name": "Mlékárna Hanácká",
+        "description": "Regionální dodavatel čerstvého mléka a rostlinných alternativ pro kavárny."
+      },
+      {
+        "kind": "supplier",
+        "name": "Pekařství U Zlatého klasu",
+        "description": "Denně dodává pečivo, croissanty a dezerty, které zákazníci přidávají k nákupu kávy."
+      },
+      {
+        "kind": "customer",
+        "name": "Ranní spěchající zákazníci",
+        "description": "Pracující lidé na cestě do práce, kupují především espresso a kávu s sebou; citliví na cenu a rychlost obsluhy."
+      },
+      {
+        "kind": "customer",
+        "name": "Studenti a freelanceři",
+        "description": "Zákazníci trávící delší čas v kavárně, v průběhu dne si objednávají více položek."
+      },
+      {
+        "kind": "customer",
+        "name": "Stálí zákazníci s věrnostní kartou",
+        "description": "Pravidelní hosté, kteří využívají věrnostní program a kupují i zrnkovou kávu z pražírny."
+      },
+      {
+        "kind": "customer",
+        "name": "Firemní odběratelé zrnkové kávy",
+        "description": "Brněnské kanceláře odebírající pravidelně pražená zrna z vlastní pražírny."
+      },
+      {
+        "kind": "competitor",
+        "name": "Řetězcová kavárna Coffee Corner",
+        "description": "Řetězec s nižšími cenami a rychlou obsluhou, k němuž mohou odcházet cenově citliví ranní zákazníci."
+      },
+      {
+        "kind": "competitor",
+        "name": "Specialty kavárna Zrnko Brno",
+        "description": "Nezávislá kavárna se srovnatelnou kvalitou a cenovou hladinou."
+      },
+      {
+        "kind": "employee",
+        "name": "Baristé a obsluha",
+        "description": "Připravují nápoje a doporučují doplňkové zboží (dezerty, větší velikosti), čímž ovlivňují průměrnou útratu."
+      },
+      {
+        "kind": "employee",
+        "name": "Pražiči a vedoucí provozu",
+        "description": "Zajišťují pražení, plánování zásob a řízení směn v jednotlivých kavárnách."
+      },
+      {
+        "kind": "partner",
+        "name": "Platební a objednávkový systém",
+        "description": "Poskytovatel pokladního systému, který eviduje každý nákup, položky a platbu."
+      }
+    ],
+    "keyProcesses": [
+      "Nákup zelené kávy od dodavatelů a řízení zásob surovin",
+      "Pražení kávy ve vlastní pražírně a distribuce zrn do čtyř kaváren",
+      "Změna ceníku od dubna: zdražení kávy o 15 % jako změna parametru ceny",
+      "Ranní prodej nápojů: pravděpodobnost návštěvy ranního zákazníka klesá s růstem ceny",
+      "Zpracování nákupu v pokladně: účtenka s položkami navázaná na provozovnu, zaměstnance a zákazníka",
+      "Cross-sell a upsell: pravděpodobnost přidání dezertu nebo větší velikosti nápoje během nákupu",
+      "Věrnostní program a prodej zrnkové kávy stálým zákazníkům",
+      "Plánování směn a obsazení kaváren podle poptávky"
+    ]
+  }
+}

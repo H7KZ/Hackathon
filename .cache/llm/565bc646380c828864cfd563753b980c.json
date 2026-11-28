@@ -1,0 +1,161 @@
+{
+  "key": "565bc646380c828864cfd563753b980c",
+  "model": "openai:gpt-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "update_attempt.rate",
+        "to": "cpe_update_attempt",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší tempo push aktualizací vytváří více pokusů o update v daný den."
+      },
+      {
+        "from": "cpe_update_attempt",
+        "to": "cpe_issue",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Více pokusů o update při dané chybovosti vede k více incidentům po aktualizaci."
+      },
+      {
+        "from": "cpe_issue",
+        "to": "cpe_issue.severity",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 0,
+        "rationale": "Vznik incidentu generuje záznam se svou (často vyšší) závažností."
+      },
+      {
+        "from": "cpe_issue.severity",
+        "to": "support_call_from_issue.p",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Závažnější potíže zvyšují pravděpodobnost, že zákazník zavolá na podporu."
+      },
+      {
+        "from": "cpe_issue",
+        "to": "support_call",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 1,
+        "rationale": "Část postižených zákazníků volá během 0–2 dnů po výskytu problému."
+      },
+      {
+        "from": "cpe_issue",
+        "to": "ivr_check.cond",
+        "direction": "negative",
+        "weight": 0.4,
+        "delayDays": 0,
+        "rationale": "Neznámé symptomy po update snižují míru samoobsluhy IVR (nižší deflection)."
+      },
+      {
+        "from": "support_call",
+        "to": "l1_queue",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Každý příchozí hovor nejprve zvětší frontu L1."
+      },
+      {
+        "from": "ivr_check.cond",
+        "to": "ivr_resolution",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší pravděpodobnost deflectionu vede k více vyřešeným interakcím v IVR."
+      },
+      {
+        "from": "ivr_resolution",
+        "to": "l1_queue",
+        "direction": "negative",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyřešení v IVR okamžitě odečítá hovor z fronty."
+      },
+      {
+        "from": "ivr_check.cond",
+        "to": "queued_call",
+        "direction": "negative",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Čím vyšší deflection v IVR, tím méně hovorů pokračuje do fronty k agentům."
+      },
+      {
+        "from": "l1_queue",
+        "to": "overflow_check.cond",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Vysoká fronta častěji překročí práh a aktivuje overflow logiku."
+      },
+      {
+        "from": "overflow_check.cond",
+        "to": "overflow_call",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Splnění podmínky spouští předání hovoru na partnerské centrum."
+      },
+      {
+        "from": "overflow_call",
+        "to": "l1_queue",
+        "direction": "negative",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Předané hovory snižují zatížení vlastní fronty."
+      },
+      {
+        "from": "cpe_issue",
+        "to": "agent_slot.rate",
+        "direction": "negative",
+        "weight": 0.5,
+        "delayDays": 1,
+        "rationale": "Složitější případy po update prodlužují AHT a snižují servisní tempo agentů."
+      },
+      {
+        "from": "agent_slot.rate",
+        "to": "agent_slot",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší míra generuje více dostupných servisních slotů od agentů."
+      },
+      {
+        "from": "l1_queue",
+        "to": "serve_or_idle.cond",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Je‑li ve frontě alespoň jeden hovor, slot bude použit k obsluze."
+      },
+      {
+        "from": "agent_slot",
+        "to": "handled_call",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Dostupný slot obvykle vede k odbavení hovoru (pokud je ve frontě)."
+      },
+      {
+        "from": "handled_call",
+        "to": "l1_queue",
+        "direction": "negative",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Obsloužené hovory okamžitě snižují stav fronty."
+      },
+      {
+        "from": "l1_queue",
+        "to": "queue_snapshot",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Snapshot je pozorování aktuální velikosti fronty v daný den."
+      }
+    ]
+  }
+}

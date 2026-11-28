@@ -1,0 +1,84 @@
+{
+  "key": "e63e5acfe9b13bc2e7918323f37661f1",
+  "model": "openai:gpt-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Maloobchod se spotřební elektronikou (notebooky, mobilní telefony, TV, příslušenství, malé spotřebiče)",
+    "size": "5 prodejen, 40 zaměstnanců, 1 centrální sklad",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "TechMaster Distribution a.s.",
+        "description": "Hlavní distributor notebooků pro síť; od března se očekává prodloužení dodacích lhůt a častější částečné dodávky kvůli omezením u výrobců a v logistice."
+      },
+      {
+        "kind": "supplier",
+        "name": "Electra Wholesale s.r.o.",
+        "description": "Doplňkový dodavatel TV, audio a příslušenství; stabilní dostupnost a standardní SLA."
+      },
+      {
+        "kind": "partner",
+        "name": "FastShip Logistics s.r.o.",
+        "description": "3PL dopravce pro přepravu z centrálního skladu do prodejen; termíny závisí na prioritizaci zásilek (zejména notebooky)."
+      },
+      {
+        "kind": "customer",
+        "name": "Domácnosti a studenti",
+        "description": "Často hledají konkrétní model notebooku v akci; při nedostupnosti mají tendenci odcházet bez nákupu."
+      },
+      {
+        "kind": "customer",
+        "name": "Malé a střední firmy (SOHO)",
+        "description": "Kupují 2–5 kusů; častěji akceptují rezervaci/backorder, ale vyžadují spolehlivé termíny dodání."
+      },
+      {
+        "kind": "competitor",
+        "name": "Alza.cz",
+        "description": "Silný e‑shop i retail s širokým skladem a rychlým doručením; snadno přetahuje poptávku při nedostupnosti u konkurence."
+      },
+      {
+        "kind": "competitor",
+        "name": "Datart",
+        "description": "Síť prodejen a e‑shop; pružné přesuny zásob mezi pobočkami a aktivní promo akce v noteboocích."
+      },
+      {
+        "kind": "employee",
+        "name": "Tým nákupu a plánování zásob",
+        "description": "Forecast poptávky, objednávky k dodavatelům, správa SLA a alokace notebooků dle priorit prodejen."
+      },
+      {
+        "kind": "employee",
+        "name": "Vedoucí prodejen a prodejci",
+        "description": "Evidují nedostupnost a ztracené prodeje, nabízejí alternativy a příslušenství, zadávají rezervace."
+      },
+      {
+        "kind": "employee",
+        "name": "Zákaznická podpora",
+        "description": "Přijímá a kategorizuje stížnosti na nedostupnost, informuje o termínech dodání a stavu rezervací."
+      },
+      {
+        "kind": "partner",
+        "name": "NB Care s.r.o. (autorizovaný servis)",
+        "description": "Zajišťuje záruční opravy a DOA výměny; koordinace s distributorem při výpadcích modelů."
+      },
+      {
+        "kind": "other",
+        "name": "OEM výrobci notebooků (HP, Lenovo, Acer)",
+        "description": "Alokační plány a výrobní kapacity ovlivňují objemy pro distributory; marketingové pobídky směrují poptávku."
+      }
+    ],
+    "keyProcesses": [
+      "Plánování poptávky a zásob notebooků podle sezónnosti a kampaní",
+      "Nákup a objednávky k distributorům včetně správy SLA a dodacích lhůt",
+      "Příjem zboží v centrálním skladu a alokace na jednotlivé prodejny",
+      "Monitoring dostupnosti a OOS alerty na úrovni prodejny a SKU",
+      "Rezervace, backorder a komunikace termínů dodání se zákazníky",
+      "Prodej na prodejnách včetně nabídky alternativních modelů a příslušenství",
+      "Evidence neuskutečněných nákupů z důvodu nedostupnosti",
+      "Vyřizování stížností na nedostupnost a eskalace k nákupu/dodavateli",
+      "Přesuny zásob mezi prodejnami a přeplánování priorit dodávek",
+      "Cenotvorba a promo akce ovlivňující poptávku po notebookách",
+      "Reportování KPI dostupnosti a spolupráce s dodavatelem na nápravných opatřeních"
+    ]
+  }
+}

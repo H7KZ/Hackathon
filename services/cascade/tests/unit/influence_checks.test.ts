@@ -52,6 +52,28 @@ describe("curves only on roots of the map", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toMatch(/complaint_oos.*lost_sale/s);
   });
+
+  it("the message names the root parameters the curve can move to (live run 3: podpora deadlock)", () => {
+    const onDownstream = JSON.parse(
+      JSON.stringify(base).replace('"p":0.25', '"p":{"curve":"late_prob"}'),
+    ) as typeof base;
+    const roots = influences.edges
+      .map((e) => e.from)
+      .filter((f) => !influences.edges.some((e) => e.to === f));
+    const message = checkCurvesOnRoots(onDownstream, influences)[0]?.message ?? "";
+    expect(message).toMatch(/move the curve to a root parameter upstream/);
+    expect(roots.some((r) => message.includes(r))).toBe(true);
+  });
+
+  it("a flat curve (no segments) on a downstream param is only a constant, not a story lever", () => {
+    const flat = JSON.parse(
+      JSON.stringify({
+        ...base,
+        curves: [...base.curves, { id: "complaint_prob", baseline: 0.25, segments: [] }],
+      }).replace('"p":0.25', '"p":{"curve":"complaint_prob"}'),
+    ) as typeof base;
+    expect(checkCurvesOnRoots(flat, influences)).toEqual([]);
+  });
 });
 
 describe("in the cascade", () => {
@@ -78,9 +100,15 @@ describe("in the cascade", () => {
   });
 
   it("A5 driving a downstream param with a curve is sent back", async () => {
-    const onDownstream = JSON.parse(
-      JSON.stringify(detail).replace('"p":0.25', '"p":{"curve":"late_prob"}'),
-    ) as typeof detail;
+    // the curve sits on a field of complaint_oos (after the field its scope reads), which 03_influences explains
+    const onDownstream = structuredClone(detail);
+    const oos = onDownstream.processes.find((p) => p.id === "complaint_oos");
+    if (oos?.type !== "derive") throw new Error("fixture changed");
+    oos.fields = {
+      supplier_id: { gen: "lookup", entity: "product", key: "source.product_id", field: "supplier_id" },
+      ...oos.fields,
+      angry: { gen: "bernoulli", p: { curve: "late_prob" } },
+    };
     const t = setup([company, model, influences, story, onDownstream, detail]);
     cleanup = t.cleanup;
     const events: CascadeEvent[] = [];
@@ -90,6 +118,6 @@ describe("in the cascade", () => {
     );
     const loops = events.filter((e) => e.type === "loop.iteration" && e.step === "05_scenario");
     expect(loops.map((e) => e.type === "loop.iteration" && e.ok)).toEqual([false, true]);
-    expect(JSON.stringify(loops[0])).toContain("complaint_oos.p");
+    expect(JSON.stringify(loops[0])).toContain("complaint_oos.angry");
   });
 });

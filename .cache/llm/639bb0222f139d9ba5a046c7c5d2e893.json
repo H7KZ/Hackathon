@@ -1,0 +1,11 @@
+{
+  "key": "639bb0222f139d9ba5a046c7c5d2e893",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('month', date) m, count(*) n, count(distinct product_id) prods, sum(order_value) val FROM order_backorder GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

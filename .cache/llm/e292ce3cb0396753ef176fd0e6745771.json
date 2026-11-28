@@ -1,0 +1,11 @@
+{
+  "key": "e292ce3cb0396753ef176fd0e6745771",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "WITH ps AS (SELECT product_id, any_value(supplier_id) sup, count(distinct supplier_id) ns FROM purchase_order WHERE category IS NOT NULL GROUP BY 1) SELECT ps.sup, ps.ns, CASE WHEN l.date < DATE '2024-03-02' THEN 'before' ELSE 'after' END per, count(*) n, count(distinct l.product_id) prods FROM lost_sale l JOIN ps ON ps.product_id=l.product_id GROUP BY 1,2,3 ORDER BY 1,3"
+    }
+  }
+}

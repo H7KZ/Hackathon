@@ -1,0 +1,42 @@
+{
+  "key": "acd6b8542b5d64994cffeb30c4a95f68",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Od 1. 3. 2024 se u všech tří dodavatelů (SUP-001, SUP-002, SUP-003) skokově zhoršila spolehlivost dodávek výhradně v kategorii notebook. Podíl pozdních dodávek vzrostl z cca 0–8 % na 60–65 % a průměrné zpoždění z 2–3 dnů na cca 10–11 dnů. Kategorie telefon a příslušenství zůstaly beze změny. Zpožděné dodávky vyčerpaly zásoby notebooků: od týdne 11. 3. prudce vzrostl počet nulových stavů zásob a průměrná zásoba klesla z cca 10 na 5,5 ks. Následkem toho vzrostly ztracené prodeje a stížnosti zákazníků na nedostupnost zboží. Zásoby se v dubnu po doplnění zase zvýšily a ztráty klesly.",
+        "findings": [
+          {
+            "claim": "Od 2024-03-01 se u notebooků u všech dodavatelů prudce zvýšila zpoždění dodávek (podíl pozdních objednávek z ~0–8 % na ~60–65 %, průměrné zpoždění z ~2–3 na ~10–11 dnů); ostatní kategorie beze změny.",
+            "entities": [
+              "notebook",
+              "SUP-001",
+              "SUP-002",
+              "SUP-003"
+            ],
+            "start": "2024-03-01",
+            "supportingSql": "SELECT category, supplier_id, CASE WHEN order_date < '2024-03-01' THEN 'before' ELSE 'after' END p, count(*) n, round(avg(is_late::int),2) late_rate, round(avg(delay_days),1) avg_delay FROM purchase_order GROUP BY 1,2,3 ORDER BY 1,2,3"
+          },
+          {
+            "claim": "Zásoby notebooků se kvůli zpožděným dodávkám vyčerpaly: od týdne 2024-03-11 prudce vzrostl počet nulových stavů zásob (36 a 61 řádků týdně oproti 2–4) a průměrná zásoba klesla na ~5,5 ks.",
+            "entities": [
+              "notebook"
+            ],
+            "start": "2024-03-11",
+            "supportingSql": "SELECT date_trunc('week', s.date) w, round(avg(s.value),2) avg_stock, sum((s.value=0)::int) zero_stock_rows FROM stock_snapshot s JOIN product p ON p.id=s.product_id WHERE p.category='notebook' GROUP BY 1 ORDER BY 1"
+          },
+          {
+            "claim": "Od března vzrostly ztracené prodeje notebooků (z jednotek týdně na 31–32 týdně v týdnech od 2024-03-11) i stížnosti zákazníků na nedostupnost zboží (až 13 týdně).",
+            "entities": [
+              "notebook"
+            ],
+            "start": "2024-03-04",
+            "supportingSql": "SELECT date_trunc('week', l.date) w, p.category, count(*) n FROM lost_sale l JOIN product p ON p.id=l.product_id GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

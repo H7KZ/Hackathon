@@ -1,0 +1,55 @@
+{
+  "key": "f0bc776b73267d2bcc2db25bb154e135",
+  "model": "openai:gpt-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_push",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-10",
+            "to": 1.75,
+            "storyPointId": "sp1"
+          }
+        ],
+        "clamp": [
+          0,
+          100
+        ]
+      },
+      {
+        "id": "issue_prob",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-11",
+            "to": 0.075,
+            "storyPointId": "sp2"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Zmenšili jsme skoky v křivkách rollout tlaku a pravděpodobnosti potíží na polovinu, aby byl výsledný nárůst aktualizací a incidentů (a tím i hovorů) přibližně poloviční."
+  }
+}

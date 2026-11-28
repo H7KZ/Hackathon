@@ -1,0 +1,11 @@
+{
+  "key": "241254f396d65ffa7a348b72c808ce3c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT order_date, count(*) n, round(avg(is_late::int),2) late_rate, round(avg(delay_days),1) avg_delay FROM purchase_order WHERE category='notebook' AND order_date BETWEEN '2024-02-19' AND '2024-03-10' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

@@ -11,18 +11,35 @@ The cascade is implemented and wired into the API, the CLI (`pnpm cascade`) and 
 | `"v1"` (default) | A1 company → A2 model → A3 influences → A4 story → A5 detail | LLM (A4), checked by code |
 | `"causal"` | A1 → A2 → 4a causal map → 4b processes → overlay → expectations → story → scenario | code, from the map and the lever matrix; the LLM writes only SQL |
 
-Both live evals pass on `anthropic:claude-sonnet-5-5` (seed 42, ≥ 4/5 seeds, story gate). Their recordings (16 files in `.cache/llm/`) replay offline in about 11 s:
+Both evals pass on `anthropic:claude-sonnet-5-5` (seed 42, ≥ 4/5 seeds, story gate), every step on that model (run 4). Their recordings replay offline:
 
 ```bash
-LLM_OFFLINE=1 LLM_MODEL_01_COMPANY=anthropic:claude-haiku-5-5 LLM_MODEL_03_INFLUENCES=anthropic:claude-haiku-5-5 pnpm evals
+. scripts/live-env.sh; LLM_OFFLINE=1 pnpm evals
 ```
 
-Steps 01 and 03 were recorded on Haiku. The cache key includes the model, so the replay needs the same per-step models.
+The cache key includes the model, so the replay needs the same per-step models (`scripts/live-env.sh` pins them). `EVAL_LIVE=1` needs the API key in the shell (vitest does not load the env file); the same prompts also record through a running API session with the eval's company and story. `LLM_CACHE_TRACE=<file>` appends every cache key a run reads, so you can commit only the recordings a replay uses.
+
+Changed by live run 3 ([report](../runs/2026-11-28-live-e2e-3.md)):
+
+- Flat 04_story curves (no segments) are constants: not demanded by coverage, not checked as levers.
+- An unused bending curve is accepted when the story points it bends are already bent by a used curve, or follow one (outcomes emerge through the chain); the story gate still checks the effect.
+- The root-rule message names the upstream roots a curve can move to.
+- Causal map: a branch needs one positive (success) and one negative (failure) outcome edge.
+- **A5 resumes:** running the cascade again after A5 gave up continues at attempt 6, 7, … from the last rejected attempt for the same story (`05_scenario.rejected-N.feedback.json` holds the feedback and a story key). Without this, "Generovat data" again replayed the cached failures.
+- The what-if prompt leaves out `meta.id` (the session id), so a recorded what-if replays in any session.
+
+Changed by the run-3 follow-up (run 4):
+
+- A5 edits its **best** rejected attempt (stage reached, then fewest errors), sees the history of all attempts with recurring errors marked, and a failed expectation comes with the lever reach (`reach.ts`). Resume starts from the best attempt.
+- The compiler checks curve scopes on arrival `rate` and derive `p` (a `self.*` scope there never matched; marketing's campaign curve stayed at baseline).
+- Segment story points (`segment: {field, values}`) replace invented entity ids for group stories.
+- Causal: hypotheses on a branch's success outcome (sales) need 5 % (`MIN_CHANGE_DILUTED`), others 10 %.
 
 Open:
 
-- The API demo input (Elektro Novák, `docs/runs/2026-11-27-live-e2e-2.md`) is **not** replayable: its cache was recorded before #13 changed the A2–A5 prompts. Re-record it once through the API.
+- Run 4 ([report](../runs/2026-11-28-live-e2e-4.md)): all 4 v1 prompts ready on the first approve; causal passes its seed-robust gate. Its detective scored recall 0 on its own run.
 - The detective (eval gate 4) is not part of the cascade evals.
+- v1 keeps a single-seed story gate (causal checks seeds 1..5 too).
 
 ## Where it sits
 
@@ -96,7 +113,7 @@ The API calls `run` with `until: "04_story"` (draft) and then `"05_scenario"` (a
 | Loop | Attempts | Feedback |
 |---|---|---|
 | A1–A4, 4a, overlay, SQL (`withSchemaRetry`) | 3 | zod issues + step checks (`checks.ts`, `causal/*.ts`) |
-| A5 (`repairLoop`) | 5 | `compileScenario` → story checks → `verify` |
+| A5 (`repairLoop`, `keepBest`) | 5 | `compileScenario` → story checks → `verify` (+ lever reach); the agent edits its best attempt and sees the history |
 | 4b (`repairLoop`) | 3 | `compileScenario` on flat lever curves + `checkTrace` |
 | causal 05 → 4b | 2 rounds | `verify` failures go back to 4b; map, overlay, curves and SQL stay |
 | whatIf | 3 | `compileScenario` + `checkCurveCoverage` |
@@ -105,7 +122,7 @@ The API calls `run` with `until: "04_story"` (draft) and then `"05_scenario"` (a
 
 - `05_scenario` always passes `compileScenario`; with `verify: storyGate` its expectations also pass at the scenario seed.
 - `meta.seed = 42`, `meta.id` derived from the run id, `locale: "cs-CZ"`, no `scale`.
-- Expectation SQL reads only observed tables (`checkExpectationTables`); story points about an entity carry `entity.ids` (the detective's answer key).
+- Expectation SQL reads only observed tables (`checkExpectationTables`); story points about an entity carry `entity.ids`, story points about a group defined by category values (curve scope like `self.customer_segment = ["kampaň"]`) carry `segment: {field, values}` (the detective's answer key; `checkStoryRefs` demands it).
 
 ## When you change the cascade
 

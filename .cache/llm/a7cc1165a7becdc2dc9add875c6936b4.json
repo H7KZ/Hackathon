@@ -1,0 +1,161 @@
+{
+  "key": "a7cc1165a7becdc2dc9add875c6936b4",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "firmware_update.rate",
+        "to": "firmware_update",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší intenzita nasazování firmwaru znamená více aktualizovaných zařízení."
+      },
+      {
+        "from": "firmware_update.rate",
+        "to": "device_issue.firmware_version",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Rostoucí podíl zařízení s novým firmwarem posouvá rozdělení verzí u hlášených problémů."
+      },
+      {
+        "from": "firmware_update.rate",
+        "to": "device_issue.rate",
+        "direction": "positive",
+        "weight": 0.75,
+        "delayDays": 1,
+        "rationale": "Po aktualizaci vzniká více technických problémů (ztráta Wi-Fi, restarty, špatná konfigurace)."
+      },
+      {
+        "from": "device_issue.rate",
+        "to": "device_issue",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší míra poruch generuje více záznamů o problémech."
+      },
+      {
+        "from": "device_issue",
+        "to": "support_call",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 1,
+        "rationale": "Každý problém zákazníka může vést k hovoru na podporu s krátkou prodlevou."
+      },
+      {
+        "from": "device_issue.firmware_version",
+        "to": "support_call.p",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 0,
+        "rationale": "Problémy po aktualizaci jsou pro zákazníky viditelnější, a proto volají častěji."
+      },
+      {
+        "from": "support_call.p",
+        "to": "support_call",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Vyšší pravděpodobnost volání zvyšuje počet hovorů na podporu."
+      },
+      {
+        "from": "support_call",
+        "to": "agent_backlog",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Každý příchozí hovor zvyšuje frontu nevyřízených hovorů agenta."
+      },
+      {
+        "from": "agent_backlog",
+        "to": "support_call.wait_minutes",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Při backlogu nad prahem se doba čekání výrazně prodlužuje."
+      },
+      {
+        "from": "support_call",
+        "to": "call_resolution",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 1,
+        "rationale": "Každý hovor je následně vyřešen na dálku nebo eskalován."
+      },
+      {
+        "from": "device_issue.firmware_version",
+        "to": "call_resolution.cond",
+        "direction": "negative",
+        "weight": 0.3,
+        "delayDays": 0,
+        "rationale": "Problémy způsobené novým firmwarem se hůře řeší na dálku."
+      },
+      {
+        "from": "call_resolution.cond",
+        "to": "escalation",
+        "direction": "negative",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Nižší úspěšnost vzdáleného řešení znamená více eskalací."
+      },
+      {
+        "from": "call_resolution",
+        "to": "agent_backlog",
+        "direction": "negative",
+        "weight": 0.5,
+        "delayDays": 1,
+        "rationale": "Vyřízení nebo eskalace hovoru snižuje frontu agenta."
+      },
+      {
+        "from": "escalation",
+        "to": "technician_visit",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 3,
+        "rationale": "Část eskalací vede k výjezdu technika."
+      },
+      {
+        "from": "escalation",
+        "to": "compensation",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 6,
+        "rationale": "Neřešené výpadky vedou ke kompenzacím zákazníkům."
+      },
+      {
+        "from": "call_resolution.cond",
+        "to": "repeat_call",
+        "direction": "positive",
+        "weight": 0.3,
+        "delayDays": 2,
+        "rationale": "Vzdáleně vyřešené případy mohou vést k opakovanému hovoru."
+      },
+      {
+        "from": "support_call.wait_minutes",
+        "to": "customer_churn.p",
+        "direction": "positive",
+        "weight": 0.3,
+        "delayDays": 14,
+        "rationale": "Dlouhé čekání zvyšuje nespokojenost a pravděpodobnost odchodu."
+      },
+      {
+        "from": "customer_churn.p",
+        "to": "customer_churn",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Vyšší pravděpodobnost odchodu zvyšuje počet odchodů zákazníků."
+      },
+      {
+        "from": "compensation",
+        "to": "customer_churn",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 15,
+        "rationale": "Zákazníci s kompenzací po výpadku často odcházejí."
+      }
+    ]
+  }
+}

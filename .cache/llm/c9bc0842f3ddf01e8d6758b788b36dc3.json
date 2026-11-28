@@ -1,0 +1,11 @@
+{
+  "key": "c9bc0842f3ddf01e8d6758b788b36dc3",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT product_id, count(*) n, min(date) first_d, max(date) last_d FROM lost_sale WHERE date>='2025-03-01' AND date<'2025-05-01' GROUP BY 1 ORDER BY n DESC LIMIT 30"
+    }
+  }
+}

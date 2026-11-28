@@ -1,0 +1,123 @@
+{
+  "key": "41539522bea7dbfa83d80c8fc08805be",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_late_deliveries",
+        "phase": 1,
+        "title": "Dodavatel notebooků začíná zpožďovat dodávky",
+        "description": "Od března se výrazně zvyšuje pravděpodobnost, že dodávka notebooků dorazí se zpožděním 7–25 dnů. Ostatní parametry procesu zůstávají beze změny.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001",
+            "SUP-002",
+            "SUP-003"
+          ]
+        },
+        "start": "2024-03-01"
+      },
+      {
+        "id": "sp_stockouts",
+        "phase": 2,
+        "title": "Prodejnám dochází notebooky",
+        "description": "Pozdní dodávky nedoplňují zásoby, notebooky se na prodejnách vyprodají a zákazníci odcházejí bez nákupu.",
+        "start": "2024-03-15"
+      },
+      {
+        "id": "sp_complaints",
+        "phase": 3,
+        "title": "Přibývá stížností na nedostupnost",
+        "description": "Při stejné pravděpodobnosti stížnosti vzniká víc stížností, protože přibývá ztracených prodejů notebooků.",
+        "start": "2024-03-20"
+      }
+    ],
+    "curves": [
+      {
+        "id": "notebook_late_prob",
+        "baseline": 0.05,
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "to": 0.6,
+            "storyPointId": "sp_late_deliveries"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "notebook_short_prob",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_notebook_lost_sales_up",
+        "storyPointId": "sp_stockouts",
+        "description": "Počet ztracených prodejů notebooků za den vzroste po začátku zpoždění dodávek.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale WHERE CAST(date AS DATE) < DATE '2024-03-01' OR CAST(date AS DATE) >= DATE '2024-03-15'), c AS (SELECT CAST(l.date AS DATE) AS d, COUNT(*) AS n FROM main.lost_sale l JOIN main.product p ON p.id = l.product_id WHERE p.category = 'notebook' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(COALESCE(c.n, 0)) AS DOUBLE) AS value FROM days LEFT JOIN c ON c.d = days.d GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_notebook_complaints_up",
+        "storyPointId": "sp_complaints",
+        "description": "Počet stížností na nedostupnost notebooků za den vzroste.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale WHERE CAST(date AS DATE) < DATE '2024-03-01' OR CAST(date AS DATE) >= DATE '2024-03-20'), c AS (SELECT CAST(k.date AS DATE) AS d, COUNT(*) AS n FROM main.complaint k JOIN main.product p ON p.id = k.product_id WHERE p.category = 'notebook' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(COALESCE(c.n, 0)) AS DOUBLE) AS value FROM days LEFT JOIN c ON c.d = days.d GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_notebook_sales_down",
+        "storyPointId": "sp_stockouts",
+        "description": "Počet prodaných notebooků za den klesne, protože není zboží na skladě.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale WHERE CAST(date AS DATE) < DATE '2024-03-01' OR CAST(date AS DATE) >= DATE '2024-03-15'), c AS (SELECT CAST(s.date AS DATE) AS d, COUNT(*) AS n FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.category = 'notebook' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(COALESCE(c.n, 0)) AS DOUBLE) AS value FROM days LEFT JOIN c ON c.d = days.d GROUP BY 1",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.05
+        }
+      },
+      {
+        "id": "exp_other_sales_stable",
+        "storyPointId": "sp_stockouts",
+        "description": "Kontrola: prodeje ostatních produktů než notebooků za den zůstávají stabilní.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale WHERE CAST(date AS DATE) < DATE '2024-03-01' OR CAST(date AS DATE) >= DATE '2024-03-15'), c AS (SELECT CAST(s.date AS DATE) AS d, COUNT(*) AS n FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.category <> 'notebook' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(COALESCE(c.n, 0)) AS DOUBLE) AS value FROM days LEFT JOIN c ON c.d = days.d GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.15
+        }
+      },
+      {
+        "id": "exp_demand_stable",
+        "storyPointId": "sp_late_deliveries",
+        "description": "Kontrola: celková poptávka (prodeje plus ztracené prodeje všech produktů) za den zůstává stabilní.",
+        "sql": "WITH allrows AS (SELECT CAST(date AS DATE) AS d FROM main.sale UNION ALL SELECT CAST(date AS DATE) AS d FROM main.lost_sale), per_day AS (SELECT d, COUNT(*) AS n FROM allrows WHERE d < DATE '2024-03-01' OR d >= DATE '2024-03-15' GROUP BY d) SELECT CASE WHEN d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(n) AS DOUBLE) AS value FROM per_day GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.15
+        }
+      }
+    ]
+  }
+}

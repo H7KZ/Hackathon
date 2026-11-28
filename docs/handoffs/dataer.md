@@ -6,10 +6,10 @@ Shared rules and the API overview: [README.md](README.md). Contract: SPEC §3.D�
 
 Everything that happens **after** the engine (storage, proof in the data, comparing two runs, the blind detective) is implemented and wired into the API and the cascade.
 
-Open:
+Done since the first handoff (2026-11-28):
 
-- **Table preview** for the frontend "Data" page: no port or route returns rows yet. Add `preview(dbPath, table, limit)` to `Ports["dataer"]` and `GET /sessions/:id/datasets/:d/tables/:t?limit=` in `services/api/src/routes/sessions.ts`. Agree the shape with the frontend team.
-- **CLI:** `pnpm evidence`, `pnpm detective` and `pnpm compare` print "not implemented yet" and exit 2. Only `pnpm gen` (store + evidence) works.
+- **Table preview:** `listTables(db)` / `previewTable(db, table, limit)` (`src/preview/tables.ts`), port `tables` / `preview`, routes `GET …/datasets/:d/tables` and `…/tables/:t?limit=` (1–200 rows, ordered by `id`, BIGINT as number). The UI uses them for the dataset totals and the Tabulky tab.
+- **CLI:** `pnpm evidence <db> [--scenario f]`, `pnpm compare <a> <b>`, `pnpm detective <db>` work (`services/api/src/cli/inspect.ts`).
 
 ## Where it sits
 
@@ -93,7 +93,7 @@ The API validates `evidence` and `detective` results with zod before saving them
 | `GET /sessions/:id/datasets/:d/compare/:other` | `{ diff: MetricDiff[] }`, each `{ metric, a, b, delta, relChange }`; `a` is `:other` (the baseline), `b` is `:d` |
 | `GET /sessions/:id/datasets/:d/detective` | `{ result: null }` until a `detect` has finished, then `{ result: { report, score } }` |
 
-`DatasetEvidence` and `DetectiveResult` are exported as types from `@s2d/api` (use `import type`); `ExpectationResult` and `MetricDiff` are in `@s2d/schema/evidence`. They are defined in `services/api/src/contract.draft.ts` until the schema owner approves them.
+`DatasetEvidence` and `DetectiveResult` live in `@s2d/schema/api`; `ExpectationResult` and `MetricDiff` are in `@s2d/schema/evidence`.
 
 Events on `GET /sessions/:id/events`:
 
@@ -120,7 +120,9 @@ Failures and cancel:
 
 **Compare.** `<table>.rows` and `<table>.<col>.sum` (same column rule as series) for every `main` table → `diffMetrics`.
 
-**Sandbox.** `withSandbox(dbPath, fn)` exports `main` into a unique temp dir, opens it read-only, runs `fn` and removes the copy (and its `.wal`) even when `fn` throws. Concurrent evidence and detective runs on one DB don't collide.
+**Sandbox.** `withSandbox(dbPath, fn)` exports `main` into a unique temp dir, opens it read-only, runs `fn` and removes the copy (and its `.wal`) even when `fn` throws. Concurrent evidence and detective runs on one DB don't collide. The sandbox runs DuckDB with `threads = 1`: the detective's SQL often has `GROUP BY` / `string_agg` without `ORDER BY`, and a thread-dependent row order changed the next prompt and broke the offline replay (run 4).
+
+**Scoring.** `truth.story_points` has `entity_ids` (comma list) and `segment_values` (JSON array, for group stories like customer segment "kampaň"). A finding matches a point when its `entities` contain one of the ids (exact) or one of the segment values (case, spacing and quotes ignored), it starts within ±14 days, and the point is the nearest in time among those it shares an entity with. Only points with phase ≥ 1 and an id or segment value are scored. Precision counts one finding per point, so true downstream findings lower it (a lower bound).
 
 **Detective action protocol (dataer-internal, not a contract type).** `@s2d/llm` has no tool calling, so each turn is one `llm.object()` with schema `DetectiveStep` = `{ action: { tool: "list_tables" } | { tool: "describe_table", table } | { tool: "run_sql", sql } | { tool: "report", report: DetectiveReport } }` (schemaName `detective_step`). The transcript of earlier actions and results (each capped at 4000 chars) is in the prompt, so the disk cache replays the whole investigation offline. Tool errors (SQL errors, guard rejections, unknown tables) go back to the model as data. One `log` event `SQL: …` per `run_sql`. `signal.throwIfAborted()` before every LLM call. After 15 actions without a report, one more call with schema `DetectiveReport` (schemaName `detective_report`) forces the report.
 

@@ -1,0 +1,115 @@
+{
+  "key": "6fc0487418599e1f4445865e64cccd62",
+  "model": "openai:gpt-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp1",
+        "phase": 1,
+        "title": "Zahájení rollout aktualizace pro Orion CPE-2000",
+        "description": "Nasazení nové verze firmwaru na routerech Orion CPE-2000 (Wi‑Fi 6) začíná ve vlnách.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "start": "2025-03-10",
+        "end": "2025-03-31"
+      },
+      {
+        "id": "sp2",
+        "phase": 2,
+        "title": "Po aktualizaci se objevují chyby – zákazníci častěji volají podporu",
+        "description": "Vada ve firmwaru zvyšuje pravděpodobnost potíží po aktualizaci, což vede k prudkému nárůstu hovorů a prodlužování čekání ve frontě.",
+        "entity": {
+          "name": "router_model",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "start": "2025-03-11",
+        "end": "2025-03-31"
+      }
+    ],
+    "curves": [
+      {
+        "id": "update_push",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-10",
+            "to": 2.5,
+            "storyPointId": "sp1"
+          }
+        ],
+        "clamp": [
+          0,
+          100
+        ]
+      },
+      {
+        "id": "issue_prob",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-11",
+            "to": 0.12,
+            "storyPointId": "sp2"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_calls_affected",
+        "storyPointId": "sp2",
+        "description": "Denní počet hovorů na podporu spojených s CPE-2000 po rollout výrazně vzroste.",
+        "sql": "WITH calls AS (\n  SELECT sc.date\n  FROM main.support_call sc\n  JOIN main.cpe_issue ci ON ci.id = sc.issue_id\n  JOIN main.cpe_update_attempt ua ON ua.id = ci.update_attempt_id\n  WHERE ua.router_model_id = 'MOD-002'\n)\nSELECT 'before' AS period, 1.0 * COUNT(*) / NULLIF(COUNT(DISTINCT date),0) AS value\nFROM calls\nWHERE date BETWEEN DATE '2025-02-24' AND DATE '2025-03-09'\nUNION ALL\nSELECT 'after' AS period, 1.0 * COUNT(*) / NULLIF(COUNT(DISTINCT date),0) AS value\nFROM calls\nWHERE date BETWEEN DATE '2025-03-11' AND DATE '2025-03-24';",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_queue_entries_affected",
+        "storyPointId": "sp2",
+        "description": "Denní počet hovorů, které po IVR pokračují do fronty (čekání) pro CPE-2000, významně vzroste.",
+        "sql": "WITH q AS (\n  SELECT qc.date\n  FROM main.queued_call qc\n  JOIN main.support_call sc ON sc.id = qc.call_id\n  JOIN main.cpe_issue ci ON ci.id = sc.issue_id\n  JOIN main.cpe_update_attempt ua ON ua.id = ci.update_attempt_id\n  WHERE ua.router_model_id = 'MOD-002'\n)\nSELECT 'before' AS period, 1.0 * COUNT(*) / NULLIF(COUNT(DISTINCT date),0) AS value\nFROM q\nWHERE date BETWEEN DATE '2025-02-24' AND DATE '2025-03-09'\nUNION ALL\nSELECT 'after' AS period, 1.0 * COUNT(*) / NULLIF(COUNT(DISTINCT date),0) AS value\nFROM q\nWHERE date BETWEEN DATE '2025-03-11' AND DATE '2025-03-24';",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "control_calls_unaffected_model",
+        "storyPointId": "sp2",
+        "description": "Denní počet hovorů souvisejících s jiným modelem routeru (CPE-1000) zůstává stabilní – kontrola mimo zásah.",
+        "sql": "WITH calls AS (\n  SELECT sc.date\n  FROM main.support_call sc\n  JOIN main.cpe_issue ci ON ci.id = sc.issue_id\n  JOIN main.cpe_update_attempt ua ON ua.id = ci.update_attempt_id\n  WHERE ua.router_model_id = 'MOD-001'\n)\nSELECT 'before' AS period, 1.0 * COUNT(*) / NULLIF(COUNT(DISTINCT date),0) AS value\nFROM calls\nWHERE date BETWEEN DATE '2025-02-24' AND DATE '2025-03-09'\nUNION ALL\nSELECT 'after' AS period, 1.0 * COUNT(*) / NULLIF(COUNT(DISTINCT date),0) AS value\nFROM calls\nWHERE date BETWEEN DATE '2025-03-11' AND DATE '2025-03-24';",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.05
+        }
+      }
+    ]
+  }
+}

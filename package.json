@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "turbo run dev --filter=@s2d/api --filter=@s2d/frontend",
+    "demo": "node scripts/demo.mjs",
+    "e2e:live": "node scripts/live-e2e.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

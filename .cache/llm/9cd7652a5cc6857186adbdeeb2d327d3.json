@@ -1,0 +1,134 @@
+{
+  "key": "9cd7652a5cc6857186adbdeeb2d327d3",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_spring_campaign",
+        "phase": 1,
+        "title": "Jarní kampaň přivede vlnu nových zákazníků",
+        "description": "Od poloviny března do konce dubna jarní kampaň výrazně zvýší intenzitu objednávek zákazníků ze segmentu kampaň. Pravděpodobnost opakovaného nákupu zůstává nízká a stejná.",
+        "entity": {
+          "name": "customer",
+          "ids": [
+            "CUS-001",
+            "CUS-002",
+            "CUS-003",
+            "CUS-004",
+            "CUS-005"
+          ]
+        },
+        "start": "2025-03-15",
+        "end": "2025-04-30"
+      },
+      {
+        "id": "sp_campaign_end",
+        "phase": 2,
+        "title": "Doznění kampaně a návrat k běžné poptávce",
+        "description": "Po skončení kampaně intenzita objednávek kampaňových zákazníků klesá zpět na původní úroveň, protože většina nových zákazníků podruhé nenakoupí.",
+        "entity": {
+          "name": "customer",
+          "ids": [
+            "CUS-001",
+            "CUS-002",
+            "CUS-003",
+            "CUS-004",
+            "CUS-005"
+          ]
+        },
+        "start": "2025-05-01",
+        "end": "2025-05-31"
+      }
+    ],
+    "curves": [
+      {
+        "id": "order_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.customer_segment",
+          "ids": [
+            "kampaň"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "spike",
+            "start": "2025-03-15",
+            "end": "2025-04-30",
+            "to": 3,
+            "storyPointId": "sp_spring_campaign"
+          },
+          {
+            "kind": "decay",
+            "start": "2025-05-01",
+            "end": "2025-05-31",
+            "to": 1,
+            "storyPointId": "sp_campaign_end"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "late_prob",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "return_prob",
+        "baseline": 0.08,
+        "segments": []
+      },
+      {
+        "id": "retention_email_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "repeat_campaign_prob",
+        "baseline": 0.12,
+        "segments": []
+      },
+      {
+        "id": "repeat_loyal_prob",
+        "baseline": 0.35,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_campaign_buyers_up",
+        "storyPointId": "sp_spring_campaign",
+        "description": "Během jarní kampaně roste počet kampaňových kupujících za den oproti období před kampaní.",
+        "sql": "SELECT period, COUNT(*) * 1.0 / MAX(days) AS value FROM (SELECT CASE WHEN CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-03-14' THEN 'before' ELSE 'after' END AS period, CASE WHEN CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-03-14' THEN 42 ELSE 47 END AS days FROM main.campaign_buyer WHERE CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-04-30') t GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_retention_emails_up",
+        "storyPointId": "sp_spring_campaign",
+        "description": "Více prvních nákupů kampaňových zákazníků vede k vyššímu počtu odeslaných retenčních e-mailů za den.",
+        "sql": "SELECT period, COUNT(*) * 1.0 / MAX(days) AS value FROM (SELECT CASE WHEN CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-03-14' THEN 'before' ELSE 'after' END AS period, CASE WHEN CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-03-14' THEN 42 ELSE 47 END AS days FROM main.retention_email WHERE CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-04-30') t GROUP BY period",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_loyal_sales_stable",
+        "storyPointId": "sp_spring_campaign",
+        "description": "Kontrola: denní počet prodejů stálým zákazníkům se kampaní nemění.",
+        "sql": "SELECT period, COUNT(*) * 1.0 / MAX(days) AS value FROM (SELECT CASE WHEN CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-03-14' THEN 'before' ELSE 'after' END AS period, CASE WHEN CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-03-14' THEN 42 ELSE 47 END AS days FROM main.sale WHERE customer_segment = 'stálý' AND CAST(date AS DATE) BETWEEN DATE '2025-02-01' AND DATE '2025-04-30') t GROUP BY period",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.2
+        }
+      }
+    ]
+  }
+}

@@ -53,11 +53,11 @@ const run = runScenario(compiled.scenario, { seed: compiled.scenario.meta.seed }
 
 | Caller | Uses | Purpose |
 |---|---|---|
-| `api/src/adapters/noiser.ts` | `runScenario` | every dataset (`Ports["noiser"]`) |
+| `api/src/adapters/noiser.ts` | `runScenarioInWorker` | every dataset (`Ports["noiser"]`, async) |
 | `api/src/orchestrator.ts` | `compileScenario` | before each run, and to validate `05_scenario` edits and `edit_scenario` |
 | `api/src/routes/scenarios.ts` | `compileScenario` | `POST /scenarios/validate` → 200 `{ok:true}` or 422 `{ok:false, errors}` |
 | `api/src/cli/gen.ts` | `compileScenario`, `runScenario` | `pnpm gen` |
-| `cascade/src/gate.ts` | `generate` | story gate in the A5 loop |
+| `cascade/src/gate.ts` | `generateInWorker` | story gate in the A5 loop (worker thread) |
 | `cascade/src/loop.ts` | `compileScenario` | repair-loop feedback |
 | `cascade/src/cascade.ts` | `checkStoryRefs` | checks the story before A5 exists |
 
@@ -66,14 +66,14 @@ The orchestrator and the routes call `compileScenario` **directly**, not through
 ## Inside the API
 
 ```ts
-Ports["noiser"] = { run(scenario: Scenario, seed: number): RunResult } // synchronous
+Ports["noiser"] = { run(scenario: Scenario, seed: number): Promise<RunResult> } // engine in a worker thread
 ```
 
 - `approve`: the seed is `scenario.meta.seed`.
 - `what_if` / `edit_scenario`: the new dataset reuses the **parent's** seed, so the comparison shows only the effect of the change.
 - The API passes no `scale`, so `meta.scale ?? 1` applies.
 - The result goes straight to `dataer.store`. The scenario is saved as `runs/<sessionId>/datasets/dN/scenario.json`.
-- The run blocks the Node event loop (about 150 ms for `supplier_delay`). If it gets much slower, make the port async and run it in a worker, following the README's port-change rule.
+- The run happens in a `worker_threads` worker (`runScenarioInWorker`, `services/noiser/src/worker/`): one lazily started, unref'd worker that registers the tsx hook and runs `generate` from source. Same tables as the in-process call (`tests/integration/worker.test.ts` checks the golden hashes). Measured on supplier_delay at scale 3 (90 820 rows): engine 1.3 s with at most 15 ms event-loop lag, `storeRun` 1.0 s with at most 69 ms. The story gate (`cascade/src/gate.ts`) uses `generateInWorker` too.
 - An `EngineError` during a job reaches the UI as an `error` event with `message` only (no `errors[]`, so the `path` is lost). The session returns to its last stable state.
 
 ## What downstream relies on
@@ -87,7 +87,7 @@ Changing any of these is a cross-service change, even if all noiser tests pass.
 | Dates as ISO `YYYY-MM-DD` strings, `ts` from `hourJitter` | DuckDB types them DATE / TIMESTAMP; daily series are built only from those |
 | `visibility: "observed"` / `"ground_truth"` | `main` vs `truth` schema; the detective and expectations see only `main`. One table name cannot be both |
 | `columns` on a table with no rows | DuckDB needs it to create the empty table |
-| `storyPoints` with `phase >= 1` and `entity.ids` | the detective's answer key; other points are not scored |
+| `storyPoints` with `phase >= 1` and `entity.ids` or `segment.values` | the detective's answer key (`truth.story_points.entity_ids`, `segment_values` as JSON); other points are not scored |
 | `meta` (`scenarioId`, `seed`, `scenarioHash`, `engineVersion`) | stored in `truth.run_meta` |
 
 Several processes may write the same table; `writeRun` concatenates them.
