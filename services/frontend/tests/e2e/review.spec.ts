@@ -17,12 +17,26 @@ for (const id of sessions) {
     const errors = watchErrors(page);
     const shot = screens(`review-${id.slice(0, 8)}`);
     await page.goto(`/chat?s=${id}&api=${encodeURIComponent(api)}`);
-    await expect(page.getByRole("region", { name: "Dataset d1" })).toBeVisible({ timeout: 60_000 });
-    await page.waitForTimeout(1500);
-    for (const region of await page.getByRole("region").all()) {
-      const name = (await region.getAttribute("aria-label")) ?? "panel";
+    // every dataset the API knows must come back from the SSE replay, with its comparison panel
+    const state = (await (await page.request.get(`${api}/sessions/${id}`)).json()) as {
+      datasets: { id: string; parent: string | null }[];
+    };
+    for (const d of state.datasets) {
+      await expect(page.getByRole("region", { name: `Dataset ${d.id}` })).toBeVisible({ timeout: 60_000 });
+      if (d.parent)
+        await expect(page.getByRole("region", { name: `Porovnání ${d.parent} ↔ ${d.id}` })).toBeVisible();
+    }
+    await page.waitForTimeout(1000);
+    // labels first: nth() locators re-resolve, and opening a tab adds regions (table cards) in between
+    const labels = await Promise.all(
+      (await page.getByRole("region").all()).map((r) => r.getAttribute("aria-label")),
+    );
+    for (const [i, label] of labels.entries()) {
+      const name = label ?? "panel";
+      const region = page
+        .getByRole("region", { name, exact: true })
+        .nth(labels.slice(0, i).filter((l) => l === label).length);
       await region.scrollIntoViewIfNeeded();
-      await region.screenshot({ path: undefined }).catch(() => undefined);
       await shot(page, name.replace(/[^\p{L}\d]+/gu, "-").toLowerCase());
       const tabs = region.getByRole("tab");
       for (const tab of await tabs.all()) {

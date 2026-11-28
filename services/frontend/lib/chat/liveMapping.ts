@@ -182,9 +182,15 @@ export function settingsFrom(config: StoryConfig | undefined, expectations: Expe
 /** Story points that change something (phase >= 1), one marker per date. */
 export function storyMarkers(story: StoryArtifact | null): Marker[] {
   const byDate = new Map<string, string[]>();
+  // where the curve actually bends: a what-if moves segments, not the story points themselves
+  const bend = new Map<string, string>();
+  for (const c of story?.curves ?? [])
+    for (const seg of c.segments)
+      if (seg.storyPointId && !bend.has(seg.storyPointId)) bend.set(seg.storyPointId, seg.start);
   for (const p of story?.storyPoints ?? []) {
     if ((p.phase ?? 1) < 1) continue;
-    byDate.set(p.start, [...(byDate.get(p.start) ?? []), p.title]);
+    const date = bend.get(p.id) ?? p.start;
+    byDate.set(date, [...(byDate.get(date) ?? []), p.title]);
   }
   return [...byDate]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -210,46 +216,54 @@ function rolling(points: Series["points"], window = 7): { day: string; value: nu
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
-/** How much a series moves after the first story point, relative to before it. */
-function movement(s: Series, cut: string | undefined): { before: number; change: number } {
+/**
+ * How much a series moves after the first story point. Damped by +1 so rare events (0.1 complaints a
+ * day before) do not outrank everything on a tiny base; sums of large values behave like a relative change.
+ */
+function movement(s: Series, cut: string | undefined): number {
   const before = mean(s.points.filter((p) => !cut || p.day < cut).map((p) => p.value));
   const after = mean(s.points.filter((p) => cut && p.day >= cut).map((p) => p.value));
-  return { before, change: before > 0 ? Math.abs(after / before - 1) : 0 };
+  return Math.abs(after - before) / (Math.abs(before) + 1);
 }
 
 /**
- * The series worth plotting: the ones that move most after the story starts, at most one per
- * table and date column, indexed to "before the story = 100" so different units share one axis.
+ * The series worth plotting: the ones that move most after the story starts, one per table, each
+ * scaled to its own maximum = 100 so counts and sums share one axis and the shape is what reads
+ * (a live run indexed to "before = 100" put rare complaints at 4 000). A `ts` column (noise
+ * hourJitter) duplicates the table's date column, so it is skipped.
  */
 export function pickSeries(series: Series[], cut: string | undefined, max = 5) {
+  const dates = series.reduce<Record<string, Set<string>>>((m, s) => {
+    (m[s.table] ??= new Set()).add(s.dateColumn);
+    return m;
+  }, {});
+  const usable = series.filter((s) => !(s.dateColumn === "ts" && (dates[s.table]?.size ?? 0) > 1));
   const multiDate = new Set(
-    Object.entries(
-      series.reduce<Record<string, Set<string>>>((m, s) => {
-        (m[s.table] ??= new Set()).add(s.dateColumn);
-        return m;
-      }, {}),
-    )
-      .filter(([, d]) => d.size > 1)
+    Object.entries(dates)
+      .filter(([, d]) => [...d].filter((c) => c !== "ts").length > 1)
       .map(([t]) => t),
   );
-  const ranked = series
-    .map((s) => ({ s, ...movement(s, cut) }))
-    .filter((x) => x.before > 0)
-    .sort((a, b) => b.change - a.change);
+  const ranked = usable
+    .map((s) => ({ s, score: movement(s, cut) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
   const seen = new Set<string>();
   const picked: typeof ranked = [];
   for (const x of ranked) {
-    const group = `${x.s.table}.${x.s.dateColumn}`;
-    if (seen.has(group)) continue;
-    seen.add(group);
+    if (seen.has(x.s.table)) continue;
+    seen.add(x.s.table);
     picked.push(x);
     if (picked.length >= max) break;
   }
-  return picked.map((x) => ({
-    key: seriesKey(x.s),
-    label: seriesLabel(x.s, multiDate.has(x.s.table)),
-    points: rolling(x.s.points).map((p) => ({ day: p.day, value: (p.value / x.before) * 100 })),
-  }));
+  return picked.map((x) => {
+    const smooth = rolling(x.s.points);
+    const top = Math.max(...smooth.map((p) => p.value)) || 1;
+    return {
+      key: seriesKey(x.s),
+      label: seriesLabel(x.s, multiDate.has(x.s.table)),
+      points: smooth.map((p) => ({ day: p.day, value: (p.value / top) * 100 })),
+    };
+  });
 }
 
 function toRows(lines: { key: string; points: { day: string; value: number }[] }[]): SeriesRow[] {
@@ -298,7 +312,7 @@ export function evidenceToView(
   return {
     datasetId,
     totals: { rows: tables?.rows ?? Number.NaN, tables: tables?.count ?? Number.NaN, days },
-    seriesTitle: "Co se v datech pohnulo · 7denní průměr, index (před příběhem = 100)",
+    seriesTitle: "Co se v datech pohnulo · 7denní průměr, každá řada vůči svému maximu (= 100)",
     series: toRows(lines),
     seriesLines: lines.map((l) => ({ key: l.key, label: l.label })),
     markers,

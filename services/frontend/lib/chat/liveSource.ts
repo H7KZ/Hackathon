@@ -213,13 +213,17 @@ export function createLiveSource(sessionId: string): ChatSource {
       story = await getJson<{ value: StoryArtifact }>(`${base}/artifacts/04_story`)
         .then((r) => r.value)
         .catch(() => null);
-    const [ev, tables] = await Promise.all([
+    const [ev, tables, own] = await Promise.all([
       getJson<DatasetEvidence>(`${base}/datasets/${datasetId}/evidence`),
       loadTables(datasetId),
+      // the dataset's own scenario: a what-if moved its curves, so its markers move too
+      getJson<{ scenario: StoryArtifact }>(`${base}/datasets/${datasetId}/scenario`)
+        .then((r) => r.scenario)
+        .catch(() => story),
     ]);
     emit({
       type: "a2ui",
-      message: datasetSurface(`dataset-${datasetId}`, evidenceToView(datasetId, ev, story, tables)),
+      message: datasetSurface(`dataset-${datasetId}`, evidenceToView(datasetId, ev, own, tables)),
     });
     emit({ type: "a2ui", message: readySurface(`ready-${datasetId}`, datasetId) });
     emit({ type: "suggest", items: LIVE_SUGGESTIONS });
@@ -235,7 +239,7 @@ export function createLiveSource(sessionId: string): ChatSource {
         type: "a2ui",
         message: compareSurface(
           `compare-${info.parent}-${datasetId}`,
-          compareToView(info.parent, datasetId, question, diff, parentEv, ev, story),
+          compareToView(info.parent, datasetId, question, diff, parentEv, ev, own),
         ),
       });
       const passed = ev.expectations.filter((e) => e.pass).length;

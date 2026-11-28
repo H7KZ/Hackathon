@@ -131,16 +131,19 @@ describe("evidence → dataset view", () => {
     ]);
   });
 
-  it("plots the series that move most, one per table, indexed to 100 before the story", () => {
+  it("plots the series that move most, one per table, flat ones left out, each scaled to its max = 100", () => {
     const lines = pickSeries(evidence.series, "2025-03-01");
-    expect(lines.map((l) => l.key)).toEqual([
-      "complaint.date.rows",
-      "sale.date.quantity.sum",
-      "store.date.rows",
-    ]);
+    expect(lines.map((l) => l.key)).toEqual(["complaint.date.rows", "sale.date.quantity.sum"]);
     expect(lines[0]?.label).toBe("complaint · počet záznamů");
-    expect(lines[0]?.points[10]?.value).toBe(100);
-    expect(lines[0]?.points.at(-1)?.value).toBe(300);
+    expect(lines[0]?.points[10]?.value).toBeCloseTo(33.3, 1);
+    expect(lines[0]?.points.at(-1)?.value).toBe(100);
+  });
+
+  it("skips the ts duplicate that hourJitter adds next to the date column", () => {
+    const withTs = [...evidence.series, series("complaint", "rows", (d) => (d < "2025-03-01" ? 2 : 6), "ts")];
+    const lines = pickSeries(withTs, "2025-03-01");
+    expect(lines.filter((l) => l.key.startsWith("complaint."))).toHaveLength(1);
+    expect(lines[0]?.label).toBe("complaint · počet záznamů");
   });
 
   it("totals and tables come from the tables endpoint; descriptions from the story", () => {
@@ -210,5 +213,21 @@ describe("datetime format", () => {
     const { formatValue } = await import("../../lib/format");
     expect(formatValue("2025-02-01 09:41:00", "datetime")).toBe("1. 2. 2025 09:41");
     expect(formatValue("2025-02-01", "datetime")).toBe("1. 2. 2025");
+  });
+});
+
+describe("markers follow the curve", () => {
+  it("a what-if that moved a segment moves its marker; points without a segment keep their date", () => {
+    const moved: StoryArtifact = {
+      ...story,
+      curves: story.curves.map((c) => ({
+        ...c,
+        segments: c.segments.map((s) => ({ ...s, start: "2025-04-01" })),
+      })),
+    };
+    expect(storyMarkers(moved)).toEqual([
+      { date: "2025-03-01", label: "Výpadky zásob" },
+      { date: "2025-04-01", label: "Dodavatel zpožďuje" },
+    ]);
   });
 });

@@ -111,6 +111,9 @@ describe("sessions REST", () => {
       query: {},
     });
     expect(missing.status).toBe(404);
+    const sc = await client.sessions[":id"].datasets[":d"].scenario.$get({ param: { id, d: "d1" } });
+    expect(sc.status).toBe(200);
+    expect(((await sc.json()) as { scenario: { meta: { seed: number } } }).scenario.meta.seed).toBe(42);
   });
 
   it("a command while busy → 409, cancel always accepted", async () => {

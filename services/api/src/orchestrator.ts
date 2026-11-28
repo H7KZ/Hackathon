@@ -54,6 +54,8 @@ export interface Orchestrator {
   evidence(sessionId: string, datasetId: string): Promise<DatasetEvidence>;
   compare(sessionId: string, a: string, b: string): Promise<MetricDiff[]>;
   detective(sessionId: string, datasetId: string): Promise<DetectiveResult | null>;
+  /** The scenario a dataset was generated from (what-if edits and approve settings applied). */
+  scenario(sessionId: string, datasetId: string): Scenario;
   /** Observed tables of a dataset (name, row count, columns). */
   tables(sessionId: string, datasetId: string): Promise<TableInfo[]>;
   /** First rows of one observed table; NotFoundError for unknown or ground-truth tables. */
@@ -356,6 +358,9 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       if (existsSync(stored)) return MetricDiff.array().parse(store.readJson(stored));
       return ports.dataer.compare(join(db.dir, "db.duckdb"), join(da.dir, "db.duckdb"));
     },
+
+    scenario: (id, datasetId) =>
+      store.readJson(join(datasetOf(id, datasetId).dir, "scenario.json")) as Scenario,
 
     async tables(id, datasetId) {
       return TableInfo.array().parse(
