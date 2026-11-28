@@ -265,11 +265,13 @@ function toRows(lines: { key: string; points: { day: string; value: number }[] }
 }
 
 const columnFormat = (type: string) =>
-  /^(DATE|TIMESTAMP)/i.test(type)
-    ? "date"
-    : /INT|DOUBLE|FLOAT|DECIMAL|REAL/i.test(type)
-      ? "number"
-      : undefined;
+  /^TIMESTAMP/i.test(type)
+    ? "datetime"
+    : /^DATE/i.test(type)
+      ? "date"
+      : /INT|DOUBLE|FLOAT|DECIMAL|REAL/i.test(type)
+        ? "number"
+        : undefined;
 
 export function tablesToView(previews: TablePreview[]): DatasetView["tables"] {
   return previews.map((t) => ({

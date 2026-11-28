@@ -204,3 +204,11 @@ describe("humanError", () => {
     expect(humanError("něco jiného")).toBe("něco jiného");
   });
 });
+
+describe("datetime format", () => {
+  it("shows the time of TIMESTAMP cells", async () => {
+    const { formatValue } = await import("../../lib/format");
+    expect(formatValue("2025-02-01 09:41:00", "datetime")).toBe("1. 2. 2025 09:41");
+    expect(formatValue("2025-02-01", "datetime")).toBe("1. 2. 2025");
+  });
+});

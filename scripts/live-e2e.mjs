@@ -166,6 +166,14 @@ async function runCase(c) {
       settings: uiSettings(story.expectations.map((e) => e.id)),
     }),
   );
+  // like pressing "Generovat data" again: A5 resumes from its last rejected attempt (attempts 6-10)
+  if (report.phases.at(-1).status === "awaiting_refinement")
+    report.phases.push(
+      await phase(id, "approve#2", {
+        type: "approve",
+        settings: uiSettings(story.expectations.map((e) => e.id)),
+      }),
+    );
   if (report.phases.at(-1).status !== "ready") return finish();
 
   const ev = (await call("GET", `/sessions/${id}/datasets/d1/evidence`)).body;
