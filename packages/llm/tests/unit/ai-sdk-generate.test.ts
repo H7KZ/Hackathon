@@ -50,6 +50,14 @@ describe("aiSdkGenerate", () => {
       providerOptions: { openai: { strictJsonSchema: false, reasoningEffort: "low" } },
     });
   });
+
+  it("sends openai a non-strict schema too (strict mode needs every field required)", async () => {
+    generateText.mockResolvedValueOnce({ output: { a: 1 } });
+    await aiSdkGenerate({ ...req, model: "openai:gpt-5-mini" });
+    expect(generateText.mock.lastCall?.[0]).toMatchObject({
+      providerOptions: { openai: { strictJsonSchema: false } },
+    });
+  });
 });
 
 describe("providerSafeSchema", () => {
@@ -63,5 +71,19 @@ describe("providerSafeSchema", () => {
     expect(js).toContain("exactly 2 items");
     expect((await s.validate?.({ clamp: [0, 1] }))?.success).toBe(true);
     expect((await s.validate?.({ clamp: [0, 1, 2] }))?.success).toBe(false);
+  });
+
+  it("rewrites oneOf (discriminated unions) as anyOf: OpenAI rejects oneOf (live run 3)", async () => {
+    const { providerSafeSchema } = await import("../../src/client");
+    const u = z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("a"), x: z.number() }),
+      z.object({ kind: z.literal("b"), y: z.string() }),
+    ]);
+    const s = providerSafeSchema(z.object({ items: z.array(u) }));
+    const js = JSON.stringify(s.jsonSchema);
+    expect(js).not.toContain("oneOf");
+    expect(js).toContain("anyOf");
+    expect((await s.validate?.({ items: [{ kind: "a", x: 1 }] }))?.success).toBe(true);
+    expect((await s.validate?.({ items: [{ kind: "a", y: "z" }] }))?.success).toBe(false);
   });
 });

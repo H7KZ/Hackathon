@@ -76,6 +76,8 @@ export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, mo
       ...(model.startsWith("groq:") && {
         providerOptions: { openai: { strictJsonSchema: false, reasoningEffort: "low" } },
       }),
+      // OpenAI strict mode needs every property required; ours has optional ones (zod validates anyway)
+      ...(model.startsWith("openai:") && { providerOptions: { openai: { strictJsonSchema: false } } }),
     });
     return result.output;
   } catch (err) {
@@ -96,7 +98,10 @@ export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, mo
  * The zod schema as JSON Schema, rewritten where providers reject valid JSON Schema. Tuples
  * (`items: [...]`, e.g. CurveDef.clamp) are refused by Anthropic structured output ("Array types must
  * be specified with a single object schema for 'items'"), so they become plain arrays with the shape
- * in the description. Validation still runs the original zod schema, so the tuple is enforced.
+ * in the description. `oneOf` (zod discriminated unions) is refused by OpenAI structured output
+ * ("'oneOf' is not permitted"); with a discriminator the branches are exclusive anyway, so it becomes
+ * `anyOf`. Validation still runs the original zod schema, so tuples and unions are enforced. The cache
+ * key is computed from the zod schema, not from this rewrite, so recordings stay valid.
  */
 export function providerSafeSchema<T>(schema: z.ZodType<T>) {
   const zs = zodSchema(schema);
@@ -109,7 +114,7 @@ function untuple(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(untuple);
   if (typeof node !== "object" || node === null) return node;
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(node)) out[k] = untuple(v);
+  for (const [k, v] of Object.entries(node)) out[k === "oneOf" ? "anyOf" : k] = untuple(v);
   const items = out.items;
   if (Array.isArray(items)) {
     const unique = [...new Map(items.map((i) => [JSON.stringify(i), i])).values()];
