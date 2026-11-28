@@ -13,6 +13,7 @@ import {
   checkCurvesOnRoots,
   checkEntityIds,
   checkExpectationTables,
+  checkLeadIn,
   checkModelShape,
 } from "./checks";
 import { formatFeedback, formatHistory, repairLoop, type RepairLoopOptions } from "./loop";
@@ -127,6 +128,8 @@ export function a5Detail(
       ...checkExpectationTables(s.expectations, s),
       // curve scopes / story point entities from 04_story must still name existing rows
       ...checkEntityIds(a.story, s.entities),
+      // a long lead-in only makes the story gate slow (user run 5813f06c: 640 days, 10 min)
+      ...checkLeadIn(s),
     ],
   });
 }

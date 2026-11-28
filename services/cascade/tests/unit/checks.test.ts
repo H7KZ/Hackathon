@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { runCascade } from "../../src/cascade";
-import { checkCurveCoverage, checkEntityIds, checkModelShape, checkStoryPlan } from "../../src/checks";
+import {
+  checkCurveCoverage,
+  checkEntityIds,
+  checkLeadIn,
+  checkModelShape,
+  checkStoryPlan,
+  MAX_LEAD_IN_DAYS,
+} from "../../src/checks";
 import type { CascadeEvent } from "../../src/events";
 import { base, company, detail, influences, model, setup, story } from "./fixtures";
 
@@ -54,6 +61,20 @@ describe("story checks", () => {
   it("a flat 04_story curve (no segments) carries no story and may stay unused (live run 3: A5 deadlock)", () => {
     const flat = { curves: [...base.curves, { id: "complaint_prob", baseline: 0.3, segments: [] }] };
     expect(checkCurveCoverage(base, flat)).toEqual([]);
+  });
+
+  it("supplier_delay's 59-day lead-in before the first story change passes", () => {
+    expect(checkLeadIn(base)).toEqual([]);
+  });
+
+  it("a lead-in longer than 120 days is sent back (user run 5813f06c: 640 days, a 10-minute story gate)", () => {
+    const long = { ...base, meta: { ...base.meta, start: "2023-06-01" } };
+    const errors = checkLeadIn(long);
+    expect(errors.map((e) => e.path)).toEqual(["meta.start"]);
+    // says what is wrong (the date and length) and what is valid (the earliest allowed start)
+    expect(errors[0]?.message).toContain("2023-06-01");
+    expect(MAX_LEAD_IN_DAYS).toBe(120);
+    expect(errors[0]?.message).toContain("2024-11-01");
   });
 });
 
