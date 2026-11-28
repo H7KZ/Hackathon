@@ -1,0 +1,11 @@
+{
+  "key": "c5f942b51706e15007a93ca5e68e0600",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT supplier_id, date_trunc('week', order_date) AS w, count(*) n, round(avg(is_late::int),2) late_rate, round(avg(delay_days),1) avg_delay, round(avg(is_short::int),2) short_rate FROM purchase_order WHERE order_date BETWEEN '2024-02-05' AND '2024-03-31' GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "key": "23581cb7ededde00ddbc91ebd3858336",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT 'complaint' t, min(date) d FROM complaint WHERE date>='2024-02-01' UNION ALL SELECT 'cancel', min(CAST(ts AS DATE)) FROM order_cancellation WHERE ts>='2024-02-01' UNION ALL SELECT 'refund', min(CAST(ts AS DATE)) FROM refund WHERE ts>='2024-02-01' UNION ALL SELECT 'backorder', min(date) FROM order_backorder WHERE date>='2024-02-01'"
+    }
+  }
+}

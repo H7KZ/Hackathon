@@ -1,0 +1,11 @@
+{
+  "key": "0f2476f27f59c9211f45f970c18fbd98",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', s.date) w, round(avg(s.value),2) avg_stock, sum((s.value=0)::int) zero_stock_rows FROM stock_snapshot s JOIN product p ON p.id=s.product_id WHERE p.category='notebook' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}

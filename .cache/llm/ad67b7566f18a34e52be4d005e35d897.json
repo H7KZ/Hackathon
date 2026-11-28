@@ -1,0 +1,48 @@
+{
+  "key": "ad67b7566f18a34e52be4d005e35d897",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "notebook_late_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.category",
+          "ids": [
+            "notebook"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "to": 0.375,
+            "storyPointId": "sp_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "notebook_short_prob",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.4,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Skok pravděpodobnosti zpoždění dodávek notebooků od března byl snížen z 0,7 na 0,375, takže nárůst oproti základní hodnotě 0,05 je poloviční, a vše ostatní zůstává beze změny."
+  }
+}

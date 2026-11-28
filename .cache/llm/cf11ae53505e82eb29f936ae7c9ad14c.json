@@ -1,0 +1,11 @@
+{
+  "key": "cf11ae53505e82eb29f936ae7c9ad14c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select w, sum(esc) esc, sum(rep) rep, sum(comp) comp, sum(churn) churn, sum(visit) visit, sum(remote) remote from (select date_trunc('week',date) w, count(*) esc, 0 rep, 0 comp, 0 churn, 0 visit, 0 remote from escalation group by all union all select date_trunc('week',date), 0, count(*), 0,0,0,0 from repeat_call group by all union all select date_trunc('week',date), 0,0,count(*),0,0,0 from compensation group by all union all select date_trunc('week',date), 0,0,0,count(*),0,0 from customer_churn group by all union all select date_trunc('week',date), 0,0,0,0,count(*),0 from technician_visit group by all union all select date_trunc('week',date), 0,0,0,0,0,count(*) from remote_resolution group by all) group by w order by w"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "key": "9590374809015a9ba16c3a4a8fdd3bd9",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Od začátku března 2024 se prudce zhoršila spolehlivost dodávek. Dodavatel SUP-002 (Jarešová a.s., profil „problémový“, drtivá většina objednávek) měl do února průměrné zpoždění 2–3 dny a podíl pozdních dodávek 6–8 %. V březnu to bylo 25 %, v dubnu 41 % a v květnu a červnu přes 53 % při zpoždění kolem 19 dnů. Plánovaná lead_days se přitom nezměnila, zhoršilo se tedy skutečné plnění. Zhoršení je plošné napříč všemi pěti prodejnami i všemi produkty, takže jde o problém na straně dodavatele, ne konkrétní prodejny nebo produktu. Podobný nárůst zpoždění vykazuje i SUP-003, i když je označen jako spolehlivý. Dopad se projevil v prodejích: počet ztracených prodejů (lost_sale) začal od týdne 2024-04-01 skokově růst, z cca 20 na 45–70 týdně. Hodnota ztracených tržeb vzrostla z 10–16 tis. na 30–40 tis. týdně. U produktů dodávaných SUP-002 se měsíční ztráty zvýšily z 38 tis. v únoru na 140 tis. v dubnu. Ztráty tedy následují se zhruba měsíčním odstupem po nárůstu zpoždění dodávek, protože zásoby se postupně vyčerpaly. V červnu ztráty částečně klesají.",
+        "findings": [
+          {
+            "claim": "Dodavatel SUP-002 (problémový) začal od 2024-03-01 dodávat s prudce rostoucím zpožděním: průměrné zpoždění z ~3 dnů (leden–únor) na ~9 dnů v březnu a ~19 dnů v květnu, podíl pozdních dodávek z 6–8 % na 55 %.",
+            "entities": [
+              "SUP-002"
+            ],
+            "start": "2024-03-01",
+            "end": "2024-06-30",
+            "supportingSql": "SELECT supplier_id, date_trunc('month', order_date) AS m, count(*) AS n, avg(delay_days) AS avg_delay, avg(CASE WHEN is_late THEN 1.0 ELSE 0 END) AS late_rate FROM purchase_order GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Také dodavatel SUP-003 vykazuje stejný nárůst zpoždění od března 2024 (podíl pozdních dodávek z ~9–11 % na ~57 %), i když je veden jako spolehlivý; jde o menší dodavatele s malým objemem objednávek.",
+            "entities": [
+              "SUP-003"
+            ],
+            "start": "2024-03-01",
+            "end": "2024-06-30",
+            "supportingSql": "SELECT supplier_id, date_trunc('month', order_date) AS m, count(*) AS n, avg(delay_days) AS avg_delay, avg(CASE WHEN is_late THEN 1.0 ELSE 0 END) AS late_rate FROM purchase_order WHERE supplier_id='SUP-003' GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Následkem zpožděných dodávek skokově vzrostly ztracené prodeje (nedostupnost zboží) od dubna 2024: z cca 20 na 45–70 případů týdně a z ~10–16 tis. na 30–40 tis. ztracených tržeb týdně. Nejvíce jsou zasaženy produkty dodávané SUP-002 (z 38 tis. v únoru na 140 tis. v dubnu).",
+            "entities": [
+              "SUP-002",
+              "SUP-003"
+            ],
+            "start": "2024-04-01",
+            "end": "2024-06-30",
+            "supportingSql": "WITH ps AS (SELECT DISTINCT product_id, supplier_id FROM purchase_order) SELECT ps.supplier_id, date_trunc('month', l.date) AS m, count(*) AS n, sum(l.quantity*l.unit_price) AS lost_value FROM lost_sale l JOIN ps USING(product_id) GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

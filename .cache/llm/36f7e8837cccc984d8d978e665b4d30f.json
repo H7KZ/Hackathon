@@ -1,0 +1,11 @@
+{
+  "key": "36f7e8837cccc984d8d978e665b4d30f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select date_trunc('week',f.date) w, f.router_model_id, count(*) n, sum(case when f.firmware_version='nový' then 1 else 0 end) nov from firmware_update f where f.date>='2025-02-24' group by all order by 1,2"
+    }
+  }
+}

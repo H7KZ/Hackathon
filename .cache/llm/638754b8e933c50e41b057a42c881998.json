@@ -1,0 +1,66 @@
+{
+  "key": "638754b8e933c50e41b057a42c881998",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "order_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.customer_segment",
+          "ids": [
+            "kampaň"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-07",
+            "to": 2,
+            "storyPointId": "sp_spring_campaign"
+          },
+          {
+            "kind": "decay",
+            "start": "2025-04-30",
+            "end": "2025-05-15",
+            "to": 1,
+            "storyPointId": "sp_campaign_fade"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "late_prob",
+        "baseline": 0.08,
+        "segments": []
+      },
+      {
+        "id": "return_prob",
+        "baseline": 0.06,
+        "segments": []
+      },
+      {
+        "id": "retention_email_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "repeat_campaign_prob",
+        "baseline": 0.12,
+        "segments": []
+      },
+      {
+        "id": "repeat_loyal_prob",
+        "baseline": 0.45,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Vrchol křivky order_rate pro segment kampaň jsem snížil ze 3 na 2, takže nárůst intenzity objednávek oproti běžné úrovni 1 je poloviční, a vše ostatní zůstává beze změny."
+  }
+}

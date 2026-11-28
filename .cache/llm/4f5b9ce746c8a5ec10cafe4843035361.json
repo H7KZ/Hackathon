@@ -1,0 +1,55 @@
+{
+  "key": "4f5b9ce746c8a5ec10cafe4843035361",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Od začátku března 2025 se výrazně změnilo chování routerů RMO-001 a RMO-002. Od 2025-03-03 se u nich prudce rozjel plošný rollout firmwaru „nový“. Týdně šlo o zhruba 70 aktualizací v týdnu od 3. 3., pak 160 až 250 týdně, zatímco dřív to bylo asi 20 týdně na model. U ostatních modelů (RMO-003 až RMO-006) zůstal počet aktualizací zhruba stejný. Podpora po tomto vlnění zaznamenala skokový nárůst hovorů, a to hlavně od zařízení RMO-001 a RMO-002. Týdenní počet hovorů vzrostl z ~400 na ~1100. Průměrná čekací doba se zvýšila z ~9 na ~23 minut a zhoršila se u všech modelů i typů problémů, tedy jde o přetížení linky. Následně vzrostly eskalace (z ~135 na ~430–490 týdně), návštěvy techniků (z ~75 na ~270), opakované hovory (z ~35 na ~100), kompenzace (z ~26 na ~85–95) a odchody zákazníků (z 0–6 na 8–11 týdně v dubnu). Příčinou je pravděpodobně problematický firmware „nový“ nasazený na RMO-001 a RMO-002.",
+        "findings": [
+          {
+            "claim": "Masivní rollout firmwaru „nový“ na routerech RMO-001 a RMO-002 začal v týdnu od 2025-03-03 (z ~20 na 70–250 aktualizací týdně), ostatní modely beze změny.",
+            "entities": [
+              "RMO-001",
+              "RMO-002"
+            ],
+            "start": "2025-03-03",
+            "supportingSql": "select date_trunc('week',date) w, router_model_id, count(*) n from firmware_update where date>='2025-02-17' group by all order by 1,2"
+          },
+          {
+            "claim": "Počet hovorů na podporu od zařízení RMO-001 a RMO-002 vzrostl z ~65 na 400+ týdně a podíl hovorů s firmwarem „nový“ prudce stoupl; ostatní modely zůstaly na ~60–80 týdně.",
+            "entities": [
+              "RMO-001",
+              "RMO-002"
+            ],
+            "start": "2025-03-03",
+            "supportingSql": "select date_trunc('week',s.date) w, d.router_model_id rm, count(*) n, sum(case when s.firmware_version='nový' then 1 else 0 end) nov from support_call s join device d on d.id=s.device_id where s.date>='2025-02-17' group by all order by 1,2"
+          },
+          {
+            "claim": "Průměrná čekací doba na podporu se zvýšila z ~9 na ~23 minut (přetížení linky), začíná v týdnu 2025-03-03 a graduje od 2025-03-10.",
+            "entities": [
+              "nový",
+              "RMO-001",
+              "RMO-002"
+            ],
+            "start": "2025-03-03",
+            "supportingSql": "select date_trunc('week',date) w, count(*) n, avg(wait_minutes) wait from support_call group by all order by 1"
+          },
+          {
+            "claim": "Následné dopady: nárůst eskalací, návštěv techniků, opakovaných hovorů, kompenzací a odchodů zákazníků (churn).",
+            "entities": [
+              "escalation",
+              "technician_visit",
+              "repeat_call",
+              "compensation",
+              "customer_churn"
+            ],
+            "start": "2025-03-10",
+            "supportingSql": "select date_trunc('week',date) w, count(*) esc from escalation group by all order by 1"
+          }
+        ]
+      }
+    }
+  }
+}

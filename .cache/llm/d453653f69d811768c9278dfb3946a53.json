@@ -1,0 +1,11 @@
+{
+  "key": "d453653f69d811768c9278dfb3946a53",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT 'cancel' t, date_trunc('month', CAST(ts AS DATE)) m, count(*) n FROM order_cancellation GROUP BY 1,2 UNION ALL SELECT 'refund', date_trunc('month', CAST(ts AS DATE)), count(*) FROM refund GROUP BY 1,2 UNION ALL SELECT 'complaint', date_trunc('month', CAST(ts AS DATE)), count(*) FROM complaint GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

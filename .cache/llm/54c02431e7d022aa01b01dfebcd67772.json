@@ -1,0 +1,125 @@
+{
+  "key": "54c02431e7d022aa01b01dfebcd67772",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_baseline",
+        "phase": 0,
+        "title": "Běžný provoz",
+        "description": "Všichni dodavatelé dodávají převážně včas, zásoby na prodejnách jsou dostatečné a poptávka zákazníků je stabilní.",
+        "start": "2024-01-01",
+        "end": "2024-02-29"
+      },
+      {
+        "id": "sp_supplier_late",
+        "phase": 1,
+        "title": "Problémový dodavatel začíná dodávat pozdě",
+        "description": "Od března výrazně roste pravděpodobnost pozdní dodávky u problémového dodavatele. Poptávka ani ostatní dodavatelé se nemění.",
+        "start": "2024-03-01",
+        "end": "2024-06-30"
+      },
+      {
+        "id": "sp_stockouts",
+        "phase": 2,
+        "title": "Výpadky zásob a neuskutečněné nákupy",
+        "description": "Pozdní dodávky odkládají naskladnění, zboží problémového dodavatele chybí, přibývá neuskutečněných nákupů a klesají tržby z jeho zboží.",
+        "start": "2024-03-15",
+        "end": "2024-06-30"
+      },
+      {
+        "id": "sp_complaints",
+        "phase": 3,
+        "title": "Více stížností zákazníků",
+        "description": "Z více neuskutečněných nákupů vzniká při stejné pravděpodobnosti více stížností na nedostupnost zboží.",
+        "start": "2024-04-01",
+        "end": "2024-06-30"
+      }
+    ],
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.05,
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "to": 0.7,
+            "storyPointId": "sp_supplier_late"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "late_prob_normal",
+        "baseline": 0.05,
+        "segments": [],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_late_share_problem",
+        "storyPointId": "sp_supplier_late",
+        "description": "Podíl pozdních objednávek u problémového dodavatele výrazně vzroste.",
+        "sql": "SELECT CASE WHEN CAST(order_date AS DATE) < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, AVG(CASE WHEN is_late THEN 1.0 ELSE 0.0 END) AS value FROM main.purchase_order WHERE supplier_profile = 'problémový' AND (CAST(order_date AS DATE) < DATE '2024-03-01' OR CAST(order_date AS DATE) >= DATE '2024-04-01') GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_lost_sales_problem",
+        "storyPointId": "sp_stockouts",
+        "description": "Počet neuskutečněných nákupů za den u zboží problémového dodavatele vzroste.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale), ls AS (SELECT CAST(l.date AS DATE) AS d, COUNT(*) AS n FROM main.lost_sale l JOIN main.product p ON p.id = l.product_id JOIN main.supplier u ON u.id = p.supplier_id WHERE u.profile = 'problémový' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, SUM(COALESCE(ls.n, 0)) * 1.0 / COUNT(*) AS value FROM days LEFT JOIN ls ON ls.d = days.d WHERE days.d < DATE '2024-03-01' OR days.d >= DATE '2024-04-01' GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_revenue_problem",
+        "storyPointId": "sp_stockouts",
+        "description": "Denní tržby ze zboží problémového dodavatele klesnou.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale), rv AS (SELECT CAST(s.date AS DATE) AS d, SUM(s.quantity * s.unit_price) AS n FROM main.sale s JOIN main.product p ON p.id = s.product_id JOIN main.supplier u ON u.id = p.supplier_id WHERE u.profile = 'problémový' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, SUM(COALESCE(rv.n, 0)) * 1.0 / COUNT(*) AS value FROM days LEFT JOIN rv ON rv.d = days.d WHERE days.d < DATE '2024-03-01' OR days.d >= DATE '2024-04-01' GROUP BY 1",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.05
+        }
+      },
+      {
+        "id": "exp_complaints_problem",
+        "storyPointId": "sp_complaints",
+        "description": "Počet stížností za den na zboží problémového dodavatele vzroste.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale), cp AS (SELECT CAST(c.date AS DATE) AS d, COUNT(*) AS n FROM main.complaint c JOIN main.supplier u ON u.id = c.supplier_id WHERE u.profile = 'problémový' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, SUM(COALESCE(cp.n, 0)) * 1.0 / COUNT(*) AS value FROM days LEFT JOIN cp ON cp.d = days.d WHERE days.d < DATE '2024-03-01' OR days.d >= DATE '2024-04-01' GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_demand_control_reliable",
+        "storyPointId": "sp_supplier_late",
+        "description": "Kontrola: celkový počet pokusů o nákup (prodeje + neuskutečněné nákupy) zboží spolehlivých dodavatelů za den zůstává stabilní, poptávka se nezměnila.",
+        "sql": "WITH days AS (SELECT DISTINCT CAST(date AS DATE) AS d FROM main.sale), att AS (SELECT CAST(x.date AS DATE) AS d, COUNT(*) AS n FROM (SELECT date, product_id FROM main.sale UNION ALL SELECT date, product_id FROM main.lost_sale) x JOIN main.product p ON p.id = x.product_id JOIN main.supplier u ON u.id = p.supplier_id WHERE u.profile = 'spolehlivý' GROUP BY 1) SELECT CASE WHEN days.d < DATE '2024-03-01' THEN 'before' ELSE 'after' END AS period, SUM(COALESCE(att.n, 0)) * 1.0 / COUNT(*) AS value FROM days LEFT JOIN att ON att.d = days.d WHERE days.d < DATE '2024-03-01' OR days.d >= DATE '2024-04-01' GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.1
+        }
+      }
+    ]
+  }
+}

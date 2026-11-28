@@ -1,0 +1,11 @@
+{
+  "key": "1831c728d5f2c0a25ee5f38f14c849e7",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT reason, CASE WHEN date < '2025-03-31' THEN 'a_pre' WHEN date < '2025-05-05' THEN 'b_peak' ELSE 'c_post' END per, count(*) n FROM return_request GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

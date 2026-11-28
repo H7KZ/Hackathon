@@ -1,0 +1,11 @@
+{
+  "key": "01004cf12abab40c7f02318239d43c42",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT strftime(date_trunc('week', date), '%Y-%m-%d') wk, customer_segment, count(*) n, sum(quantity) qty, count(distinct customer_id) custs FROM sale GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

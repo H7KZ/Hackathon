@@ -1,0 +1,70 @@
+{
+  "key": "bfb9e328f476c13df3c9cd60cfc1d812",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "supplier_delay_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "to": 0.325,
+            "storyPointId": "sp_supplier_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "supplier_delay_max_days",
+        "baseline": 10,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "to": 15,
+            "storyPointId": "sp_supplier_delays"
+          }
+        ],
+        "clamp": [
+          8,
+          30
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.4,
+        "segments": []
+      },
+      {
+        "id": "cancel_prob",
+        "baseline": 0.25,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Skok pravděpodobnosti zpoždění dodavatele SUP-001 (0,05 → 0,325) a maximální délky zpoždění (10 → 15 dní) je od března poloviční oproti původnímu nárůstu (0,05 → 0,6 a 10 → 20), takže dopad na sklad, stížnosti a storna je menší."
+  }
+}
