@@ -1,6 +1,6 @@
 # API orchestrator: design (variant A approved and implemented)
 
-**Status (2026-11-28):** fully integrated. Real adapters for every port (cascade incl. A5 + whatIf, noiser, dataer incl. compare, detective, tables/preview); the UI drives the whole flow over REST + SSE. Verified end to end with real LLM calls on five prompts: [`docs/runs/2026-11-28-live-e2e-3.md`](runs/2026-11-28-live-e2e-3.md). `API_FAKE=all` still runs the flow without LLM or DuckDB (Playwright `tests/e2e/flow.spec.ts`).
+**Status (2026-11-28):** fully integrated (run-4 follow-up: [`docs/runs/2026-11-28-live-e2e-5.md`](runs/2026-11-28-live-e2e-5.md)). Real adapters for every port (cascade incl. A5 + whatIf, noiser, dataer incl. compare, detective, tables/preview); the UI drives the whole flow over REST + SSE. Verified end to end with real LLM calls on five prompts: [`docs/runs/2026-11-28-live-e2e-3.md`](runs/2026-11-28-live-e2e-3.md). `API_FAKE=all` still runs the flow without LLM or DuckDB (Playwright `tests/e2e/flow.spec.ts`).
 
 Owner: `services/api`. Research: [`docs/research/api-orchestration.md`](research/api-orchestration.md).
 
