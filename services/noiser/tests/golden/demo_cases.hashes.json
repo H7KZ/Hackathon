@@ -1,0 +1,45 @@
+{
+  "eshop_carrier": {
+    "carrier": "dd2b40733d045726",
+    "customer": "3c6fac570a7dd8fc",
+    "experience_fade": "db3bbb666d2f27d7",
+    "lost_order": "e94c06cda7edff6b",
+    "order_attempt": "3f2310e66d087263",
+    "order_item": "5267a8404db5f507",
+    "orders": "bf7db3dec8dd2f48",
+    "product": "2085f33ce8f67e5c",
+    "return_request": "84c64b8503dabbb4",
+    "review": "b8a8bc99beb3151e",
+    "shipment": "91864d1c04138d34",
+    "support_ticket": "6e28054d840daeff"
+  },
+  "isp_firmware": {
+    "agent": "ab24dced48c21ae0",
+    "call_attempt": "ffe76946f7509fd5",
+    "call_center": "439d1713ddbacc11",
+    "contract_termination": "d9cf9f20c928c12f",
+    "credit_note": "ce5a94ad6e149e05",
+    "customer": "e2bb9a8a40b961fe",
+    "invoice": "c08f47090b5d56f7",
+    "line_check": "b8af783cf09632de",
+    "missed_call": "de68adf2e4f7f747",
+    "outage": "7c1ba49171e140fd",
+    "outage_fade": "ab7ffabbabeb2755",
+    "outage_tally": "e245f00ea86584e7",
+    "support_call": "795c6ba6ab8db1d8",
+    "technician": "0f5e0f8afa99715f",
+    "technician_visit": "86eb54d51b4eeac8"
+  },
+  "card_fraud": {
+    "attacker": "5c988267af2b6ad6",
+    "card": "a6a0bc0420e5d24d",
+    "card_block": "2443eee69bbbcfc3",
+    "card_payment": "b5697b40cd95bd95",
+    "card_test": "42a6f179eb36d419",
+    "cashout_attempt": "436ada82d62c292d",
+    "chargeback": "f7179dfd40b04bd3",
+    "client_report": "017fab07cbabaad4",
+    "customer": "0f1a6af45678e838",
+    "merchant": "d8853b86c0a5a0fa"
+  }
+}

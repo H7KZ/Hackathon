@@ -76,7 +76,7 @@ function Sidebar({ activeId, onClose }: { activeId?: string; onClose: () => void
           <Icon path={ICONS.plus} /> Nový chat
         </a>
         <a href="/chat?demo=1">
-          <Icon path={ICONS.chat} /> Ukázka s demo daty
+          <Icon path={ICONS.chat} /> Ukázky s demo daty
         </a>
       </nav>
       <p className="sb-label">Historie</p>

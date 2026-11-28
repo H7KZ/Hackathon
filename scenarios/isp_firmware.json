@@ -1,0 +1,1125 @@
+{
+  "meta": {
+    "id": "isp_firmware",
+    "name": "Aktualizace firmwaru shodí routery",
+    "company": "NetVlna s.r.o., regionální poskytovatel internetu na Vysočině. 3 200 domácností, vlastní zákaznická linka s 18 operátory a 6 servisních techniků.",
+    "story": "V polovině června nasadí NetVlna nový firmware na svůj router NetVlna Box 5G. Routery začnou padat, zákazníci volají na linku, fronta se prodlouží a část hovorů nikdo nevezme. Technici jezdí měnit routery, firma rozdává dobropisy a lidé s opakovanými výpadky odcházejí. Opravný firmware koncem července situaci zlepší, plošná výměna routerů v září ji vyřeší.",
+    "seed": 42,
+    "start": "2026-03-02",
+    "end": "2026-10-25",
+    "locale": "cs-CZ"
+  },
+  "entities": [
+    {
+      "name": "call_center",
+      "count": 1,
+      "idPrefix": "CC",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "city": {
+          "gen": "const",
+          "value": "Jihlava"
+        },
+        "operators": {
+          "gen": "const",
+          "value": 18
+        }
+      }
+    },
+    {
+      "name": "agent",
+      "count": 18,
+      "idPrefix": "AGT",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "personName"
+        },
+        "team": {
+          "gen": "categorical",
+          "values": ["1. linie", "technická podpora"],
+          "weights": [0.7, 0.3]
+        },
+        "shift": {
+          "gen": "categorical",
+          "values": ["ranní", "odpolední"]
+        }
+      }
+    },
+    {
+      "name": "technician",
+      "count": 6,
+      "idPrefix": "TEC",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "personName"
+        },
+        "base": {
+          "gen": "categorical",
+          "values": ["Jihlava", "Havlíčkův Brod", "Třebíč", "Pelhřimov"],
+          "weights": [0.4, 0.2, 0.2, 0.2]
+        }
+      }
+    },
+    {
+      "name": "customer",
+      "count": 3200,
+      "idPrefix": "CUS",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "name": {
+          "gen": "fake",
+          "kind": "personName"
+        },
+        "city": {
+          "gen": "categorical",
+          "values": [
+            "Jihlava",
+            "Havlíčkův Brod",
+            "Třebíč",
+            "Pelhřimov",
+            "Žďár nad Sázavou",
+            "Humpolec",
+            "Velké Meziříčí",
+            "Telč",
+            "Polná",
+            "Chotěboř"
+          ],
+          "weights": [0.24, 0.12, 0.14, 0.09, 0.1, 0.07, 0.07, 0.05, 0.06, 0.06]
+        },
+        "tariff": {
+          "gen": "categorical",
+          "values": ["Optik 300", "Optik 1000", "Vzduch 100", "Vzduch 50", "Kombi TV + Net"],
+          "weights": [0.34, 0.16, 0.22, 0.1, 0.18]
+        },
+        "monthly_fee": {
+          "gen": "if",
+          "cond": {
+            "kind": "fieldEq",
+            "path": "self.tariff",
+            "value": "Optik 300"
+          },
+          "then": {
+            "gen": "const",
+            "value": 549
+          },
+          "else": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.tariff",
+              "value": "Optik 1000"
+            },
+            "then": {
+              "gen": "const",
+              "value": 749
+            },
+            "else": {
+              "gen": "if",
+              "cond": {
+                "kind": "fieldEq",
+                "path": "self.tariff",
+                "value": "Vzduch 100"
+              },
+              "then": {
+                "gen": "const",
+                "value": 399
+              },
+              "else": {
+                "gen": "if",
+                "cond": {
+                  "kind": "fieldEq",
+                  "path": "self.tariff",
+                  "value": "Vzduch 50"
+                },
+                "then": {
+                  "gen": "const",
+                  "value": 329
+                },
+                "else": {
+                  "gen": "const",
+                  "value": 899
+                }
+              }
+            }
+          }
+        },
+        "router_model": {
+          "gen": "categorical",
+          "values": ["NetVlna Box 5G", "NetVlna Box Lite", "TP-Link Archer AX55", "Zyxel EX5601"],
+          "weights": [0.38, 0.24, 0.2, 0.18]
+        },
+        "contract": {
+          "gen": "categorical",
+          "values": ["na dobu neurčitou", "24 měsíců"],
+          "weights": [0.62, 0.38]
+        }
+      }
+    }
+  ],
+  "curves": [
+    {
+      "id": "outage_prob",
+      "baseline": 0.08,
+      "scope": {
+        "field": "source.router_model",
+        "ids": ["NetVlna Box 5G"]
+      },
+      "segments": [
+        {
+          "kind": "ramp",
+          "start": "2026-06-15",
+          "end": "2026-06-22",
+          "to": 0.85,
+          "storyPointId": "sp1"
+        },
+        {
+          "kind": "ramp",
+          "start": "2026-07-27",
+          "end": "2026-08-07",
+          "to": 0.3,
+          "storyPointId": "sp2"
+        },
+        {
+          "kind": "ramp",
+          "start": "2026-09-07",
+          "end": "2026-09-28",
+          "to": 0.08,
+          "storyPointId": "sp3"
+        }
+      ],
+      "clamp": [0, 1]
+    }
+  ],
+  "flows": [
+    {
+      "id": "call_load",
+      "keys": ["call_center"],
+      "initial": {
+        "gen": "const",
+        "value": 0
+      },
+      "min": 0
+    },
+    {
+      "id": "recent_outages",
+      "keys": ["customer"],
+      "initial": {
+        "gen": "const",
+        "value": 0
+      },
+      "min": 0
+    }
+  ],
+  "processes": [
+    {
+      "type": "arrival",
+      "id": "line_check",
+      "table": "line_check",
+      "per": ["customer"],
+      "rate": 0.05,
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "key.customer"
+        },
+        "router_model": {
+          "gen": "lookup",
+          "entity": "customer",
+          "key": "key.customer",
+          "field": "router_model"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "outage",
+      "source": "line_check",
+      "cond": {
+        "kind": "bernoulli",
+        "p": {
+          "curve": "outage_prob"
+        }
+      },
+      "then": {
+        "table": "outage",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "router_model": {
+            "gen": "ref",
+            "path": "source.router_model"
+          },
+          "start_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "duration_min": {
+            "gen": "normal",
+            "mean": 70,
+            "sd": 55,
+            "min": 3,
+            "max": 720,
+            "round": true
+          },
+          "error_code": {
+            "gen": "categorical",
+            "values": ["LOS", "PPP_TIMEOUT", "WAN_DOWN", "DHCP_FAIL", "REBOOT_LOOP"],
+            "weights": [0.25, 0.25, 0.2, 0.15, 0.15]
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "outage_tally",
+      "table": "outage_tally",
+      "source": "outage:then",
+      "p": 1,
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "outage_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "one": {
+          "gen": "const",
+          "value": 1
+        }
+      },
+      "effects": [
+        {
+          "flow": "recent_outages",
+          "keys": {
+            "customer": "self.customer_id"
+          },
+          "delta": "self.one",
+          "sign": 1
+        }
+      ]
+    },
+    {
+      "type": "derive",
+      "id": "outage_fade",
+      "table": "outage_fade",
+      "source": "outage:then",
+      "p": 1,
+      "lag": {
+        "min": 45,
+        "max": 60
+      },
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "outage_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "one": {
+          "gen": "const",
+          "value": 1
+        }
+      },
+      "effects": [
+        {
+          "flow": "recent_outages",
+          "keys": {
+            "customer": "self.customer_id"
+          },
+          "delta": "self.one",
+          "sign": -1
+        }
+      ]
+    },
+    {
+      "type": "derive",
+      "id": "outage_call",
+      "table": "call_attempt",
+      "source": "outage:then",
+      "p": 0.45,
+      "lag": {
+        "min": 0,
+        "max": 1
+      },
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "call_center_id": {
+          "gen": "const",
+          "value": "CC-001"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "reason": {
+          "gen": "const",
+          "value": "nefunguje internet"
+        },
+        "one": {
+          "gen": "const",
+          "value": 1
+        },
+        "hold_days": {
+          "gen": "const",
+          "value": 2
+        },
+        "release_date": {
+          "gen": "dateOffset",
+          "base": "self.date",
+          "days": "self.hold_days"
+        }
+      },
+      "effects": [
+        {
+          "flow": "call_load",
+          "keys": {
+            "call_center": "self.call_center_id"
+          },
+          "delta": "self.one",
+          "sign": 1
+        },
+        {
+          "flow": "call_load",
+          "keys": {
+            "call_center": "self.call_center_id"
+          },
+          "delta": "self.one",
+          "sign": -1,
+          "on": "self.release_date"
+        }
+      ]
+    },
+    {
+      "type": "arrival",
+      "id": "routine_call",
+      "table": "call_attempt",
+      "per": ["customer"],
+      "rate": 0.0034,
+      "visibility": "ground_truth",
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "key.customer"
+        },
+        "call_center_id": {
+          "gen": "const",
+          "value": "CC-001"
+        },
+        "date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "reason": {
+          "gen": "categorical",
+          "values": [
+            "vyúčtování",
+            "změna tarifu",
+            "pomalé připojení",
+            "stěhování",
+            "nastavení Wi-Fi",
+            "TV programy"
+          ],
+          "weights": [0.28, 0.16, 0.18, 0.08, 0.2, 0.1]
+        },
+        "one": {
+          "gen": "const",
+          "value": 1
+        },
+        "hold_days": {
+          "gen": "const",
+          "value": 2
+        },
+        "release_date": {
+          "gen": "dateOffset",
+          "base": "self.date",
+          "days": "self.hold_days"
+        }
+      },
+      "effects": [
+        {
+          "flow": "call_load",
+          "keys": {
+            "call_center": "self.call_center_id"
+          },
+          "delta": "self.one",
+          "sign": 1
+        },
+        {
+          "flow": "call_load",
+          "keys": {
+            "call_center": "self.call_center_id"
+          },
+          "delta": "self.one",
+          "sign": -1,
+          "on": "self.release_date"
+        }
+      ]
+    },
+    {
+      "type": "branch",
+      "id": "call",
+      "source": "outage_call",
+      "cond": {
+        "kind": "not",
+        "cond": {
+          "kind": "or",
+          "conds": [
+            {
+              "kind": "and",
+              "conds": [
+                {
+                  "kind": "flowGt",
+                  "flow": "call_load",
+                  "keys": {
+                    "call_center": "source.call_center_id"
+                  },
+                  "value": 45
+                },
+                {
+                  "kind": "bernoulli",
+                  "p": 0.45
+                }
+              ]
+            },
+            {
+              "kind": "bernoulli",
+              "p": 0.04
+            }
+          ]
+        }
+      },
+      "then": {
+        "table": "support_call",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "agent_id": {
+            "gen": "pick",
+            "entity": "agent"
+          },
+          "call_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "topic": {
+            "gen": "ref",
+            "path": "source.reason"
+          },
+          "wait_sec": {
+            "gen": "if",
+            "cond": {
+              "kind": "flowGt",
+              "flow": "call_load",
+              "keys": {
+                "call_center": "source.call_center_id"
+              },
+              "value": 45
+            },
+            "then": {
+              "gen": "normal",
+              "mean": 610,
+              "sd": 230,
+              "min": 60,
+              "round": true
+            },
+            "else": {
+              "gen": "normal",
+              "mean": 85,
+              "sd": 45,
+              "min": 5,
+              "round": true
+            }
+          },
+          "duration_sec": {
+            "gen": "normal",
+            "mean": 460,
+            "sd": 190,
+            "min": 40,
+            "round": true
+          },
+          "resolution": {
+            "gen": "categorical",
+            "values": [
+              "restart routeru pomohl",
+              "objednán technik",
+              "eskalováno na síťový tým",
+              "bez řešení"
+            ],
+            "weights": [0.42, 0.3, 0.16, 0.12]
+          }
+        }
+      },
+      "else": {
+        "table": "missed_call",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "call_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "wait_sec": {
+            "gen": "normal",
+            "mean": 840,
+            "sd": 260,
+            "min": 120,
+            "round": true
+          }
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "hotline",
+      "source": "routine_call",
+      "cond": {
+        "kind": "not",
+        "cond": {
+          "kind": "or",
+          "conds": [
+            {
+              "kind": "and",
+              "conds": [
+                {
+                  "kind": "flowGt",
+                  "flow": "call_load",
+                  "keys": {
+                    "call_center": "source.call_center_id"
+                  },
+                  "value": 45
+                },
+                {
+                  "kind": "bernoulli",
+                  "p": 0.45
+                }
+              ]
+            },
+            {
+              "kind": "bernoulli",
+              "p": 0.04
+            }
+          ]
+        }
+      },
+      "then": {
+        "table": "support_call",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "agent_id": {
+            "gen": "pick",
+            "entity": "agent"
+          },
+          "call_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "topic": {
+            "gen": "ref",
+            "path": "source.reason"
+          },
+          "wait_sec": {
+            "gen": "if",
+            "cond": {
+              "kind": "flowGt",
+              "flow": "call_load",
+              "keys": {
+                "call_center": "source.call_center_id"
+              },
+              "value": 45
+            },
+            "then": {
+              "gen": "normal",
+              "mean": 610,
+              "sd": 230,
+              "min": 60,
+              "round": true
+            },
+            "else": {
+              "gen": "normal",
+              "mean": 85,
+              "sd": 45,
+              "min": 5,
+              "round": true
+            }
+          },
+          "duration_sec": {
+            "gen": "normal",
+            "mean": 310,
+            "sd": 150,
+            "min": 30,
+            "round": true
+          },
+          "resolution": {
+            "gen": "categorical",
+            "values": ["vyřešeno na lince", "zasláno e-mailem", "předáno obchodnímu oddělení"],
+            "weights": [0.72, 0.18, 0.1]
+          }
+        }
+      },
+      "else": {
+        "table": "missed_call",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "call_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "wait_sec": {
+            "gen": "normal",
+            "mean": 840,
+            "sd": 260,
+            "min": 120,
+            "round": true
+          }
+        }
+      }
+    },
+    {
+      "type": "derive",
+      "id": "technician_visit",
+      "table": "technician_visit",
+      "source": "call:then",
+      "p": 0.3,
+      "lag": {
+        "min": 1,
+        "max": 4
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "source.customer_id"
+        },
+        "call_id": {
+          "gen": "ref",
+          "path": "source.id"
+        },
+        "technician_id": {
+          "gen": "pick",
+          "entity": "technician"
+        },
+        "visit_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "result": {
+          "gen": "categorical",
+          "values": ["výměna routeru", "reset do továrního nastavení", "oprava kabeláže", "bez závady"],
+          "weights": [0.38, 0.32, 0.18, 0.12]
+        },
+        "duration_min": {
+          "gen": "normal",
+          "mean": 55,
+          "sd": 20,
+          "min": 15,
+          "round": true
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "credit",
+      "source": "outage:then",
+      "lag": {
+        "min": 5,
+        "max": 25
+      },
+      "cond": {
+        "kind": "and",
+        "conds": [
+          {
+            "kind": "fieldGt",
+            "path": "source.duration_min",
+            "value": 90
+          },
+          {
+            "kind": "bernoulli",
+            "p": 0.5
+          }
+        ]
+      },
+      "then": {
+        "table": "credit_note",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "outage_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "issued_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "amount_czk": {
+            "gen": "if",
+            "cond": {
+              "kind": "bernoulli",
+              "p": 0.5
+            },
+            "then": {
+              "gen": "const",
+              "value": 45
+            },
+            "else": {
+              "gen": "if",
+              "cond": {
+                "kind": "bernoulli",
+                "p": 0.7
+              },
+              "then": {
+                "gen": "const",
+                "value": 100
+              },
+              "else": {
+                "gen": "const",
+                "value": 150
+              }
+            }
+          },
+          "reason": {
+            "gen": "const",
+            "value": "kompenzace výpadku"
+          }
+        }
+      }
+    },
+    {
+      "type": "branch",
+      "id": "termination",
+      "source": "outage:then",
+      "lag": {
+        "min": 2,
+        "max": 14
+      },
+      "cond": {
+        "kind": "and",
+        "conds": [
+          {
+            "kind": "flowGt",
+            "flow": "recent_outages",
+            "keys": {
+              "customer": "source.customer_id"
+            },
+            "value": 2
+          },
+          {
+            "kind": "bernoulli",
+            "p": 0.12
+          }
+        ]
+      },
+      "then": {
+        "table": "contract_termination",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "request_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "reason": {
+            "gen": "categorical",
+            "values": [
+              "opakované výpadky",
+              "opakované výpadky",
+              "nespokojenost s podporou",
+              "přechod ke konkurenci"
+            ]
+          },
+          "channel": {
+            "gen": "categorical",
+            "values": ["telefon", "e-mail", "pobočka"],
+            "weights": [0.4, 0.4, 0.2]
+          }
+        }
+      }
+    },
+    {
+      "type": "arrival",
+      "id": "termination_b",
+      "table": "contract_termination",
+      "per": ["customer"],
+      "rate": 0.00013,
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "key.customer"
+        },
+        "request_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "reason": {
+          "gen": "categorical",
+          "values": [
+            "stěhování",
+            "přechod ke konkurenci",
+            "cena",
+            "opakované výpadky",
+            "úmrtí / zrušení domácnosti"
+          ],
+          "weights": [0.36, 0.27, 0.2, 0.12, 0.05]
+        },
+        "channel": {
+          "gen": "categorical",
+          "values": ["telefon", "e-mail", "pobočka"],
+          "weights": [0.4, 0.4, 0.2]
+        }
+      }
+    },
+    {
+      "type": "arrival",
+      "id": "invoice",
+      "table": "invoice",
+      "per": ["customer"],
+      "schedule": {
+        "everyDays": 30,
+        "phase": "random"
+      },
+      "fields": {
+        "id": {
+          "gen": "id"
+        },
+        "customer_id": {
+          "gen": "ref",
+          "path": "key.customer"
+        },
+        "issue_date": {
+          "gen": "ref",
+          "path": "day"
+        },
+        "due_days": {
+          "gen": "const",
+          "value": 14
+        },
+        "due_date": {
+          "gen": "dateOffset",
+          "base": "self.issue_date",
+          "days": "self.due_days"
+        },
+        "amount_czk": {
+          "gen": "lookup",
+          "entity": "customer",
+          "key": "key.customer",
+          "field": "monthly_fee"
+        },
+        "status": {
+          "gen": "categorical",
+          "values": ["zaplaceno", "zaplaceno po splatnosti", "neuhrazeno"],
+          "weights": [0.93, 0.05, 0.02]
+        }
+      }
+    }
+  ],
+  "storyPoints": [
+    {
+      "id": "sp0",
+      "phase": 0,
+      "title": "Běžný provoz",
+      "description": "Výpadky jsou ojedinělé, na lince se čeká kolem minuty a dvou.",
+      "start": "2026-03-02",
+      "end": "2026-06-14"
+    },
+    {
+      "id": "sp1",
+      "phase": 1,
+      "title": "Firmware 4.2 na routerech NetVlna Box 5G",
+      "description": "Během týdne dostanou všechny routery NetVlna Box 5G nový firmware. Router se pak při zátěži restartuje a spojení padá: pravděpodobnost výpadku při kontrole linky roste z 8 % na 85 %.",
+      "segment": {
+        "field": "customer.router_model",
+        "values": ["NetVlna Box 5G"]
+      },
+      "start": "2026-06-15",
+      "end": "2026-06-22"
+    },
+    {
+      "id": "sp2",
+      "phase": 2,
+      "title": "Opravný firmware 4.2.1",
+      "description": "Výrobce vydá opravu, která restarty omezí. Výpadků ubude zhruba na třetinu, pořád je jich ale víc než před aktualizací.",
+      "segment": {
+        "field": "customer.router_model",
+        "values": ["NetVlna Box 5G"]
+      },
+      "start": "2026-07-27",
+      "end": "2026-08-07"
+    },
+    {
+      "id": "sp3",
+      "phase": 3,
+      "title": "Plošná výměna routerů",
+      "description": "Technici během září vymění zbylé problémové routery. Výpadky se vrátí na úroveň před aktualizací.",
+      "segment": {
+        "field": "customer.router_model",
+        "values": ["NetVlna Box 5G"]
+      },
+      "start": "2026-09-07",
+      "end": "2026-09-28"
+    }
+  ],
+  "expectations": [
+    {
+      "id": "e1",
+      "storyPointId": "sp1",
+      "description": "Denní počet výpadků u routerů NetVlna Box 5G vzroste nejméně čtyřnásobně",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-06-15' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT start_date AS d FROM main.outage WHERE router_model = 'NetVlna Box 5G') WHERE (d BETWEEN DATE '2026-03-02' AND DATE '2026-06-14' OR d BETWEEN DATE '2026-06-22' AND DATE '2026-07-26') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 3
+      }
+    },
+    {
+      "id": "e2",
+      "storyPointId": "sp1",
+      "description": "Na zákaznickou linku volá denně nejméně o 50 % víc lidí",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-06-15' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT call_date AS d FROM main.support_call UNION ALL SELECT call_date AS d FROM main.missed_call) WHERE (d BETWEEN DATE '2026-03-02' AND DATE '2026-06-14' OR d BETWEEN DATE '2026-06-22' AND DATE '2026-07-26') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 0.5
+      }
+    },
+    {
+      "id": "e3",
+      "storyPointId": "sp1",
+      "description": "Průměrná doba čekání na operátora se nejméně zdvojnásobí",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-06-15' THEN 'before' ELSE 'after' END AS period, AVG(wait_sec) AS value FROM (SELECT call_date AS d, wait_sec FROM main.support_call WHERE wait_sec IS NOT NULL) WHERE (d BETWEEN DATE '2026-03-02' AND DATE '2026-06-14' OR d BETWEEN DATE '2026-06-22' AND DATE '2026-07-26') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 1
+      }
+    },
+    {
+      "id": "e4",
+      "storyPointId": "sp1",
+      "description": "Nepřijatých hovorů přibude nejméně trojnásobně",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-06-15' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT call_date AS d FROM main.missed_call) WHERE (d BETWEEN DATE '2026-03-02' AND DATE '2026-06-14' OR d BETWEEN DATE '2026-06-22' AND DATE '2026-07-26') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 2
+      }
+    },
+    {
+      "id": "e5",
+      "storyPointId": "sp1",
+      "description": "Výpovědí kvůli opakovaným výpadkům přibude nejméně o 200 %",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-06-15' THEN 'before' ELSE 'after' END AS period, COUNT(*) AS value FROM (SELECT request_date AS d FROM main.contract_termination WHERE reason = 'opakované výpadky') WHERE (d BETWEEN DATE '2026-03-02' AND DATE '2026-06-14' OR d BETWEEN DATE '2026-06-22' AND DATE '2026-09-06') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "increase",
+        "minRelChange": 2
+      }
+    },
+    {
+      "id": "e6",
+      "storyPointId": "sp1",
+      "description": "Výpadky u ostatních routerů zůstanou stejné (±20 %)",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-06-15' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT start_date AS d FROM main.outage WHERE router_model <> 'NetVlna Box 5G') WHERE (d BETWEEN DATE '2026-03-02' AND DATE '2026-06-14' OR d BETWEEN DATE '2026-06-22' AND DATE '2026-07-26') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "stable",
+        "minRelChange": 0.2
+      }
+    },
+    {
+      "id": "e7",
+      "storyPointId": "sp2",
+      "description": "Po opravném firmwaru ubude výpadků NetVlna Box 5G nejméně o polovinu",
+      "sql": "WITH periods(period) AS (VALUES ('before'), ('after')), x AS (SELECT CASE WHEN d < DATE '2026-07-27' THEN 'before' ELSE 'after' END AS period, COUNT(*) / COUNT(DISTINCT d) AS value FROM (SELECT start_date AS d FROM main.outage WHERE router_model = 'NetVlna Box 5G') WHERE (d BETWEEN DATE '2026-06-22' AND DATE '2026-07-26' OR d BETWEEN DATE '2026-08-07' AND DATE '2026-09-06') GROUP BY 1) SELECT periods.period, COALESCE(x.value, 0)::DOUBLE AS value FROM periods LEFT JOIN x USING (period)",
+      "check": {
+        "kind": "decrease",
+        "minRelChange": 0.5
+      }
+    }
+  ]
+}

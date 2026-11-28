@@ -10,7 +10,8 @@
     "./detective": "./src/detective.ts",
     "./api": "./src/api.ts",
     "./evidence": "./src/evidence.ts",
-    "./run": "./src/run.ts"
+    "./run": "./src/run.ts",
+    "./demo": "./src/demo.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

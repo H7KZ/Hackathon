@@ -61,6 +61,7 @@ Agents must ask first before:
 pnpm install
 pnpm dev                     # api :4000 + UI :3000
 pnpm demo                    # same, real services replaying the recorded LLM cache offline
+pnpm demo:record [case]      # re-record the offline UI demo bundles (docs/demo-data.md); /chat?demo=1 in the UI
 pnpm test:watch              # TDD loop across all workspaces
 pnpm verify:fast             # boundaries + typecheck + lint + unit tests (~30 s) — run after every change
 pnpm verify                  # format + boundaries + root lint + typecheck + lint + all tests + build — before commit / freeze
@@ -133,6 +134,8 @@ Gates per eval case (`services/cascade/tests/evals/`):
 **New scenario:** add `scenarios/<id>.json`; it must compile, pass `pnpm gen` and all its `expectations`. Add it to the golden tests.
 
 **New agent step:** artifact schema in `packages/schema/src/artifacts.ts`, function in `services/cascade/src/steps.ts` (or `aN_*.ts`) returning the parsed object, register in `cascade.ts` (writes `runs/<runId>/NN_name.json`), unit test with `fakeGenerate`.
+
+**New demo case (UI `?demo`):** `scenarios/<id>.json` + `scenarios/demo/<id>.json`, then `pnpm demo:record <id>`, golden hashes, commit `services/frontend/public/demo/` with it. Details: `docs/demo-data.md`.
 
 **New API route:** `services/api/src/routes/<name>.ts` returning a chained `Hono` (keeps the client typed), mount in `app.ts`, integration test with `testClient`.
 

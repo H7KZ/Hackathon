@@ -1,0 +1,210 @@
+{
+  "id": "eshop_carrier",
+  "scenario": "eshop_carrier.json",
+  "title": "E-shop: dopravce nestíhá",
+  "summary": "E-shop s elektronikou. Hlavní dopravce od dubna doručuje pozdě: přibývají dotazy na zásilky, horší recenze a vratky, zákazníci, kteří čekali, nakupují méně.",
+  "tags": ["e-commerce", "logistika", "zákaznická zkušenost"],
+  "input": {
+    "company": "VoltMarket.cz, e-shop se spotřební elektronikou. Dva sklady (Praha, Brno), 4 smluvní dopravci, zhruba 2 400 aktivních zákazníků.",
+    "story": "Od dubna přestává náš hlavní dopravce stíhat doručovat. Zásilky chodí pozdě, zákazníci se ptají, kde je jejich balík, píšou horší recenze a vracejí zboží. Kdo jednou čekal, nakupuje méně. Nejhorší je to v květnových slevách, v červenci dopravce posílí depo."
+  },
+  "company": {
+    "industry": "E-shop se spotřební elektronikou",
+    "size": "2 sklady, 4 dopravci, 90 produktů v nabídce, ~2 400 aktivních zákazníků",
+    "actors": [
+      {
+        "kind": "customer",
+        "name": "Zákazníci e-shopu",
+        "description": "Domácnosti a malé firmy, nakupují přes web, aplikaci i po telefonu."
+      },
+      {
+        "kind": "partner",
+        "name": "Dopravce CAR-002",
+        "description": "Největší smluvní dopravce, vozí přes 40 % zásilek z obou skladů."
+      },
+      {
+        "kind": "partner",
+        "name": "Ostatní dopravci",
+        "description": "Tři menší dopravci s dodací lhůtou 1–2 dny."
+      },
+      {
+        "kind": "employee",
+        "name": "Zákaznická podpora",
+        "description": "Vyřizuje dotazy po telefonu, e-mailem a v chatu."
+      }
+    ],
+    "keyProcesses": ["objednávky", "expedice a doprava", "zákaznická podpora", "recenze", "vratky"]
+  },
+  "influences": {
+    "edges": [
+      {
+        "from": "shipment.delay_days",
+        "to": "case",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 3,
+        "rationale": "Zákazník, jehož balík nepřišel v termínu, se ozve podpoře s dotazem, kde zásilka je."
+      },
+      {
+        "from": "shipment.delay_days",
+        "to": "review.rating",
+        "direction": "negative",
+        "weight": 0.7,
+        "delayDays": 6,
+        "rationale": "Pozdní doručení zhorší hodnocení nákupu, i když je zboží v pořádku."
+      },
+      {
+        "from": "shipment.delay_days",
+        "to": "rma",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 7,
+        "rationale": "Kdo čekal příliš dlouho, zboží mezitím koupil jinde a vrací ho."
+      },
+      {
+        "from": "shipment.delay_days",
+        "to": "bad_experience",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Každý den zpoždění se zákazníkovi zapíše jako špatná zkušenost."
+      },
+      {
+        "from": "bad_experience",
+        "to": "order",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Zákazník se špatnou zkušeností dokončí objednávku jen asi ve třetině případů."
+      },
+      {
+        "from": "experience_fade",
+        "to": "bad_experience",
+        "direction": "negative",
+        "weight": 0.5,
+        "delayDays": 60,
+        "rationale": "Po dvou měsících bez dalšího problému zákazník na zpoždění zapomene."
+      }
+    ]
+  },
+  "whatIfs": [
+    {
+      "question": "Co kdyby dopravce posílil depo už začátkem května?",
+      "rationale": "Návrat k normálu (sp3) posunut na 4.–18. května, květnové slevy pak zvednou zpoždění jen na 30 %.",
+      "curves": [
+        {
+          "id": "late_prob",
+          "baseline": 0.05,
+          "scope": {
+            "field": "self.carrier_id",
+            "ids": ["CAR-002"]
+          },
+          "segments": [
+            {
+              "kind": "ramp",
+              "start": "2026-04-06",
+              "end": "2026-04-27",
+              "to": 0.55,
+              "storyPointId": "sp1"
+            },
+            {
+              "kind": "ramp",
+              "start": "2026-05-04",
+              "end": "2026-05-18",
+              "to": 0.12,
+              "storyPointId": "sp3"
+            },
+            {
+              "kind": "spike",
+              "start": "2026-05-18",
+              "end": "2026-06-08",
+              "to": 0.3,
+              "storyPointId": "sp2"
+            }
+          ],
+          "clamp": [0, 1]
+        }
+      ]
+    },
+    {
+      "question": "Co kdyby dopravce zpožďoval jen polovinu toho co teď?",
+      "rationale": "Úrovně zpoždění CAR-002 v bodech sp1 a sp2 sníženy na polovinu (28 % a 38 %), termíny beze změny.",
+      "curves": [
+        {
+          "id": "late_prob",
+          "baseline": 0.05,
+          "scope": {
+            "field": "self.carrier_id",
+            "ids": ["CAR-002"]
+          },
+          "segments": [
+            {
+              "kind": "ramp",
+              "start": "2026-04-06",
+              "end": "2026-04-27",
+              "to": 0.28,
+              "storyPointId": "sp1"
+            },
+            {
+              "kind": "spike",
+              "start": "2026-05-18",
+              "end": "2026-06-08",
+              "to": 0.38,
+              "storyPointId": "sp2"
+            },
+            {
+              "kind": "ramp",
+              "start": "2026-07-06",
+              "end": "2026-07-27",
+              "to": 0.12,
+              "storyPointId": "sp3"
+            }
+          ],
+          "clamp": [0, 1]
+        }
+      ]
+    }
+  ],
+  "detective": {
+    "dat1": {
+      "narrative": "Data ukazují jeden hlavní problém: doručování přes dopravce CAR-002. Od začátku dubna u něj roste podíl zásilek doručených po termínu z obvyklých 5–8 % na 50–60 % a koncem května vrcholí kolem 70 %. Se zpožděním přibývají tikety „kde je moje zásilka“ (z ~6 na 25–50 týdně), hodnocení v recenzích klesá z 4,3 na 3,5–3,8 a víc zákazníků vrací zboží kvůli pozdnímu doručení. V červnu klesá i denní počet objednávek. Od poloviny července se CAR-002 zlepšuje a koncem července je podíl zpoždění zpět kolem 12 %. Ostatní dopravci doručují celou dobu stejně.",
+      "findings": [
+        {
+          "claim": "U dopravce CAR-002 prudce roste podíl zpožděných zásilek: z 5–8 % v lednu až březnu na 50–60 % od druhé poloviny dubna.",
+          "entities": ["CAR-002"],
+          "start": "2026-04-08",
+          "end": "2026-07-12",
+          "supportingSql": "SELECT date_trunc('week', shipped_date) AS week, carrier_id, round(avg(CASE WHEN delay_days > 0 THEN 1 ELSE 0 END), 2) AS late_share, count(*) AS shipments FROM shipment GROUP BY 1, 2 ORDER BY 1, 2"
+        },
+        {
+          "claim": "Koncem května je zpoždění CAR-002 nejhorší, pozdě dorazí asi 70 % jeho zásilek; ve stejných týdnech vrcholí tikety „kde je moje zásilka“.",
+          "entities": ["CAR-002"],
+          "start": "2026-05-20",
+          "end": "2026-06-07",
+          "supportingSql": "SELECT date_trunc('week', created_date) AS week, count(*) AS tickets FROM support_ticket WHERE topic = 'kde je moje zásilka' GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "claim": "Od poloviny července se CAR-002 zlepšuje, koncem července je podíl zpožděných zásilek zpět kolem 12 %.",
+          "entities": ["CAR-002"],
+          "start": "2026-07-13",
+          "end": "2026-07-31",
+          "supportingSql": "SELECT date_trunc('week', shipped_date) AS week, round(avg(CASE WHEN delay_days > 0 THEN 1 ELSE 0 END), 2) AS late_share FROM shipment WHERE carrier_id = 'CAR-002' AND shipped_date >= DATE '2026-06-01' GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "claim": "Průměrné hodnocení recenzí klesá z 4,3 na 3,5–3,8; špatné recenze se týkají pozdního doručení.",
+          "entities": [],
+          "start": "2026-04-27",
+          "end": "2026-07-19",
+          "supportingSql": "SELECT date_trunc('month', created_date) AS month, round(avg(rating), 2) AS avg_rating, count(*) AS reviews FROM review GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "claim": "V červnu klesá denní počet objednávek zhruba o 10 %, v srpnu se vrací k normálu.",
+          "entities": [],
+          "start": "2026-05-25",
+          "end": "2026-07-31",
+          "supportingSql": "SELECT date_trunc('month', order_date) AS month, count(DISTINCT id) AS orders, round(count(DISTINCT id) / count(DISTINCT order_date), 1) AS per_day FROM orders GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    }
+  }
+}

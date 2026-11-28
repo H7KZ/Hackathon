@@ -142,3 +142,10 @@ Template:
 - **Why:** declarative, safe agent-driven UI; the presenter can move to the API later without touching the renderer. `@a2ui/react` needs zod 3 and has none of our components.
 - **Who:** frontend (with an agent).
 - **Affects:** `services/frontend`, `docs/design/`. Later, optional: `@s2d/schema/a2ui` + an `a2ui` SessionEvent (needs schema owner approval).
+
+## 2026-11-28 — Demo mode replays recorded real sessions instead of mock data
+
+- **Decision:** `?demo` no longer plays hand-made mock numbers. Three demo cases (`scenarios/demo/*.json` + `scenarios/<case>.json`) are run once through the real orchestrator, engine, DuckDB, evidence and compare by `pnpm demo:record`; only the LLM answers (A1–A5, what-if, detective report) are written by hand. The UI replays the stored session through the live presenter on a replay transport, with a case picker (`/chat?demo=1`) and a switch in the chat top bar. New additive contract `@s2d/schema/demo` (nothing an LLM prompt sees, so no cache key changes). The overview chart now ranks series by signal-to-noise (`movement` in `liveMapping.ts`), live mode included.
+- **Why:** the mock (24 orders, 2 tables) did not look like a dataset. Recorded runs are 36–45k rows in 7–11 linked tables, pass the same gates as LLM output, and need no API key or server for a demo.
+- **Who:** H7KZ (with an agent).
+- **Affects:** `packages/schema/src/demo.ts`, `services/api/src/{adapters/demo.ts,demo/record.ts}`, `services/frontend/lib/chat/{transport,demoTransport,demoSource,liveSource,liveMapping,surfaces}.ts`, `services/frontend/public/demo/`, `docs/demo-data.md`. The old mock source stays for the `/lab` layout pages.

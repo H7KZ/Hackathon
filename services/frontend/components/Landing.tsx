@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createSession } from "../lib/api";
 import { createLiveSource } from "../lib/chat/liveSource";
-import { createMockSource } from "../lib/chat/mockSource";
+import { createDemoSource, loadDemoIndex, pickCase } from "../lib/chat/demoSource";
 import type { ChatSource } from "../lib/chat/types";
 import { chatHref, remember } from "../lib/history";
 import { ChatWorkspace } from "./chat/ChatWorkspace";
@@ -24,33 +24,57 @@ export function morph(update: () => void) {
 
 /** Landing → chat in place: no navigation, so the box can grow into the workspace (docs/design/patterns.md). */
 export function Landing() {
-  const [chat, setChat] = useState<{ source: ChatSource; title: string; id: string } | null>(null);
+  const [chat, setChat] = useState<{
+    source: ChatSource;
+    title: string;
+    id: string;
+    demoCase?: string;
+  } | null>(null);
+  /** demo mode: the recorded case closest to what was typed (lib/chat/demoSource.ts pickCase) */
+  const picked = useRef<{ id: string; title: string } | null>(null);
 
-  const send: Send = (input) =>
-    isDemo()
-      ? Promise.resolve({ ok: true, sessionId: `demo-${Date.now().toString(36)}` })
-      : createSession(input);
+  const send: Send = async (input) => {
+    if (!isDemo()) return createSession(input);
+    const cases = await loadDemoIndex().catch(() => []);
+    const c = pickCase(cases, input);
+    picked.current = c ? { id: c.id, title: c.title } : null;
+    return { ok: true, sessionId: `demo-${Date.now().toString(36)}` };
+  };
 
   function onSent(info: SessionInfo) {
     const demo = isDemo();
+    const demoCase = demo ? (picked.current?.id ?? "eshop_carrier") : undefined;
     const entry = {
       id: info.sessionId,
-      company: info.company,
+      company: demo ? (picked.current?.title ?? info.company) : info.company,
       story: info.story,
       createdAt: new Date().toISOString().slice(0, 10),
       demo,
+      ...(demoCase && { demoCase }),
     };
     remember(entry);
-    const source = demo ? createMockSource(info) : createLiveSource(info.sessionId);
+    const source = demoCase
+      ? createDemoSource(demoCase, {
+          note: `Tohle je ukázka bez jazykového modelu: přehrávám nejbližší připravený případ, „${picked.current?.title ?? demoCase}“.`,
+        })
+      : createLiveSource(info.sessionId);
     morph(() => {
       flushSync(() => {
-        setChat({ source, title: info.company, id: info.sessionId });
+        setChat({ source, title: entry.company, id: info.sessionId, ...(demoCase && { demoCase }) });
       });
     });
     window.history.pushState(null, "", chatHref(entry));
   }
 
-  if (chat) return <ChatWorkspace source={chat.source} title={chat.title} sessionId={chat.id} />;
+  if (chat)
+    return (
+      <ChatWorkspace
+        source={chat.source}
+        title={chat.title}
+        sessionId={chat.id}
+        {...(chat.demoCase && { demoCase: chat.demoCase })}
+      />
+    );
 
   return (
     <AppShell defaultOpen={false}>
