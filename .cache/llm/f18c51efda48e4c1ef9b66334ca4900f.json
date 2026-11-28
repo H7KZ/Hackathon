@@ -1,0 +1,16 @@
+{
+  "key": "f18c51efda48e4c1ef9b66334ca4900f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',date) w, count(*) n, count(*) filter (where category='sportovní') sp from eshop_order where date>='2024-06-01' group by 1 order by 1",
+        "select date_trunc('month',date) m, count(*) n, sum(churned) ch from customer_churn where date>='2024-05-01' group by 1 order by 1",
+        "select date_trunc('month',date) m, count(*) n, sum(refund_amount) r from return_request where date>='2024-05-01' group by 1 order by 1",
+        "select date_trunc('month',date) m, category, count(*) n, round(avg(delivery_days),2) dd from eshop_order where date>='2024-06-01' group by 1,2 order by 1,2"
+      ]
+    }
+  }
+}

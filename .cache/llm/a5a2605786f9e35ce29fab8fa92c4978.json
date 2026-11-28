@@ -1,0 +1,16 @@
+{
+  "key": "a5a2605786f9e35ce29fab8fa92c4978",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',s.date) w, count(*) filter (where d.router_model_id='RMO-001') m1, count(*) filter (where d.router_model_id='RMO-002') m2, count(*) filter (where d.router_model_id='RMO-003') m3, count(*) filter (where d.router_model_id='RMO-004') m4, count(*) filter (where d.router_model_id='RMO-005') m5, count(*) filter (where d.router_model_id='RMO-006') m6 from support_call s join device d on d.id=s.device_id where s.date>='2024-02-12' group by 1 order by 1",
+        "select firmware_version, router_model_id, min(date) mn, max(date) mx, count(*) c from firmware_update group by 1,2 order by 1,2",
+        "select date_trunc('week',s.date) w, c.segment, count(*) n from support_call s join customer c on c.id=s.customer_id where s.date>='2024-02-19' group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, count(*) filter (where agent_id='AGT-001') a1, count(*) filter (where agent_id='AGT-002') a2, count(*) filter (where agent_id='AGT-003') a3, count(*) filter (where agent_id='AGT-005') a5, count(*) filter (where agent_id='AGT-010') a10, count(*) filter (where priority<>'běžná') prio from support_call where date>='2024-02-19' group by 1 order by 1"
+      ]
+    }
+  }
+}

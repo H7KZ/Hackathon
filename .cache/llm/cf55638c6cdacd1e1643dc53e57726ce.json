@@ -1,0 +1,46 @@
+{
+  "key": "cf55638c6cdacd1e1643dc53e57726ce",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.08,
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-04-01",
+            "end": "2024-04-25",
+            "to": 0.2,
+            "storyPointId": "sp_zpozdeni_zacina"
+          },
+          {
+            "kind": "step",
+            "start": "2024-04-25",
+            "end": "2024-05-22",
+            "to": 0.4,
+            "storyPointId": "sp_zpozdeni_roste"
+          },
+          {
+            "kind": "step",
+            "start": "2024-05-22",
+            "to": 0.55,
+            "storyPointId": "sp_zpozdeni_vrchol"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Celá posloupnost zvyšování pravděpodobnosti pozdních dodávek (začátek, růst i vrchol) je posunuta o měsíc později, takže výpadky zásob nastanou o měsíc později."
+  }
+}

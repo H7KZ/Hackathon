@@ -1,0 +1,16 @@
+{
+  "key": "a733923ede260e666d70b00402ef4eda",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',date) w, count(*) n from complaint where category='sportovní' and date>='2024-07-15' and date<'2024-11-01' group by 1 order by 1",
+        "select product_id, count(*) filter (where date>='2024-05-01' and date<'2024-08-31') pre, count(*) filter (where date>='2024-10-15') post from complaint where category='sportovní' group by 1 order by post desc limit 25",
+        "select o.courier_id, count(*) filter (where c.date>='2024-10-15') post, count(*) filter (where c.date>='2024-05-01' and c.date<'2024-08-31') pre from complaint c join eshop_order o on o.id=c.order_id where c.category='sportovní' group by 1",
+        "select date_trunc('month',date) m, category, count(*) n, round(avg(unit_price),0) p, round(avg(margin_pct),1) mg from eshop_order where date>='2024-04-01' group by 1,2 order by 1,2"
+      ]
+    }
+  }
+}

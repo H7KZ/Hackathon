@@ -1,0 +1,16 @@
+{
+  "key": "35ac89a087e2e6331caea95747bde499",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select category, supplier_id, date_trunc('week',order_date) w, count(*) n, round(avg(is_late::int),2) late, round(avg(is_short::int),2) short from purchase_order where category='notebook' and order_date>='2025-02-10' and order_date<'2025-04-07' group by 1,2,3 order by 2,3",
+        "select p.category, date_trunc('week',l.date) w, count(*) n from lost_sale l join product p on p.id=l.product_id where l.date>='2025-02-01' group by 1,2 order by 2,1",
+        "select p.category, count(*) n, sum(case when l.date<'2025-03-03' then 1 else 0 end) pre from lost_sale l join product p on p.id=l.product_id group by 1",
+        "select id, category, supplier_id from product order by 1"
+      ]
+    }
+  }
+}

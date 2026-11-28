@@ -1,0 +1,26 @@
+{
+  "key": "f41ba83db40a39a20ab586059bd390a5",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Zdrojem problému je kategorie „notebook“, ne jeden dodavatel. Od týdne 2025-03-03 se u notebooků prudce zhoršila spolehlivost dodávek u všech tří dodavatelů (SUP-001, SUP-002 i SUP-003), kteří notebooky dodávají. Podíl pozdních objednávek vzrostl z ~0–5 % na 30–70 %, podíl krácených dodávek z ~0–5 % na 30–65 % a průměrné zpoždění z ~2 dnů na 10–12 dní. Zhoršení se týká všech prodejen a trvá do konce května. Kategorie telefon a příslušenství zůstaly beze změny, takže celkové zhoršení u SUP-002 a SUP-003 jen odráží jejich notebookový podíl. SUP-001 dodává pouze notebooky, proto u něj vypadá zhoršení nejvýrazněji. Důsledkem jsou prázdné zásoby a ztracené prodeje: týdenní počet lost_sale u notebooků vzrostl z jednotek na 18 (týden 2025-03-10), 35 (03-17) a vrchol 55–60 (03-24 a 03-31). Poté klesl na ~17–29 týdně, stále výrazně nad původní úrovní. Ztracené prodeje následně vedly k reklamacím kvůli nedostupnosti zboží.",
+        "findings": [
+          {
+            "claim": "Od týdne 2025-03-03 se u kategorie notebook zhoršila dodávková spolehlivost u všech dodavatelů (SUP-001, SUP-002, SUP-003). Pozdní dodávky vzrostly z ~0–5 % na 30–70 %, krácené dodávky z ~0–5 % na 30–65 % a zpoždění z ~2 na ~10–12 dní. Další kategorie zůstaly stabilní. Následkem se od 2025-03-10 prudce zvýšily ztracené prodeje notebooků (vrchol 55–60 týdně koncem března) a související reklamace.",
+            "entities": [
+              "notebook",
+              "SUP-001",
+              "SUP-002",
+              "SUP-003"
+            ],
+            "start": "2025-03-03",
+            "supportingSql": "select category, date_trunc('week',order_date) w, count(*) n, round(avg(is_late::int),2) late, round(avg(is_short::int),2) short, round(avg(delay_days),1) d from purchase_order where category is not null and order_date>='2025-02-10' group by 1,2 order by 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "key": "77cb3143d64cf1a722592988c1d95378",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.02,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-04",
+            "end": "2024-04-10",
+            "to": 3,
+            "storyPointId": "sp_rollout"
+          },
+          {
+            "kind": "ramp",
+            "start": "2024-04-18",
+            "end": "2024-04-25",
+            "to": 0.1,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-04",
+            "end": "2024-04-18",
+            "to": 10,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "rollout_old",
+        "baseline": 0.95,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-04",
+            "end": "2024-04-25",
+            "to": 0.2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_new",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-04",
+            "end": "2024-04-25",
+            "to": 0.75,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_fix",
+        "baseline": 0.02,
+        "segments": []
+      },
+      {
+        "id": "call_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "remote_resolve_prob",
+        "baseline": 0.7,
+        "segments": []
+      },
+      {
+        "id": "churn_prob",
+        "baseline": 0.1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Všechny segmenty nasazení firmwaru (četnost aktualizací, míra problémů a podíl starého/nového firmwaru) jsou posunuty o měsíc později, takže vlna problémů a přetížení podpory začne až v dubnu."
+  }
+}

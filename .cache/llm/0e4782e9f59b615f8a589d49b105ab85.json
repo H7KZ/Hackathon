@@ -1,0 +1,41 @@
+{
+  "key": "0e4782e9f59b615f8a589d49b105ab85",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatelé SUP-002 (Jarešová a.s., problémový) a SUP-003 začali zhruba ve stejné době zpožďovat dodávky. SUP-001 nemá žádné objednávky. Do konce února byl podíl pozdních objednávek nízký (SUP-002 kolem 7 %, SUP-003 kolem 9 %, zpoždění 2–4 dny). Od týdne 26. 2. začal růst: SUP-002 měl 14 %, pak 21 % a 17–18 %. SUP-003 byl v týdnu 4. 3. na 28 %. Týden od 25. 3. přinesl skok: SUP-002 měl 46 % a SUP-003 40 %, průměrné zpoždění vzrostlo na 14–16 dní. Od dubna se podíl pozdních dodávek drží kolem 50–60 %. Zhoršení je plošné napříč všemi pěti prodejnami i všemi produkty obou dodavatelů, nejde tedy o lokální problém. Důsledky přišly se zpožděním. Od týdne 1. 4. vzrostl počet ztracených prodejů (zboží není skladem) u produktů SUP-002 z přibližně 20 na 42–65 týdně a SUP-003 mírně na 5–14. Stejně vzrostly stížnosti zákazníků na nedostupnost zboží: u SUP-002 ze 2–4 na 6–10 týdně. V červnu ztracené prodeje částečně klesají, ale pozdní dodávky přetrvávají.",
+        "findings": [
+          {
+            "claim": "Dodavatelé SUP-002 a SUP-003 začali zpožďovat dodávky: podíl pozdních objednávek vzrostl ze základní úrovně 7–9 % na 14–28 % a zpoždění se prodlužovalo (SUP-002 týden 26. 2., SUP-003 týden 4. 3.).",
+            "entities": [
+              "SUP-002",
+              "SUP-003"
+            ],
+            "start": "2024-02-26",
+            "supportingSql": "select supplier_id, date_trunc('week',order_date) w, count(*) n, avg(is_late::int) late, avg(delay_days) d from purchase_order group by 1,2 order by 1,2"
+          },
+          {
+            "claim": "Eskalace zpoždění od týdne 25. 3.: podíl pozdních dodávek skočil na 40–46 % (zpoždění ~14–16 dní) a poté se drží na 50–60 %. Zhoršení je ve všech prodejnách a u všech produktů obou dodavatelů.",
+            "entities": [
+              "SUP-002",
+              "SUP-003"
+            ],
+            "start": "2024-03-25",
+            "supportingSql": "select supplier_id, date_trunc('week',order_date) w, avg(is_late::int) late, avg(delay_days) d from purchase_order where supplier_id in ('SUP-002','SUP-003') group by 1,2 order by 1,2"
+          },
+          {
+            "claim": "Následek eskalace: od týdne 1. 4. strmě vzrostly ztracené prodeje (zboží není skladem) u produktů SUP-002 z ~20 na 42–65 týdně a s nimi stížnosti zákazníků.",
+            "entities": [
+              "SUP-002"
+            ],
+            "start": "2024-04-01",
+            "supportingSql": "select p.supplier_id, date_trunc('week',ls.date) w, count(*) n, sum(ls.quantity*ls.unit_price) v from lost_sale ls join product p on p.id=ls.product_id group by 1,2 order by 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "key": "fcfe17ad4f48f308e5956d5117f5f111",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "notebook_late_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.category",
+          "ids": [
+            "notebook"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-15",
+            "to": 0.6,
+            "storyPointId": "sp_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "notebook_short_prob",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.category",
+          "ids": [
+            "notebook"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-15",
+            "to": 0.5,
+            "storyPointId": "sp_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Zhoršení spolehlivosti dodavatele notebooků (pravděpodobnost zpoždění i nedodání plného množství) se posune o měsíc, tedy z března na duben, a zbytek scénáře zůstává beze změny."
+  }
+}

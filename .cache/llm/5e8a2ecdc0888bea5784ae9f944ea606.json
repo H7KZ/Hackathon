@@ -1,0 +1,16 @@
+{
+  "key": "5e8a2ecdc0888bea5784ae9f944ea606",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',l.date) wk, sum((p.supplier_id='SUP-001')::int) s1, sum((p.supplier_id='SUP-002')::int) s2, sum((p.supplier_id='SUP-003')::int) s3 from lost_sale l join product p on p.id=l.product_id group by 1 order by 1",
+        "select date_trunc('week',date) wk, sum((supplier_id='SUP-001')::int) s1, sum((supplier_id='SUP-002')::int) s2, sum((supplier_id='SUP-003')::int) s3 from complaint group by 1 order by 1",
+        "select order_date, count(*) n, round(avg(is_late::int),2) lr from purchase_order where supplier_id='SUP-001' and order_date between '2025-02-26' and '2025-03-08' group by 1 order by 1",
+        "select date_trunc('week',date) wk, count(*) n, sum(quantity*unit_price) rev from sale group by 1 order by 1"
+      ]
+    }
+  }
+}

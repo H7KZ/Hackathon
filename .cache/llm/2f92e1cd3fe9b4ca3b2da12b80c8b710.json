@@ -1,0 +1,142 @@
+{
+  "key": "2f92e1cd3fe9b4ca3b2da12b80c8b710",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.02,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-10",
+            "to": 1.51,
+            "storyPointId": "sp_rollout"
+          },
+          {
+            "kind": "ramp",
+            "start": "2024-03-18",
+            "end": "2024-03-25",
+            "to": 0.06,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-18",
+            "to": 5.5,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "rollout_old",
+        "baseline": 0.95,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-25",
+            "to": 0.575,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_new",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002",
+            "RMO-003",
+            "RMO-004"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-04",
+            "end": "2024-03-25",
+            "to": 0.39,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_fix",
+        "baseline": 0.02,
+        "segments": []
+      },
+      {
+        "id": "call_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "remote_resolve_prob",
+        "baseline": 0.7,
+        "segments": []
+      },
+      {
+        "id": "churn_prob",
+        "baseline": 0.1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Všechny křivky nasazení firmwaru (míra aktualizací, míra problémů a podíl nového/starého firmwaru) mají změnu oproti základní hodnotě sníženou na polovinu, takže dopad na hovory a čekání je poloviční."
+  }
+}

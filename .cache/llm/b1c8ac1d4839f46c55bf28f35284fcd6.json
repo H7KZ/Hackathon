@@ -1,0 +1,16 @@
+{
+  "key": "b1c8ac1d4839f46c55bf28f35284fcd6",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select supplier_id, date_trunc('month',date) m, count(*) n, round(avg(delivery_days),2) dd from eshop_order group by 1,2 order by 1,2",
+        "select supplier_id, date_trunc('month',order_date) m, count(*) n, round(avg(lead_days),2) ld from purchase_order group by 1,2 order by 1,2",
+        "select supplier_id, date_trunc('month',date) m, count(*) n from complaint group by 1,2 order by 1,2",
+        "select courier_id, date_trunc('month',date) m, count(*) n, round(avg(delivery_days),2) dd from eshop_order group by 1,2 order by 1,2"
+      ]
+    }
+  }
+}

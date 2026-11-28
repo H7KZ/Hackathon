@@ -1,0 +1,16 @@
+{
+  "key": "a7b5b3a125d1cdc0f151c643b957ae7a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select supplier_id, date_trunc('week',order_date) w, count(*) n, avg(is_late::int) late, avg(is_short::int) short, avg(delay_days) d, avg(lead_days) l from purchase_order group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, count(*) n from lost_sale group by 1 order by 1",
+        "select date_trunc('week',date) w, count(*) n from sale group by 1 order by 1",
+        "select product_id, supplier_id, category from product order by 1"
+      ]
+    }
+  }
+}

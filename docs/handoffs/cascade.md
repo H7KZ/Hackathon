@@ -37,6 +37,12 @@ Changed by the run-3 follow-up (run 4):
 
 Changed by the run-5 follow-up (run 6, [report](../runs/2026-11-28-live-e2e-6.md)): an edited 04_story is completed (`fillStoryEntities`, written back) and its story refs checked before A5 — a failure costs no A5 call; A5 `acceptGateMisses` generates from the best runnable attempt when attempts run out and logs how many hypotheses failed; the gate feedback prefers more records / higher probability over extreme magnitudes; A4 and what-if prompts explain the segment kinds (cache keys of A4, what-if and A5 repair attempts changed, re-recorded).
 
+Changed by the run-6 follow-up (run 7, [report](../runs/2026-11-28-live-e2e-7.md)):
+
+- **A1–A4 resume:** a rejected answer is kept in `NN_name.rejected-last.json` (with a key of the step's first prompt); running the step again continues at attempt N+1 from it. Before, a retry after A4 gave up replayed its three cached failures.
+- Story-ref feedback for a point on an unscoped curve offers `segment` with the model's categorical fields and values; "names every supplier" + a segment says to drop the entity, and no contradicting "scope to all suppliers" error follows (A4 repair prompts changed, re-recorded where replays read them).
+- `runCascade({ keepExpectations })`: only the hypotheses kept in the story editor gate A5 / causal 4b (`onlyExpectations` in `gate.ts`); default = all, prompts unchanged.
+
 Changed by the run-4 follow-up (run 5, [report](../runs/2026-11-28-live-e2e-5.md)):
 
 - Causal: an unscoped lever whose story points name entity ids is scoped to them by code (`entityScope` in `causal/curves.ts`, field `self.<entity>_id`); if the records using the lever lack that field, the overlay check asks for a scope. Run 4's lever moved every supplier while the answer key named one.

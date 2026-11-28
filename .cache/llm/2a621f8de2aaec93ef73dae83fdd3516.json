@@ -1,0 +1,15 @@
+{
+  "key": "2a621f8de2aaec93ef73dae83fdd3516",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date, count(*) c from firmware_update where date between '2024-02-28' and '2024-03-12' group by 1 order by 1",
+        "select w, (select count(*) from escalation e where date_trunc('week',e.date)=w) esc, (select count(*) from remote_resolution r where date_trunc('week',r.date)=w) remote, (select count(*) from repeat_call r where date_trunc('week',r.date)=w) rep, (select count(*) from compensation r where date_trunc('week',r.date)=w) comp, (select count(*) from customer_churn r where date_trunc('week',r.date)=w) churn, (select avg(value) from agent_backlog_snapshot b where date_trunc('week',b.date)=w) backlog from (select distinct date_trunc('week',date) w from support_call) order by 1",
+        "select (select count(*) from support_call s join device d on d.id=s.device_id join firmware_update f on f.device_id=d.id and f.date<=s.date where s.date>='2024-03-04') after_fw, (select count(*) from support_call s where s.date>='2024-03-04') total"
+      ]
+    }
+  }
+}

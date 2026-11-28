@@ -1,0 +1,67 @@
+{
+  "key": "6ca450fd6484592832c427e0ae9f9fc6",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "notebook_late_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.category",
+          "ids": [
+            "notebook"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-15",
+            "to": 0.325,
+            "storyPointId": "sp_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "notebook_short_prob",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.category",
+          "ids": [
+            "notebook"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-15",
+            "to": 0.265,
+            "storyPointId": "sp_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Dopad zhoršení spolehlivosti dodavatele je poloviční: cílové pravděpodobnosti zpoždění (0,6 → 0,325) a nedodání plného množství (0,5 → 0,265) leží v půli cesty mezi výchozí hodnotou a původním cílem."
+  }
+}
