@@ -1,0 +1,53 @@
+{
+  "key": "abff7f93aba480c7c17e12f1c86a6ace",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "drink_price_level",
+        "baseline": 1,
+        "scope": {
+          "field": "self.store_id",
+          "ids": [
+            "STO-001",
+            "STO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-01",
+            "to": 1.075,
+            "storyPointId": "sp_coffee_price_increase"
+          }
+        ]
+      },
+      {
+        "id": "morning_churn_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.store_id",
+          "ids": [
+            "STO-001",
+            "STO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-04",
+            "to": 0.2,
+            "storyPointId": "sp_morning_price_exit"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Zdražení kávy je poloviční (z +15 % na +7,5 %) a pravděpodobnost odchodu ranních zákazníků kvůli ceně roste jen o polovinu původního nárůstu (z 0,05 na 0,20 místo 0,35), zbytek scénáře zůstává beze změny."
+  }
+}

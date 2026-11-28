@@ -1,0 +1,97 @@
+{
+  "key": "1e8c70ce177fb93456b35222f18a02b0",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "main_item.unit_price",
+        "to": "visit_outcome.cond",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 3,
+        "rationale": "Zdražení kávy o 15 % zvyšuje pravděpodobnost, že ranní spěchající zákazník odejde kvůli ceně."
+      },
+      {
+        "from": "main_item.unit_price",
+        "to": "upsell_item.unit_price",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Doplňkové položky se oceňují podle stejné cenové hladiny nápojů, takže zdražení zvedne i jejich cenu."
+      },
+      {
+        "from": "visit_outcome.cond",
+        "to": "lost_visit",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Splnění podmínky (ráno, ranní spěchající, odchod kvůli ceně) vytváří záznam ztracené návštěvy."
+      },
+      {
+        "from": "visit_outcome.cond",
+        "to": "purchase",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Vyšší podíl odchodů kvůli ceně snižuje počet ranních nákupů v pokladně."
+      },
+      {
+        "from": "purchase",
+        "to": "main_item",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Každý nákup má základní položku, méně nákupů znamená méně základních položek."
+      },
+      {
+        "from": "purchase",
+        "to": "upsell_item",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Doplňkové položky vznikají jen u dokončených nákupů."
+      },
+      {
+        "from": "main_item.unit_price",
+        "to": "purchase_item",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Vyšší cena základní položky zvyšuje hodnotu řádků účtenky a průměrnou útratu."
+      },
+      {
+        "from": "upsell_item.unit_price",
+        "to": "purchase_item",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 0,
+        "rationale": "Dražší doplňky zvyšují hodnotu řádků účtenky a průměrnou útratu."
+      },
+      {
+        "from": "main_item",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Prodej základních položek snižuje zásoby ve skladu."
+      },
+      {
+        "from": "upsell_item",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.3,
+        "delayDays": 0,
+        "rationale": "Prodej doplňků snižuje zásoby ve skladu."
+      },
+      {
+        "from": "stock",
+        "to": "stock_replenishment.quantity",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 7,
+        "rationale": "Týdenní doplnění dorovná zásoby na cílových 300 kusů, čím nižší stav, tím větší dodávka."
+      }
+    ]
+  }
+}

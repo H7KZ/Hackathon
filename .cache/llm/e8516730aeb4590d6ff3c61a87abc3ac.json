@@ -1,0 +1,80 @@
+{
+  "key": "e8516730aeb4590d6ff3c61a87abc3ac",
+  "model": "openai:gpt-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "E‑commerce – prodej domácích spotřebičů (B2C)",
+    "size": "1 e‑shop, 1 centrální sklad (2 500 m²), 45 zaměstnanců, ~12 000 SKU, ~9 000 objednávek/měsíc",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "NordDistrib s.r.o.",
+        "description": "Hlavní distributor velkých spotřebičů (lednice, pračky, sušičky). Od března prodlužuje a kolísá dodací lhůty kvůli výpadkům výroby a dopravním omezením; častější částečné dodávky a vyšší variabilita lead time."
+      },
+      {
+        "kind": "supplier",
+        "name": "QuickHome Import s.r.o.",
+        "description": "Sekundární dodavatel malých spotřebičů (mixéry, kávovary). Stabilní lead time a vysoká spolehlivost dodávek, částečně zmírňuje výpadky hlavního dodavatele."
+      },
+      {
+        "kind": "partner",
+        "name": "SprintKurýr Logistics",
+        "description": "3PL a last‑mile kurýr; zajišťuje svoz ze skladu a doručení koncovým zákazníkům. SLA pro doručení D+1/D+2, závislé na včasné expedici."
+      },
+      {
+        "kind": "partner",
+        "name": "PayFlow Payments a.s.",
+        "description": "Platební brána; správa plateb, předautorizací a vratek při stornu objednávek."
+      },
+      {
+        "kind": "partner",
+        "name": "Cenovka.cz",
+        "description": "Srovnávač cen a inzertní kanál; přivádí cenově senzitivní návštěvnost, která je náchylnější ke stornu při prodloužení dodací lhůty."
+      },
+      {
+        "kind": "customer",
+        "name": "Koncoví zákazníci B2C (ČR a SR)",
+        "description": "Dva hlavní segmenty: 1) rychlostní – preferují rychlé doručení a ruší při zpoždění; 2) cenoví – citliví na cenu, akceptují delší čekání, ale reagují na slevy a alternativy."
+      },
+      {
+        "kind": "competitor",
+        "name": "ElektroMax.cz",
+        "description": "Velký konkurenční e‑shop se silnou skladovou dostupností a rychlou expedicí; agresivně cílí na zákazníky s urgentní potřebou."
+      },
+      {
+        "kind": "competitor",
+        "name": "DomaciSpotrebice24.cz",
+        "description": "Střední konkurent s důrazem na slevy a bundly; přetahuje cenové segmenty při zhoršení termínů u jiných prodejců."
+      },
+      {
+        "kind": "employee",
+        "name": "Nákupčí a plánovači zásob",
+        "description": "Řídí objednávky k dodavatelům, sledují SLA a upravují reorder pointy dle změn lead time."
+      },
+      {
+        "kind": "employee",
+        "name": "Zákaznická podpora",
+        "description": "Informuje o zpoždění, řeší stížnosti, nabízí alternativy a zpracovává storna a refundace."
+      },
+      {
+        "kind": "employee",
+        "name": "Skladový a expedční tým",
+        "description": "Přebírá a naskladňuje částečné dodávky, páruje backordery, zajišťuje pick/pack a včasnou expedici."
+      }
+    ],
+    "keyProcesses": [
+      "Plánování poptávky a zásob (forecast_error, reorder_point, safety_stock)",
+      "Řízení dodavatelů a SLA (lead_time_mean, lead_time_sigma, on_time_rate, partial_shipment_rate)",
+      "Tvorba a odesílání nákupních objednávek (order_batch_size, order_frequency_days)",
+      "Příjem a naskladnění dodávek (inbound_processing_time, putaway_accuracy)",
+      "Alokace zásob na zákaznické objednávky (allocation_priority_rules, backorder_policy)",
+      "Aktualizace a komunikace ETA zákazníkům (eta_update_latency_hours, comm_success_rate)",
+      "Výběr dopravce a plánování expedice (carrier_selection_rate, cut_off_time_adherence)",
+      "Nabídka substitutů a přesměrování poptávky (substitute_offer_rate, acceptance_rate)",
+      "Storna a refundace (cancellation_propensity, refund_processing_time)",
+      "Řízení stížností a hodnocení (complaint_rate, nps_change_rate)",
+      "Cenotvorba a promo akce (price_elasticity, promo_intensity_index)",
+      "S&OP cyklus a eskalace k dodavatelům (review_cadence_days, escalation_success_rate)"
+    ]
+  }
+}

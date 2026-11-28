@@ -1,0 +1,38 @@
+{
+  "key": "e8672094905dd2dfbf5636d0d84b3b7e",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Od 2025-04-01 došlo v prodejnách STO-001 a STO-002 ke skokovému zvýšení prodejních cen o zhruba 13–17 % (průměrná cena základních položek vzrostla z ~70 na ~80, poměr ceny k base_price vzrostl u všech tří dodavatelů). Ve zbývajících prodejnách STO-003 a STO-004 se ceny nezměnily. Zvýšení cen se projevilo napříč všemi dodavateli, takže jde o cenovou změnu na úrovni prodejny, nikoli jednoho dodavatele. Následkem prudce vzrostl počet ztracených návštěv s důvodem 'odchod kvůli ceně': v STO-001 z ~9 případů před dubnem na 129 po zvýšení a v STO-002 z 10 na 126, tedy zhruba 2 ztracené návštěvy denně. V STO-003 a STO-004 zůstaly ztráty na nízké úrovni. Prodané množství zůstalo zhruba stabilní, takže zákazníci, kteří nakoupili, platili víc, zatímco část zákazníků odešla kvůli ceně.",
+        "findings": [
+          {
+            "claim": "Od 2025-04-01 se v prodejnách STO-001 a STO-002 skokově zvýšily prodejní ceny základních položek (z průměru ~70 na ~80, tedy +13–17 % oproti base_price) u všech dodavatelů SUP-001, SUP-002 a SUP-003. V STO-003 a STO-004 se ceny nezměnily.",
+            "entities": [
+              "STO-001",
+              "STO-002",
+              "SUP-001",
+              "SUP-002",
+              "SUP-003"
+            ],
+            "start": "2025-04-01",
+            "supportingSql": "select pr.supplier_id, pi.store_id, case when pi.date<'2025-04-01' then 'pred' else 'po' end obdobi, round(avg(pi.unit_price/pr.base_price),3) pomer_ceny, round(avg(pi.unit_price),1) cena, sum(pi.quantity) q, count(*) n from purchase_item pi join product pr on pr.id=pi.product_id where pi.line_kind='základní položka' group by 1,2,3 order by 1,2,3"
+          },
+          {
+            "claim": "Po zvýšení cen prudce vzrostl počet ztracených návštěv 'odchod kvůli ceně' v STO-001 (9 → 129) a STO-002 (10 → 126), ~1,9 případu denně. V STO-003 a STO-004 se ztráty téměř nezměnily.",
+            "entities": [
+              "STO-001",
+              "STO-002",
+              "STO-003",
+              "STO-004"
+            ],
+            "start": "2025-04-01",
+            "supportingSql": "select store_id, case when date<'2025-04-01' then 'pred' else 'po' end obdobi, count(*) n, count(distinct date) dnu, round(count(*)*1.0/count(distinct date),2) za_den, min(date) od from lost_visit group by 1,2 order by 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

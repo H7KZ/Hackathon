@@ -1,0 +1,55 @@
+{
+  "key": "c20a306815d8ad5ac103b90e3bb8a67f",
+  "model": "openai:gpt-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_push",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-10",
+            "to": 2.5,
+            "storyPointId": "sp1"
+          }
+        ],
+        "clamp": [
+          0,
+          100
+        ]
+      },
+      {
+        "id": "issue_prob",
+        "baseline": 0.03,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "MOD-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-11",
+            "to": 0.12,
+            "storyPointId": "sp2"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Rollout i nárůst poruch byly posunuty o měsíc později, aby se změna projevila až po původním období sledování."
+  }
+}

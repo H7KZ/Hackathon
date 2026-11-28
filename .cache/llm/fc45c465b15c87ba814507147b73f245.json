@@ -1,0 +1,49 @@
+{
+  "key": "fc45c465b15c87ba814507147b73f245",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Ve dvou měsících od 15. 3. 2025 je v datech zřetelný řetězec událostí. V segmentu zákazníků „kampaň“ prudce vzrostly objednávky: ze zhruba 30 denně na 92 dne 2025-03-15. Týdenní tržby tohoto segmentu vzrostly z ~220 řádků na 589 ve vrcholném týdnu od 17. 3. Segment „stálý“ zůstal stabilní (~100–135 řádků týdně). Vyšší poptávka způsobila výpadky skladu. Počet záznamů v lost_sale s důvodem „nedostupné zboží“ stoupl z ~5 měsíčně na 24 v březnu a 19 v dubnu. Ztracené prodeje se přitom nesoustředily na jeden produkt, ale rozprostřely se po desítkách produktů, vždy 1–3 případy na produkt. Dodavatelé SUP-001 a SUP-002 na to reagovali: průměrné množství na dodávku vzrostlo z ~1,8 na ~2,6–2,9 v březnu a dubnu a podíl nulových dodávek klesl. V květnu se oba dodavatelé vrátili na původní úroveň (~1,8–1,9). Poptávka i počet ztracených prodejů se vrátily k normálu po skončení kampaně (květen–červen). Kampaň se tedy ukazuje jako počátek změny, z níž vzešly výpadky zásob a zvýšené dodávky od obou dodavatelů.",
+        "findings": [
+          {
+            "claim": "Od 2025-03-15 prudce vzrostl počet nákupů v segmentu „kampaň“ (z ~30 na 92 denně, týdně až 589 řádků oproti ~220 před kampaní), zatímco segment „stálý“ zůstal beze změny. Po vrcholu v březnu postupně klesal k původní úrovni v květnu.",
+            "entities": [
+              "kampaň",
+              "stálý"
+            ],
+            "start": "2025-03-15",
+            "end": "2025-05-11",
+            "supportingSql": "SELECT date_trunc('week', date) AS w, customer_segment, count(*) AS n, sum(quantity) AS qty FROM sale WHERE date>='2025-02-24' AND date<'2025-05-15' GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Po začátku kampaně vzrostly ztracené prodeje kvůli „nedostupné zboží“ (z ~5 měsíčně na 24 v březnu a 19 v dubnu; týdně 10–13 případů v týdnech od 17. 3.), rozprostřené přes mnoho produktů (např. PRO-186, PRO-298, PRO-001, PRO-113, PRO-235). Po 25. dubnu se počet vrátil na 1–2 týdně.",
+            "entities": [
+              "PRO-186",
+              "PRO-298",
+              "PRO-008",
+              "PRO-001",
+              "PRO-113",
+              "PRO-235"
+            ],
+            "start": "2025-03-17",
+            "end": "2025-04-25",
+            "supportingSql": "SELECT date_trunc('week', date) AS w, count(*) AS n, count(DISTINCT product_id) AS prods FROM lost_sale GROUP BY 1 ORDER BY 1"
+          },
+          {
+            "claim": "Dodavatelé SUP-001 a SUP-002 zvýšili v březnu a dubnu 2025 průměrné množství na dodávku (~2,6–2,9 oproti ~1,8–1,9 v lednu, únoru, květnu a červnu) a snížili podíl nulových dodávek, což odpovídá reakci na vyšší poptávku z kampaně. V květnu se vrátili na původní úroveň.",
+            "entities": [
+              "SUP-001",
+              "SUP-002"
+            ],
+            "start": "2025-03-01",
+            "end": "2025-04-30",
+            "supportingSql": "SELECT supplier_id, date_trunc('month', date) AS m, count(*) AS n, sum(quantity) AS qty, avg(quantity) AS avg_qty, sum(CASE WHEN quantity=0 THEN 1 ELSE 0 END) AS zero_n FROM supplier_delivery GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

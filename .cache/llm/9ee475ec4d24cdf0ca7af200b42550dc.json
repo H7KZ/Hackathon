@@ -1,0 +1,860 @@
+{
+  "key": "9ee475ec4d24cdf0ca7af200b42550dc",
+  "model": "openai:gpt-5",
+  "schemaName": "05_scenario",
+  "output": {
+    "name": "retail_nb_delay",
+    "start": "2024-01-01",
+    "end": "2024-06-30",
+    "entities": [
+      {
+        "name": "city",
+        "count": 5,
+        "idPrefix": "CTY",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "categorical",
+            "values": [
+              "Praha",
+              "Brno",
+              "Ostrava",
+              "Plzeň",
+              "Hradec Králové"
+            ]
+          }
+        },
+        "visibility": "observed"
+      },
+      {
+        "name": "store",
+        "count": 5,
+        "idPrefix": "STO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "categorical",
+            "values": [
+              "Praha - Anděl",
+              "Brno - Vaňkovka",
+              "Ostrava - Forum Nová Karolina",
+              "Plzeň - Plaza",
+              "Hradec Králové - Aupark"
+            ]
+          },
+          "city_id": {
+            "gen": "pick",
+            "entity": "city"
+          }
+        },
+        "visibility": "observed"
+      },
+      {
+        "name": "dc",
+        "count": 1,
+        "idPrefix": "DC",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "const",
+            "value": "Centrální sklad Praha"
+          }
+        },
+        "visibility": "observed"
+      },
+      {
+        "name": "supplier",
+        "count": 2,
+        "idPrefix": "SUP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "categorical",
+            "values": [
+              "TechMaster Distribution a.s.",
+              "Electra Wholesale s.r.o."
+            ]
+          }
+        },
+        "visibility": "observed"
+      },
+      {
+        "name": "product",
+        "count": 30,
+        "idPrefix": "SKU",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "category": {
+            "gen": "if",
+            "cond": {
+              "kind": "or",
+              "conds": [
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-001"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-002"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-003"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-004"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-005"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-006"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-007"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-008"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-009"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-010"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-011"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-012"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-013"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-014"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-015"
+                }
+              ]
+            },
+            "then": {
+              "gen": "const",
+              "value": "notebook"
+            },
+            "else": {
+              "gen": "categorical",
+              "values": [
+                "mobilní_telefon",
+                "televize",
+                "audio",
+                "příslušenství",
+                "malé_spotřebiče"
+              ],
+              "weights": [
+                0.2,
+                0.2,
+                0.15,
+                0.25,
+                0.2
+              ]
+            }
+          },
+          "popularity_score": {
+            "gen": "if",
+            "cond": {
+              "kind": "or",
+              "conds": [
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-001"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-002"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-003"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-004"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-005"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-006"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-007"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-008"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-009"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-010"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-011"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-012"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-013"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-014"
+                },
+                {
+                  "kind": "fieldEq",
+                  "path": "self.id",
+                  "value": "SKU-015"
+                }
+              ]
+            },
+            "then": {
+              "gen": "uniformInt",
+              "min": 7,
+              "max": 10
+            },
+            "else": {
+              "gen": "uniformInt",
+              "min": 1,
+              "max": 6
+            }
+          }
+        },
+        "visibility": "observed"
+      }
+    ],
+    "flows": [
+      {
+        "id": "dc_stock",
+        "keys": [
+          "dc",
+          "product"
+        ],
+        "initial": {
+          "gen": "normal",
+          "mean": 50,
+          "sd": 8,
+          "min": 0,
+          "round": true
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "dc_stock_snapshot",
+          "visibility": "observed"
+        }
+      },
+      {
+        "id": "store_stock",
+        "keys": [
+          "store",
+          "product"
+        ],
+        "initial": {
+          "gen": "normal",
+          "mean": 10,
+          "sd": 2,
+          "min": 0,
+          "round": true
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "store_stock_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "dc_purchase_order",
+        "table": "dc_purchase_order",
+        "per": [
+          "dc"
+        ],
+        "rate": 60,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "dc_id": {
+            "gen": "ref",
+            "path": "key.dc"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product",
+            "weightBy": "popularity_score"
+          },
+          "category": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "self.product_id",
+            "field": "category"
+          },
+          "quantity": {
+            "gen": "topUp",
+            "flow": "dc_stock",
+            "keys": {
+              "dc": "self.dc_id",
+              "product": "self.product_id"
+            },
+            "target": 50
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "delay_days": {
+            "gen": "if",
+            "cond": {
+              "kind": "and",
+              "conds": [
+                {
+                  "kind": "fieldEq",
+                  "path": "self.category",
+                  "value": "notebook"
+                },
+                {
+                  "kind": "bernoulli",
+                  "p": {
+                    "curve": "nb_supplier_delay"
+                  }
+                }
+              ]
+            },
+            "then": {
+              "gen": "normal",
+              "mean": 28,
+              "sd": 6,
+              "min": 3,
+              "round": true
+            },
+            "else": {
+              "gen": "normal",
+              "mean": 7,
+              "sd": 2,
+              "min": 1,
+              "round": true
+            }
+          },
+          "delivery_date": {
+            "gen": "dateOffset",
+            "base": "self.date",
+            "days": "self.delay_days"
+          }
+        },
+        "effects": [
+          {
+            "flow": "dc_stock",
+            "keys": {
+              "dc": "self.dc_id",
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": 1,
+            "on": "self.delivery_date"
+          }
+        ],
+        "visibility": "observed"
+      },
+      {
+        "type": "arrival",
+        "id": "store_allocation_request",
+        "table": "store_allocation_request",
+        "per": [
+          "store"
+        ],
+        "rate": 18,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "key.store"
+          },
+          "dc_id": {
+            "gen": "pick",
+            "entity": "dc"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product",
+            "weightBy": "popularity_score"
+          },
+          "quantity": {
+            "gen": "topUp",
+            "flow": "store_stock",
+            "keys": {
+              "store": "self.store_id",
+              "product": "self.product_id"
+            },
+            "target": 10
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "ship_delay_days": {
+            "gen": "normal",
+            "mean": 1,
+            "sd": 0.5,
+            "min": 0,
+            "round": true
+          },
+          "delivery_date": {
+            "gen": "dateOffset",
+            "base": "self.date",
+            "days": "self.ship_delay_days"
+          }
+        },
+        "visibility": "observed"
+      },
+      {
+        "type": "branch",
+        "id": "allocate_or_backorder",
+        "source": "store_allocation_request",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "dc_stock",
+          "keys": {
+            "dc": "source.dc_id",
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "store_shipment",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "dc_id": {
+              "gen": "ref",
+              "path": "source.dc_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "source.date"
+            },
+            "delivery_date": {
+              "gen": "ref",
+              "path": "source.delivery_date"
+            }
+          },
+          "effects": [
+            {
+              "flow": "dc_stock",
+              "keys": {
+                "dc": "source.dc_id",
+                "product": "source.product_id"
+              },
+              "delta": "source.quantity",
+              "sign": -1,
+              "on": "source.date"
+            },
+            {
+              "flow": "store_stock",
+              "keys": {
+                "store": "source.store_id",
+                "product": "source.product_id"
+              },
+              "delta": "source.quantity",
+              "sign": 1,
+              "on": "source.delivery_date"
+            }
+          ]
+        },
+        "else": {
+          "table": "backorder",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "dc_id": {
+              "gen": "ref",
+              "path": "source.dc_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "source.date"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "nedostatek ve skladu DC"
+            }
+          }
+        }
+      },
+      {
+        "type": "arrival",
+        "id": "customer_intent",
+        "table": "customer_intent",
+        "per": [
+          "store"
+        ],
+        "rate": 14,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "key.store"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product",
+            "weightBy": "popularity_score"
+          },
+          "category": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "self.product_id",
+            "field": "category"
+          },
+          "quantity": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.category",
+              "value": "notebook"
+            },
+            "then": {
+              "gen": "uniformInt",
+              "min": 1,
+              "max": 2
+            },
+            "else": {
+              "gen": "const",
+              "value": 1
+            }
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "branch",
+        "id": "sell_or_oos",
+        "source": "customer_intent",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "store_stock",
+          "keys": {
+            "store": "source.store_id",
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "store_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "source.date"
+            }
+          },
+          "effects": [
+            {
+              "flow": "store_stock",
+              "keys": {
+                "store": "source.store_id",
+                "product": "source.product_id"
+              },
+              "delta": "source.quantity",
+              "sign": -1,
+              "on": "source.date"
+            }
+          ]
+        },
+        "else": {
+          "table": "lost_sale",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "category": {
+              "gen": "ref",
+              "path": "source.category"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "source.date"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "nedostupnost na prodejně"
+            }
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "lost_split_nb",
+        "source": "sell_or_oos:else",
+        "cond": {
+          "kind": "fieldEq",
+          "path": "source.category",
+          "value": "notebook"
+        },
+        "then": {
+          "table": "lost_sale_nb",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "lost_sale_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "source.date"
+            }
+          }
+        },
+        "else": {
+          "table": "lost_sale_other",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "lost_sale_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "source.date"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "complaint_nb",
+        "table": "complaint",
+        "source": "lost_split_nb:then",
+        "p": 0.6,
+        "lag": {
+          "min": 0,
+          "max": 2
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "lost_sale_id": {
+            "gen": "ref",
+            "path": "source.lost_sale_id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "reason": {
+            "gen": "const",
+            "value": "stížnost: nedostupnost notebooku"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "observed"
+      },
+      {
+        "type": "derive",
+        "id": "complaint_other",
+        "table": "complaint",
+        "source": "lost_split_nb:else",
+        "p": 0.2,
+        "lag": {
+          "min": 0,
+          "max": 2
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "lost_sale_id": {
+            "gen": "ref",
+            "path": "source.lost_sale_id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "source.product_id"
+          },
+          "reason": {
+            "gen": "const",
+            "value": "stížnost: nedostupnost zboží"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "observed"
+      }
+    ]
+  }
+}

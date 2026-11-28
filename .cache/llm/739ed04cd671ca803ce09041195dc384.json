@@ -1,0 +1,50 @@
+{
+  "key": "739ed04cd671ca803ce09041195dc384",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatel SUP-002 se od 2024-03-02 prudce zhoršil. Podíl pozdních dodávek vzrostl z cca 5 % (leden–únor) na 60–66 % (březen–květen) a průměrné zpoždění z cca 2,7 na 10–11 dní při nezměněné slíbené lead time 3 dny. Podíl krátkých dodávek se nezměnil, problém jsou tedy zpoždění. Ostatní dodavatelé (SUP-001, SUP-003) zůstali stabilní s pozdními dodávkami kolem 4–6 %. Zpoždění se projevilo níže v řetězci: počet ztracených prodejů u produktů dodávaných SUP-002 vzrostl (85 před 2024-03-02 vs. 496 po), zejména v kategorii notebook (41 v lednu, 198 v březnu, 195 v květnu). Stížnosti zákazníků na nedostupnost zboží u produktů SUP-002 vzrostly z 11–19 měsíčně na 56 v březnu a 63 v květnu, zatímco u SUP-003 a SUP-001 zůstaly ploché.",
+        "findings": [
+          {
+            "claim": "Dodavatel SUP-002 začal od 2024-03-02 dodávat masivně pozdě: podíl pozdních dodávek vzrostl z ~5 % na ~60–66 %, průměrné zpoždění z ~2,7 na ~10–11 dní při nezměněné lead time 3 dny.",
+            "entities": [
+              "SUP-002"
+            ],
+            "start": "2024-03-02",
+            "supportingSql": "SELECT supplier_id, date_trunc('month', order_date) AS m, count(*) n, avg(is_late::int) late_rate, avg(delay_days) avg_delay FROM purchase_order GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Ostatní dodavatelé (SUP-001, SUP-003) si zachovali stabilní spolehlivost (pozdní dodávky ~4–6 %), zhoršení je tedy specifické pro SUP-002 a týká se hlavně kategorie notebook.",
+            "entities": [
+              "SUP-001",
+              "SUP-003",
+              "SUP-002"
+            ],
+            "start": "2024-03-02",
+            "supportingSql": "SELECT supplier_id, category, count(*) n, avg(is_late::int) late_rate FROM purchase_order WHERE order_date>='2024-03-02' GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Následkem zpoždění SUP-002 prudce narostly ztracené prodeje (nedostupnost) u produktů tohoto dodavatele: 85 před vs. 496 po 2024-03-02; ztráty v kategorii notebook vzrostly z 41 (leden) na ~195–198 (březen, květen).",
+            "entities": [
+              "SUP-002",
+              "notebook"
+            ],
+            "start": "2024-03-02",
+            "supportingSql": "WITH ps AS (SELECT product_id, any_value(supplier_id) sup FROM purchase_order WHERE category IS NOT NULL GROUP BY 1) SELECT ps.sup, CASE WHEN l.date < DATE '2024-03-02' THEN 'before' ELSE 'after' END per, count(*) n FROM lost_sale l JOIN ps ON ps.product_id=l.product_id GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Stížnosti zákazníků na nedostupnost zboží u produktů SUP-002 vzrostly z 11–19 měsíčně na 56 v březnu a 63 v květnu 2024, zatímco u SUP-003 a SUP-001 zůstaly stabilní.",
+            "entities": [
+              "SUP-002"
+            ],
+            "start": "2024-03-02",
+            "supportingSql": "WITH ps AS (SELECT product_id, any_value(supplier_id) sup FROM purchase_order WHERE category IS NOT NULL GROUP BY 1) SELECT ps.sup, date_trunc('month', c.date) m, count(*) n FROM complaint c JOIN ps ON ps.product_id=c.product_id GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

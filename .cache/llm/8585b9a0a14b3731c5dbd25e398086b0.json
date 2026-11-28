@@ -1,0 +1,11 @@
+{
+  "key": "8585b9a0a14b3731c5dbd25e398086b0",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select pr.supplier_id, pi.store_id, case when pi.date<'2025-04-01' then 'pred' else 'po' end obdobi, round(avg(pi.unit_price/pr.base_price),3) pomer_ceny, round(avg(pi.unit_price),1) cena, sum(pi.quantity) q, count(*) n from purchase_item pi join product pr on pr.id=pi.product_id where pi.line_kind='základní položka' group by 1,2,3 order by 1,2,3"
+    }
+  }
+}

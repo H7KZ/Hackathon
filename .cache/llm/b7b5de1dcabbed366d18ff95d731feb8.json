@@ -1,0 +1,11 @@
+{
+  "key": "b7b5de1dcabbed366d18ff95d731feb8",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT table_name, string_agg(column_name || ':' || data_type, ', ') cols FROM information_schema.columns WHERE table_name IN ('complaint','refund','complaint_resolution','stock_snapshot') GROUP BY 1"
+    }
+  }
+}

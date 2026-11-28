@@ -1,0 +1,71 @@
+{
+  "key": "fa8728ba0f6343b892bd7b0af6f2d4f9",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Telekomunikace – poskytovatel internetového připojení (ISP) pro domácnosti a malé firmy",
+    "size": "Regionální poskytovatel, cca 45 000 aktivních zákazníků, 120 zaměstnanců, z toho 22 agentů zákaznické podpory a 15 terénních techniků",
+    "actors": [
+      {
+        "kind": "customer",
+        "name": "Domácí zákazníci",
+        "description": "Rodiny a jednotlivci s optickým nebo bezdrátovým připojením, kteří používají pronajaté routery a jsou citliví na výpadky a pomalé připojení."
+      },
+      {
+        "kind": "customer",
+        "name": "Malé firmy a živnostníci",
+        "description": "Zákazníci s byznys tarify a garantovanou dobou odezvy, kteří při problémech volají na podporu častěji a očekávají rychlé řešení."
+      },
+      {
+        "kind": "supplier",
+        "name": "Výrobce routerů NetKomp",
+        "description": "Dodavatel koncových routerů a firmwaru, který vydává aktualizace softwaru zařízení nasazených u zákazníků."
+      },
+      {
+        "kind": "supplier",
+        "name": "Velkoobchodní poskytovatel páteřní konektivity",
+        "description": "Dodavatel tranzitu a páteřní sítě, na kterém závisí kapacita a stabilita služby."
+      },
+      {
+        "kind": "employee",
+        "name": "Agenti zákaznické podpory",
+        "description": "Operátoři telefonní linky a chatu, kteří řeší hlášené závady, mají omezenou kapacitu a pracují na směny."
+      },
+      {
+        "kind": "employee",
+        "name": "Síloví a terénní technici",
+        "description": "Technici, kteří vzdáleně nastavují zařízení a vyjíždějí k zákazníkům, pokud se problém nedá vyřešit na dálku."
+      },
+      {
+        "kind": "employee",
+        "name": "Tým správy sítě a firmwaru",
+        "description": "Interní tým, který plánuje a spouští hromadné aktualizace firmwaru routerů a monitoruje jejich dopad."
+      },
+      {
+        "kind": "competitor",
+        "name": "Národní mobilní operátor",
+        "description": "Nabízí domácí připojení přes mobilní síť (5G) a láká nespokojené zákazníky."
+      },
+      {
+        "kind": "competitor",
+        "name": "Místní kabelový provozovatel",
+        "description": "Konkurent v několika městech regionu, který nabízí srovnatelné rychlosti a akční ceny."
+      },
+      {
+        "kind": "partner",
+        "name": "Externí call centrum",
+        "description": "Partner pro nárazové posílení podpory v době špiček, jehož nasazení je omezené a s časovou prodlevou."
+      }
+    ],
+    "keyProcesses": [
+      "Hromadné nasazení aktualizace firmwaru routerů po vlnách u zákazníků a změna podílu zařízení s novým firmwarem v čase",
+      "Vznik technických problémů po aktualizaci (ztráta Wi-Fi, restarty, nesprávná konfigurace) s pravděpodobností závislou na modelu routeru a verzi firmwaru",
+      "Rozhodnutí zákazníka kontaktovat podporu (pravděpodobnost volání na zákazníka a den) a příchod hovoru do fronty",
+      "Zařazení hovoru do fronty, přidělení agentovi a čekání podle kapacity směn a vytížení",
+      "Řešení hovoru: vzdálené řešení, eskalace na technika nebo výjezd k zákazníkovi, opakované hovory u nevyřešených případů",
+      "Plánování kapacity podpory: směny agentů, přesčasy a aktivace externího call centra s prodlevou",
+      "Vydání opravného firmwaru a postupné snižování pravděpodobnosti problémů po jeho nasazení",
+      "Fakturace a případné kompenzace či odchod zákazníků jako následek zhoršené kvality služby"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "key": "14d7e4fe753f44fd85977205cf24181b",
+  "model": "openai:gpt-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "list_tables"
+    }
+  }
+}

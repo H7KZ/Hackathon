@@ -1,0 +1,64 @@
+{
+  "key": "4502df1a2ea1b227dc485008dd1dda2f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Maloobchod – domácí potřeby a vybavení domácnosti",
+    "size": "5 prodejen v ČR, přibližně 45 zaměstnanců, 3 hlavní dodavatelé, týdenní zásobování",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "Domex Distribuce s.r.o.",
+        "description": "Dodavatel kuchyňských potřeb a nádobí. Od března dodává pozdě, což způsobuje výpadky zásob a je hlavní příčinou problémů."
+      },
+      {
+        "kind": "supplier",
+        "name": "Čistý Domov a.s.",
+        "description": "Dodavatel drogerie, úklidových prostředků a čisticích pomůcek. Dodává spolehlivě a včas."
+      },
+      {
+        "kind": "supplier",
+        "name": "Železářství Morava spol. s r.o.",
+        "description": "Dodavatel drobného nářadí, spojovacího materiálu a zahradních potřeb. Dodává stabilně s drobnými výkyvy."
+      },
+      {
+        "kind": "customer",
+        "name": "Domácnosti z okolí prodejen",
+        "description": "Běžní zákazníci nakupující pravidelně každodenní domácí potřeby. Jejich poptávka je stabilní a mírně sezónní."
+      },
+      {
+        "kind": "customer",
+        "name": "Kutilové a majitelé zahrad",
+        "description": "Zákazníci s vyšší hodnotou nákupu, citliví na dostupnost konkrétního zboží. Při výpadku odcházejí ke konkurenci."
+      },
+      {
+        "kind": "competitor",
+        "name": "Velký řetězec DIY marketů",
+        "description": "Konkurence s širokým sortimentem, která přebírá zákazníky odcházející kvůli nedostupnosti zboží."
+      },
+      {
+        "kind": "competitor",
+        "name": "Internetový obchod s domácími potřebami",
+        "description": "Online konkurent s doručením do několika dnů, lákavá alternativa při prázdných regálech."
+      },
+      {
+        "kind": "employee",
+        "name": "Vedoucí prodejen",
+        "description": "Zodpovídají za objednávky, doplňování zásob a řešení stížností zákazníků v jednotlivých prodejnách."
+      },
+      {
+        "kind": "employee",
+        "name": "Nákupčí a skladník centrály",
+        "description": "Zajišťují objednávky u dodavatelů, příjem zboží a rozvoz do prodejen."
+      }
+    ],
+    "keyProcesses": [
+      "Týdenní objednávání zboží u tří dodavatelů a jeho doručení do prodejen (slib dodání vs. skutečné dodání, zpoždění v dnech)",
+      "Příjem zboží a stav zásob na jednotlivých prodejnách (výpadky zásob podle produktu a prodejny)",
+      "Poptávka zákazníků a pokus o nákup (zákazník chce produkt, zboží je nebo není skladem)",
+      "Neuskutečněný nákup při nedostupném zboží (ztracený prodej, odchod k jiné prodejně či konkurenci)",
+      "Prodej a tržby (transakce odvozené z uskutečněných nákupů)",
+      "Podávání a řešení stížností zákazníků (stížnost navázaná na neuskutečněný nákup nebo dodavatele)"
+    ]
+  }
+}

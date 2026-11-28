@@ -1,0 +1,140 @@
+{
+  "key": "1f31ed5eb6e422d12afca118a1c7a75c",
+  "model": "openai:gpt-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_supplier_delay_start",
+        "phase": 1,
+        "title": "Březen: hlavní dodavatelé začínají mít zpoždění",
+        "description": "Od 1. března se u produktů od hlavního tieru postupně prodlužuje průměrné zpoždění dodávek. Zákazníci začínají čekat déle, tvoří se backlog a část objednávek je ohrožena zrušením.",
+        "entity": {
+          "name": "product",
+          "ids": [
+            "PRO-001"
+          ]
+        },
+        "start": "2025-03-01",
+        "end": "2025-03-15"
+      },
+      {
+        "id": "sp_supplier_delay_persist",
+        "phase": 2,
+        "title": "Druhá půlka března a dále: zpoždění se ustálí na vyšší úrovni",
+        "description": "Po polovině března se nová, vyšší úroveň zpoždění u hlavního tieru ustálí. Backlog zůstává zvýšený a zásoba je trvale nižší.",
+        "entity": {
+          "name": "product",
+          "ids": [
+            "PRO-001"
+          ]
+        },
+        "start": "2025-03-16",
+        "end": "2025-04-30"
+      }
+    ],
+    "curves": [
+      {
+        "id": "main_delay_mean",
+        "baseline": 2,
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-15",
+            "to": 6,
+            "storyPointId": "sp_supplier_delay_start"
+          },
+          {
+            "kind": "step",
+            "start": "2025-03-16",
+            "to": 6,
+            "storyPointId": "sp_supplier_delay_persist"
+          }
+        ],
+        "clamp": [
+          0,
+          30
+        ]
+      },
+      {
+        "id": "main_delay_sd",
+        "baseline": 1,
+        "segments": [],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "sec_delay_mean",
+        "baseline": 1,
+        "segments": [],
+        "clamp": [
+          0,
+          20
+        ]
+      },
+      {
+        "id": "sec_delay_sd",
+        "baseline": 0.8,
+        "segments": [],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "partial_rate",
+        "baseline": 0.12,
+        "segments": [],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_delay_increase_main",
+        "storyPointId": "sp_supplier_delay_start",
+        "description": "Průměrné denní zpoždění (delay_days) u dodávek produktů hlavního tieru po 16. 3. výrazně vzroste oproti období před 1. 3. (+30 % a více).",
+        "sql": "WITH sd AS (\n  SELECT sd.delivered_date::date AS d, sd.delay_days\n  FROM main.supplier_delivery sd\n  JOIN main.product p ON p.id = sd.product_id\n  WHERE p.supplier_tier = 'hlavní'\n), before AS (\n  SELECT AVG(day_avg) AS v\n  FROM (\n    SELECT d, AVG(delay_days) AS day_avg\n    FROM sd\n    WHERE d < DATE '2025-03-01'\n    GROUP BY d\n  ) x\n), after AS (\n  SELECT AVG(day_avg) AS v\n  FROM (\n    SELECT d, AVG(delay_days) AS day_avg\n    FROM sd\n    WHERE d >= DATE '2025-03-16'\n    GROUP BY d\n  ) y\n)\nSELECT 'before' AS period, v::double precision AS value FROM before\nUNION ALL\nSELECT 'after'  AS period, v::double precision AS value FROM after;",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_backlog_up_main",
+        "storyPointId": "sp_supplier_delay_persist",
+        "description": "Součet backlogu za den (snapshot) pro produkty hlavního tieru po 16. 3. stoupne alespoň o 30 % proti období před 1. 3.",
+        "sql": "WITH bl AS (\n  SELECT b.date::date AS d, b.product_id, b.level\n  FROM main.backlog_snapshot b\n  JOIN main.product p ON p.id = b.product_id\n  WHERE p.supplier_tier = 'hlavní'\n), daily AS (\n  SELECT d, SUM(level) AS day_sum\n  FROM bl\n  GROUP BY d\n), before AS (\n  SELECT AVG(day_sum) AS v FROM daily WHERE d < DATE '2025-03-01'\n), after AS (\n  SELECT AVG(day_sum) AS v FROM daily WHERE d >= DATE '2025-03-16'\n)\nSELECT 'before' AS period, v::double precision AS value FROM before\nUNION ALL\nSELECT 'after'  AS period, v::double precision AS value FROM after;",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_stock_down_main",
+        "storyPointId": "sp_supplier_delay_persist",
+        "description": "Průměrná denní úroveň zásoby (snapshot) pro produkty hlavního tieru po 16. 3. klesne alespoň o 30 % proti období před 1. 3.",
+        "sql": "WITH st AS (\n  SELECT s.date::date AS d, s.product_id, s.level\n  FROM main.stock_snapshot s\n  JOIN main.product p ON p.id = s.product_id\n  WHERE p.supplier_tier = 'hlavní'\n), daily AS (\n  SELECT d, AVG(level) AS day_avg\n  FROM st\n  GROUP BY d\n), before AS (\n  SELECT AVG(day_avg) AS v FROM daily WHERE d < DATE '2025-03-01'\n), after AS (\n  SELECT AVG(day_avg) AS v FROM daily WHERE d >= DATE '2025-03-16'\n)\nSELECT 'before' AS period, v::double precision AS value FROM before\nUNION ALL\nSELECT 'after'  AS period, v::double precision AS value FROM after;",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "ctrl_po_secondary_stable",
+        "storyPointId": "sp_supplier_delay_persist",
+        "description": "KONTRLA: Denní počet nákupních objednávek u produktů sekundárního tieru zůstává stabilní (±2 %) – poptávkový objem je mimo příběh.",
+        "sql": "WITH po AS (\n  SELECT o.date::date AS d\n  FROM main.purchase_order o\n  JOIN main.product p ON p.id = o.product_id\n  WHERE p.supplier_tier = 'sekundární'\n), daily AS (\n  SELECT d, COUNT(*) AS cnt\n  FROM po\n  GROUP BY d\n), before AS (\n  SELECT AVG(cnt) AS v FROM daily WHERE d < DATE '2025-03-01'\n), after AS (\n  SELECT AVG(cnt) AS v FROM daily WHERE d >= DATE '2025-03-16'\n)\nSELECT 'before' AS period, v::double precision AS value FROM before\nUNION ALL\nSELECT 'after'  AS period, v::double precision AS value FROM after;",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.02
+        }
+      }
+    ]
+  }
+}

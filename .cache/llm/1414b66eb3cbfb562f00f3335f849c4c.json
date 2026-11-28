@@ -1,0 +1,39 @@
+{
+  "key": "1414b66eb3cbfb562f00f3335f849c4c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatel SUP-001 se od 1. 3. 2025 skokově zhoršil. Podíl zpožděných dodávek vzrostl z cca 6 % v lednu a únoru na 57–68 % od března a průměrné zpoždění z cca 3 dnů na cca 10 dnů. Dodavatel SUP-002 zůstal stabilní. Zpoždění se projevilo dále v řetězci: počet backorderů produktů SUP-001 vzrostl z 3 v únoru na 344 v březnu (a 225–293 měsíčně v dalších měsících), zvýšil se počet zrušených objednávek, reklamací s důvodem „zpoždění dodávky“ a vrácení peněz. Celkový počet objednávek se přitom téměř nezměnil, takže příčinou je výpadek dodávek, ne poptávka.",
+        "findings": [
+          {
+            "claim": "Dodavatel SUP-001 od 1. 3. 2025 prudce zhoršil dodací spolehlivost: podíl zpožděných dodávek ze ~6 % na ~57–68 %, průměrné zpoždění z ~3 na ~10 dnů. SUP-002 zůstal beze změny.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2025-03-01",
+            "supportingSql": "SELECT supplier_id, date_trunc('month', order_date) m, count(*) n, avg(delay_days) avg_delay, avg(CASE WHEN is_delayed THEN 1.0 ELSE 0 END) delayed_rate FROM supplier_delivery GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Backordery produktů dodavatele SUP-001 vzrostly z 3 v únoru na 344 v březnu 2025 a zůstaly vysoko (225–293 měsíčně); u SUP-002 nedošlo k růstu.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2025-03-01",
+            "supportingSql": "SELECT p.supplier_id, date_trunc('month', b.date) m, count(*) n, count(distinct b.product_id) prods FROM order_backorder b JOIN product p ON p.id=b.product_id GROUP BY 1,2 ORDER BY 1,2"
+          },
+          {
+            "claim": "Následně od března 2025 vzrostly zrušené objednávky (z 0 v únoru na 45–61 měsíčně), reklamace kvůli zpoždění dodávky (z 1 v únoru na 51–102 měsíčně) a refundace, zatímco počet objednávek zůstal stabilní (~5 tis. měsíčně).",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2025-03-01",
+            "supportingSql": "SELECT 'cancel' k, date_trunc('month', date) m, count(*) n FROM order_cancellation GROUP BY 1,2 UNION ALL SELECT 'complaint', date_trunc('month', date), count(*) FROM complaint GROUP BY 1,2 UNION ALL SELECT 'refund', date_trunc('month', date), count(*) FROM refund GROUP BY 1,2 ORDER BY 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

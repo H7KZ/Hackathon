@@ -1,0 +1,66 @@
+{
+  "key": "a68e0901991ec780d2188cb10fedccdf",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "order_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.customer_segment",
+          "ids": [
+            "kampaň"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "spike",
+            "start": "2025-04-15",
+            "end": "2025-05-31",
+            "to": 3,
+            "storyPointId": "sp_spring_campaign"
+          },
+          {
+            "kind": "decay",
+            "start": "2025-06-01",
+            "end": "2025-06-30",
+            "to": 1,
+            "storyPointId": "sp_campaign_end"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "late_prob",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "return_prob",
+        "baseline": 0.08,
+        "segments": []
+      },
+      {
+        "id": "retention_email_prob",
+        "baseline": 0.5,
+        "segments": []
+      },
+      {
+        "id": "repeat_campaign_prob",
+        "baseline": 0.12,
+        "segments": []
+      },
+      {
+        "id": "repeat_loyal_prob",
+        "baseline": 0.35,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Křivka order_rate pro segment kampaň byla posunuta o měsíc později (nárůst od 15. 4. do 31. 5., doznění v červnu), zatímco všechny ostatní parametry zůstaly beze změny."
+  }
+}

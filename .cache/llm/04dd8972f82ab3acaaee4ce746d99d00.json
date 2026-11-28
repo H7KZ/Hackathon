@@ -1,0 +1,73 @@
+{
+  "key": "04dd8972f82ab3acaaee4ce746d99d00",
+  "model": "openai:gpt-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "supplier_delivery_full.delay_days",
+        "to": "supplier_delivery_full.delivered_date",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Delší zpoždění příjmu přímo posouvá datum doručení dále do budoucna."
+      },
+      {
+        "from": "supplier_delivery_full.delay_days",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 3,
+        "rationale": "Opožděné dodávky oddalují naskladnění, takže průběžně klesá dostupná zásoba."
+      },
+      {
+        "from": "supplier_delivery_full.delay_days",
+        "to": "backlog",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 2,
+        "rationale": "Pozdější dodávky zvyšují množství nevyřízených požadavků (backorderů) v backlogu."
+      },
+      {
+        "from": "backlog",
+        "to": "purchase_order.rate",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 7,
+        "rationale": "Vyšší backlog motivuje plánovače častěji vytvářet nákupní objednávky (reakce v týdenním cyklu)."
+      },
+      {
+        "from": "po_partial.cond",
+        "to": "po_partial.part_qty",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Vyšší pravděpodobnost větvení na částečnou dodávku vede k častějšímu vzniku a vyšší četnosti part_qty."
+      },
+      {
+        "from": "po_partial.cond",
+        "to": "supplier_delivery_full",
+        "direction": "negative",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Čím častěji jsou PO rozděleny na částečné, tím méně vzniká plných dodávek v procesu supplier_delivery_full (větvení ELSE se uplatní méně)."
+      },
+      {
+        "from": "po_partial.cond",
+        "to": "backlog",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 2,
+        "rationale": "Částečné dodávky ponechávají část objednaného množství nevyřízenou, což zvyšuje backlog."
+      },
+      {
+        "from": "po_partial.cond",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.3,
+        "delayDays": 1,
+        "rationale": "Rozdělení dodávky na části snižuje okamžitě dostupné naskladněné množství oproti plné dodávce."
+      }
+    ]
+  }
+}

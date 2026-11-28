@@ -1,0 +1,11 @@
+{
+  "key": "dac30697225b5363c9d6308c914990e9",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT 'cancel' k, date_trunc('month', date) m, count(*) n, sum(refund_amount) v FROM order_cancellation GROUP BY 1,2 UNION ALL SELECT 'backorder', date_trunc('month', date), count(*), sum(order_value) FROM order_backorder GROUP BY 1,2 UNION ALL SELECT 'orders', date_trunc('month', ts), count(*), 0 FROM customer_order GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

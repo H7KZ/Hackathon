@@ -1,0 +1,503 @@
+{
+  "key": "0433edfcca35045430fb96a9fe62a5a0",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "02_model",
+  "output": {
+    "entities": [
+      {
+        "name": "store",
+        "count": 4,
+        "idPrefix": "STO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          },
+          "city": {
+            "gen": "const",
+            "value": "Brno"
+          }
+        }
+      },
+      {
+        "name": "supplier",
+        "count": 3,
+        "idPrefix": "SUP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          },
+          "supplier_type": {
+            "gen": "categorical",
+            "values": [
+              "zelená káva",
+              "mléko",
+              "pečivo"
+            ]
+          }
+        }
+      },
+      {
+        "name": "employee",
+        "count": 28,
+        "idPrefix": "EMP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "store_id": {
+            "gen": "pick",
+            "entity": "store"
+          },
+          "role": {
+            "gen": "categorical",
+            "values": [
+              "barista",
+              "pražič",
+              "vedoucí provozovny",
+              "administrativa"
+            ],
+            "weights": [
+              0.6,
+              0.15,
+              0.15,
+              0.1
+            ]
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 600,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "segment": {
+            "gen": "categorical",
+            "values": [
+              "ranní spěchající",
+              "student nebo freelancer",
+              "stálý zákazník",
+              "firemní odběratel"
+            ],
+            "weights": [
+              0.35,
+              0.3,
+              0.25,
+              0.1
+            ]
+          },
+          "home_store_id": {
+            "gen": "pick",
+            "entity": "store"
+          },
+          "loyalty_member": {
+            "gen": "bernoulli",
+            "p": 0.35
+          }
+        }
+      },
+      {
+        "name": "product",
+        "count": 12,
+        "idPrefix": "PRO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "productName"
+          },
+          "category": {
+            "gen": "categorical",
+            "values": [
+              "espresso a nápoje",
+              "nápoje s mlékem",
+              "dezerty a pečivo",
+              "zrnková káva"
+            ],
+            "weights": [
+              0.35,
+              0.3,
+              0.25,
+              0.1
+            ]
+          },
+          "supplier_id": {
+            "gen": "pick",
+            "entity": "supplier"
+          },
+          "base_price": {
+            "gen": "normal",
+            "mean": 70,
+            "sd": 25,
+            "min": 30,
+            "max": 400,
+            "round": true
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "stock",
+        "keys": [
+          "store",
+          "product"
+        ],
+        "initial": {
+          "gen": "uniformInt",
+          "min": 150,
+          "max": 300
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "stock_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "customer_visit",
+        "table": "customer_visit",
+        "per": [
+          "customer"
+        ],
+        "rate": {
+          "curve": "visit_rate",
+          "scale": 0.15
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "key.customer"
+          },
+          "store_id": {
+            "gen": "lookup",
+            "entity": "customer",
+            "key": "key.customer",
+            "field": "home_store_id"
+          },
+          "segment": {
+            "gen": "lookup",
+            "entity": "customer",
+            "key": "key.customer",
+            "field": "segment"
+          },
+          "daypart": {
+            "gen": "categorical",
+            "values": [
+              "ráno",
+              "dopoledne",
+              "odpoledne"
+            ],
+            "weights": [
+              0.4,
+              0.3,
+              0.3
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "visibility": "ground_truth"
+      },
+      {
+        "type": "branch",
+        "id": "visit_outcome",
+        "source": "customer_visit",
+        "cond": {
+          "kind": "and",
+          "conds": [
+            {
+              "kind": "fieldEq",
+              "path": "source.daypart",
+              "value": "ráno"
+            },
+            {
+              "kind": "fieldEq",
+              "path": "source.segment",
+              "value": "ranní spěchající"
+            },
+            {
+              "kind": "bernoulli",
+              "p": {
+                "curve": "morning_churn_prob"
+              }
+            }
+          ]
+        },
+        "then": {
+          "table": "lost_visit",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "visit_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "reason": {
+              "gen": "const",
+              "value": "odchod kvůli ceně"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "visibility": "observed"
+        },
+        "else": {
+          "table": "purchase",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "visit_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "store_id": {
+              "gen": "ref",
+              "path": "source.store_id"
+            },
+            "employee_id": {
+              "gen": "pick",
+              "entity": "employee",
+              "where": {
+                "store_id": "source.store_id"
+              }
+            },
+            "daypart": {
+              "gen": "ref",
+              "path": "source.daypart"
+            },
+            "payment_method": {
+              "gen": "categorical",
+              "values": [
+                "karta",
+                "hotovost",
+                "mobil"
+              ],
+              "weights": [
+                0.55,
+                0.2,
+                0.25
+              ]
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "visibility": "observed"
+        }
+      },
+      {
+        "type": "derive",
+        "id": "main_item",
+        "table": "purchase_item",
+        "source": "visit_outcome:else",
+        "p": 1,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "purchase_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product"
+          },
+          "line_kind": {
+            "gen": "const",
+            "value": "základní položka"
+          },
+          "quantity": {
+            "gen": "uniformInt",
+            "min": 1,
+            "max": 2
+          },
+          "unit_price": {
+            "gen": "normal",
+            "mean": {
+              "curve": "drink_price_level",
+              "scale": 70
+            },
+            "sd": 12,
+            "min": 30,
+            "round": true
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "store": "self.store_id",
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": -1
+          }
+        ]
+      },
+      {
+        "type": "derive",
+        "id": "upsell_item",
+        "table": "purchase_item",
+        "source": "visit_outcome:else",
+        "p": {
+          "curve": "upsell_prob"
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "purchase_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "source.store_id"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product"
+          },
+          "line_kind": {
+            "gen": "const",
+            "value": "doplněk (dezert nebo větší velikost)"
+          },
+          "quantity": {
+            "gen": "const",
+            "value": 1
+          },
+          "unit_price": {
+            "gen": "normal",
+            "mean": {
+              "curve": "drink_price_level",
+              "scale": 55
+            },
+            "sd": 10,
+            "min": 25,
+            "round": true
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "store": "self.store_id",
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": -1
+          }
+        ]
+      },
+      {
+        "type": "arrival",
+        "id": "stock_replenishment",
+        "table": "stock_delivery",
+        "per": [
+          "store",
+          "product"
+        ],
+        "schedule": {
+          "everyDays": 7,
+          "phase": "random"
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "store_id": {
+            "gen": "ref",
+            "path": "key.store"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "key.product"
+          },
+          "quantity": {
+            "gen": "topUp",
+            "flow": "stock",
+            "keys": {
+              "store": "key.store",
+              "product": "key.product"
+            },
+            "target": 300
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "store": "self.store_id",
+              "product": "self.product_id"
+            },
+            "delta": "self.quantity",
+            "sign": 1
+          }
+        ]
+      }
+    ]
+  }
+}

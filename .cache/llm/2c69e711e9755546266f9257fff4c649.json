@@ -1,0 +1,11 @@
+{
+  "key": "2c69e711e9755546266f9257fff4c649",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "WITH ps AS (SELECT product_id, any_value(supplier_id) sup FROM purchase_order WHERE category IS NOT NULL GROUP BY 1) SELECT ps.sup, date_trunc('month', c.date) m, c.reason, count(*) n, count(distinct c.product_id) prods FROM complaint c JOIN ps ON ps.product_id=c.product_id GROUP BY 1,2,3 ORDER BY 1,2,3"
+    }
+  }
+}

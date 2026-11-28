@@ -1,0 +1,33 @@
+{
+  "key": "c38cae83fdf8afc1867c9cc1f4a19ed2",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04b_expectations",
+  "output": {
+    "queries": [
+      {
+        "hypothesisId": "sp_late_persist_supplier_order_control",
+        "sql": "SELECT 'before' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value FROM main.purchase_order WHERE CAST(order_date AS DATE) >= DATE '2024-01-29' AND CAST(order_date AS DATE) < DATE '2024-03-01' UNION ALL SELECT 'after' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-06-01', DATE '2024-09-01') AS value FROM main.purchase_order WHERE CAST(order_date AS DATE) >= DATE '2024-06-01' AND CAST(order_date AS DATE) < DATE '2024-09-01'"
+      },
+      {
+        "hypothesisId": "sp_late_persist_late_delivery",
+        "sql": "SELECT 'before' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value FROM main.purchase_order WHERE CAST(is_late AS INTEGER) = 1 AND CAST(order_date AS DATE) >= DATE '2024-01-29' AND CAST(order_date AS DATE) < DATE '2024-03-01' UNION ALL SELECT 'after' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-06-01', DATE '2024-09-01') AS value FROM main.purchase_order WHERE CAST(is_late AS INTEGER) = 1 AND CAST(order_date AS DATE) >= DATE '2024-06-01' AND CAST(order_date AS DATE) < DATE '2024-09-01'"
+      },
+      {
+        "hypothesisId": "sp_late_persist_stock",
+        "sql": "SELECT 'before' AS period, CAST(AVG(CASE WHEN value <= 0 THEN 1.0 ELSE 0.0 END) AS DOUBLE) AS value FROM main.stock_snapshot WHERE CAST(date AS DATE) >= DATE '2024-01-29' AND CAST(date AS DATE) < DATE '2024-03-01' UNION ALL SELECT 'after' AS period, CAST(AVG(CASE WHEN value <= 0 THEN 1.0 ELSE 0.0 END) AS DOUBLE) AS value FROM main.stock_snapshot WHERE CAST(date AS DATE) >= DATE '2024-06-01' AND CAST(date AS DATE) < DATE '2024-09-01'"
+      },
+      {
+        "hypothesisId": "sp_late_persist_sale",
+        "sql": "SELECT 'before' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value FROM main.sale WHERE CAST(date AS DATE) >= DATE '2024-01-29' AND CAST(date AS DATE) < DATE '2024-03-01' UNION ALL SELECT 'after' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-06-01', DATE '2024-09-01') AS value FROM main.sale WHERE CAST(date AS DATE) >= DATE '2024-06-01' AND CAST(date AS DATE) < DATE '2024-09-01'"
+      },
+      {
+        "hypothesisId": "sp_late_persist_lost_sale",
+        "sql": "SELECT 'before' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value FROM main.lost_sale WHERE CAST(date AS DATE) >= DATE '2024-01-29' AND CAST(date AS DATE) < DATE '2024-03-01' UNION ALL SELECT 'after' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-06-01', DATE '2024-09-01') AS value FROM main.lost_sale WHERE CAST(date AS DATE) >= DATE '2024-06-01' AND CAST(date AS DATE) < DATE '2024-09-01'"
+      },
+      {
+        "hypothesisId": "sp_late_persist_complaint",
+        "sql": "SELECT 'before' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value FROM main.complaint WHERE CAST(date AS DATE) >= DATE '2024-01-29' AND CAST(date AS DATE) < DATE '2024-03-01' UNION ALL SELECT 'after' AS period, CAST(COUNT(*) AS DOUBLE) / date_diff('day', DATE '2024-06-01', DATE '2024-09-01') AS value FROM main.complaint WHERE CAST(date AS DATE) >= DATE '2024-06-01' AND CAST(date AS DATE) < DATE '2024-09-01'"
+      }
+    ]
+  }
+}

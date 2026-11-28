@@ -1,0 +1,123 @@
+{
+  "key": "e0bf02a7215a4951695ce5b566ce384f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_coffee_price_increase",
+        "phase": 1,
+        "title": "Zdražení kávy o 15 % v provozovnách STO-001 a STO-002",
+        "description": "Od dubna se v provozovnách STO-001 a STO-002 zvedá cenová hladina nápojů o 15 %. Základní i doplňkové položky se oceňují dráž, takže průměrná útrata na nákup roste. Provozovny STO-003 a STO-004 slouží jako kontrola.",
+        "entity": {
+          "name": "store",
+          "ids": [
+            "STO-001",
+            "STO-002"
+          ]
+        },
+        "start": "2025-04-01"
+      },
+      {
+        "id": "sp_morning_price_exit",
+        "phase": 2,
+        "title": "Ranní spěchající zákazníci odcházejí kvůli ceně",
+        "description": "S třídenním zpožděním po zdražení roste v provozovnách STO-001 a STO-002 pravděpodobnost, že ranní spěchající zákazník odejde kvůli ceně. Ubývá ranních nákupů a přibývá ztracených návštěv.",
+        "entity": {
+          "name": "store",
+          "ids": [
+            "STO-001",
+            "STO-002"
+          ]
+        },
+        "start": "2025-04-04"
+      }
+    ],
+    "curves": [
+      {
+        "id": "drink_price_level",
+        "baseline": 1,
+        "scope": {
+          "field": "self.store_id",
+          "ids": [
+            "STO-001",
+            "STO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-01",
+            "to": 1.15,
+            "storyPointId": "sp_coffee_price_increase"
+          }
+        ]
+      },
+      {
+        "id": "morning_churn_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.store_id",
+          "ids": [
+            "STO-001",
+            "STO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-04",
+            "to": 0.35,
+            "storyPointId": "sp_morning_price_exit"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_lost_visits_increase",
+        "storyPointId": "sp_morning_price_exit",
+        "description": "Počet ztracených návštěv (odchod kvůli ceně) za den v provozovnách STO-001 a STO-002 po zdražení výrazně vzroste.",
+        "sql": "WITH days AS (SELECT CAST(\"date\" AS DATE) AS d FROM purchase GROUP BY 1), lv AS (SELECT CAST(\"date\" AS DATE) AS d, COUNT(*) AS c FROM lost_visit WHERE store_id IN ('STO-001','STO-002') GROUP BY 1), x AS (SELECT days.d AS d, COALESCE(lv.c, 0) AS c FROM days LEFT JOIN lv ON lv.d = days.d) SELECT CASE WHEN d < DATE '2025-04-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(c) AS DOUBLE) AS value FROM x GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.3
+        }
+      },
+      {
+        "id": "exp_morning_rushed_purchases_decrease",
+        "storyPointId": "sp_morning_price_exit",
+        "description": "Počet ranních nákupů ranních spěchajících zákazníků za den v provozovnách STO-001 a STO-002 po zdražení klesne.",
+        "sql": "WITH days AS (SELECT CAST(\"date\" AS DATE) AS d FROM purchase GROUP BY 1), pc AS (SELECT CAST(p.\"date\" AS DATE) AS d, COUNT(*) AS c FROM purchase p JOIN customer cu ON cu.id = p.customer_id WHERE p.daypart = 'ráno' AND cu.segment = 'ranní spěchající' AND p.store_id IN ('STO-001','STO-002') GROUP BY 1), x AS (SELECT days.d AS d, COALESCE(pc.c, 0) AS c FROM days LEFT JOIN pc ON pc.d = days.d) SELECT CASE WHEN d < DATE '2025-04-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(c) AS DOUBLE) AS value FROM x GROUP BY 1",
+        "check": {
+          "kind": "decrease",
+          "minRelChange": 0.2
+        }
+      },
+      {
+        "id": "exp_avg_spend_increase",
+        "storyPointId": "sp_coffee_price_increase",
+        "description": "Průměrná útrata za nákup v provozovnách STO-001 a STO-002 po zdražení vzroste.",
+        "sql": "WITH t AS (SELECT p.id AS id, SUM(i.unit_price * i.quantity) AS v, MIN(CAST(p.\"date\" AS DATE)) AS d FROM purchase p JOIN purchase_item i ON i.purchase_id = p.id WHERE p.store_id IN ('STO-001','STO-002') GROUP BY p.id) SELECT CASE WHEN d < DATE '2025-04-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(v) AS DOUBLE) AS value FROM t GROUP BY 1",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.08
+        }
+      },
+      {
+        "id": "exp_unaffected_stores_purchases_stable",
+        "storyPointId": "sp_morning_price_exit",
+        "description": "Kontrola: počet nákupů za den v nezasažených provozovnách STO-003 a STO-004 zůstává stabilní.",
+        "sql": "WITH days AS (SELECT CAST(\"date\" AS DATE) AS d FROM purchase GROUP BY 1), pc AS (SELECT CAST(\"date\" AS DATE) AS d, COUNT(*) AS c FROM purchase WHERE store_id IN ('STO-003','STO-004') GROUP BY 1), x AS (SELECT days.d AS d, COALESCE(pc.c, 0) AS c FROM days LEFT JOIN pc ON pc.d = days.d) SELECT CASE WHEN d < DATE '2025-04-01' THEN 'before' ELSE 'after' END AS period, CAST(AVG(c) AS DOUBLE) AS value FROM x GROUP BY 1",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.1
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "key": "c7323b5afbdc75fee1da89782e07b58b",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "E-commerce – prodej domácích spotřebičů (velké a malé spotřebiče, online maloobchod)",
+    "size": "1 e-shop, 1 centrální sklad, 35 zaměstnanců, cca 1 200 objednávek týdně",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "ElektroDodávky CZ s.r.o.",
+        "description": "Hlavní dodavatel, pokrývá přibližně 60 % sortimentu (pračky, ledničky, myčky). Od března začal zpožďovat dodávky – roste pravděpodobnost zpoždění i jeho délka."
+      },
+      {
+        "kind": "supplier",
+        "name": "Domo Trade a.s.",
+        "description": "Vedlejší dodavatel malých spotřebičů (kávovary, vysavače, mixéry). Dodává spolehlivě, ale s vyššími nákupními cenami."
+      },
+      {
+        "kind": "customer",
+        "name": "Běžní domácnosti",
+        "description": "Hlavní segment zákazníků, kteří nakupují jednorázově a jsou citliví na dobu doručení. Při zpoždění si stěžují a zvyšuje se pravděpodobnost zrušení objednávky."
+      },
+      {
+        "kind": "customer",
+        "name": "Stálí zákazníci",
+        "description": "Zákazníci s opakovanými nákupy a členstvím v věrnostním programu. Jsou k zpožděním tolerantnější, ale při opakované špatné zkušenosti odcházejí."
+      },
+      {
+        "kind": "competitor",
+        "name": "Alza a další velcí prodejci",
+        "description": "Velcí konkurenti s rychlým doručením a skladem. Zákazníci rušící objednávky často přecházejí k nim."
+      },
+      {
+        "kind": "partner",
+        "name": "Rychlá přepravní služba s.r.o.",
+        "description": "Dopravce zajišťující doručení zákazníkům na adresu a na výdejní místa. Jeho spolehlivost je stabilní."
+      },
+      {
+        "kind": "employee",
+        "name": "Zákaznická podpora",
+        "description": "Tým 6 lidí, který řeší stížnosti, dotazy na stav objednávek a storna. Při růstu stížností se zvyšuje jeho vytížení."
+      },
+      {
+        "kind": "employee",
+        "name": "Nákup a sklad",
+        "description": "Zaměstnanci objednávající zboží od dodavatelů, přijímající dodávky a expedující objednávky."
+      }
+    ],
+    "keyProcesses": [
+      "Příjem objednávky zákazníka na e-shopu a rezervace zásob",
+      "Doplňování zásob: objednávka u dodavatele, dodávka a naskladnění (v březnu rostou pravděpodobnost a délka zpoždění dodavatele)",
+      "Expedice objednávky a doručení dopravcem zákazníkovi",
+      "Podání stížnosti zákazníkem na zpoždění, odkazující na objednávku",
+      "Zrušení objednávky zákazníkem (pravděpodobnost závisí na délce čekání a počtu zpoždění)",
+      "Vrácení platby po stornu objednávky",
+      "Řešení stížností zákaznickou podporou"
+    ]
+  }
+}

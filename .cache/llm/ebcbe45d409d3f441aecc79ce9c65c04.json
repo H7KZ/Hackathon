@@ -1,0 +1,265 @@
+{
+  "key": "ebcbe45d409d3f441aecc79ce9c65c04",
+  "model": "openai:gpt-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "web_session.rate",
+        "to": "web_session",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Vyšší intenzita kampaně přímo zvyšuje počet relací na webu."
+      },
+      {
+        "from": "web_session",
+        "to": "checkout_start",
+        "direction": "positive",
+        "weight": 0.7,
+        "delayDays": 0,
+        "rationale": "Část návštěv přechází do zahájení košíku dle konverzní míry návštěvy."
+      },
+      {
+        "from": "checkout_start",
+        "to": "first_checkout_intent",
+        "direction": "positive",
+        "weight": 0.75,
+        "delayDays": 0,
+        "rationale": "Nové relace bez historie primárně tvoří první nákupní záměry."
+      },
+      {
+        "from": "checkout_start",
+        "to": "repeat_checkout_intent",
+        "direction": "positive",
+        "weight": 0.25,
+        "delayDays": 0,
+        "rationale": "Menší část relací patří zákazníkům s historií a míří do opakovaného záměru."
+      },
+      {
+        "from": "cust_orders",
+        "to": "first_vs_repeat.cond",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Více předchozích objednávek zvyšuje šanci spadnout do větve repeat."
+      },
+      {
+        "from": "stock",
+        "to": "stock_check_first.cond",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Dostupná zásoba zvyšuje průchod stock-checkem pro první nákup."
+      },
+      {
+        "from": "stock",
+        "to": "stock_check_repeat.cond",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Dostupná zásoba zvyšuje průchod stock-checkem pro opakovaný nákup."
+      },
+      {
+        "from": "first_checkout_intent",
+        "to": "order_first",
+        "direction": "positive",
+        "weight": 0.55,
+        "delayDays": 0,
+        "rationale": "Část prvních záměrů se promění v objednávku dle konverze checkout→order."
+      },
+      {
+        "from": "repeat_checkout_intent",
+        "to": "order_repeat",
+        "direction": "positive",
+        "weight": 0.35,
+        "delayDays": 0,
+        "rationale": "Menší část opakovaných záměrů konvertuje na objednávku."
+      },
+      {
+        "from": "order_first",
+        "to": "order",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Proces order_first zapisuje vzniklé první objednávky do tabulky order."
+      },
+      {
+        "from": "order_repeat",
+        "to": "order",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Proces order_repeat zapisuje vzniklé opakované objednávky do tabulky order."
+      },
+      {
+        "from": "order",
+        "to": "cust_orders",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Každá objednávka navyšuje čítač objednávek daného zákazníka."
+      },
+      {
+        "from": "order",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Vyexpedované kusy odebírají ze skladu adekvátní množství."
+      },
+      {
+        "from": "stock",
+        "to": "lost_sale",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Vyšší úroveň zásob snižuje počet ztracených prodejů kvůli vyprodání."
+      },
+      {
+        "from": "order_first",
+        "to": "onboarding_email",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 1,
+        "rationale": "Po prvním nákupu je s krátkým zpožděním odeslán onboarding e‑mail."
+      },
+      {
+        "from": "onboarding_email",
+        "to": "email_open",
+        "direction": "positive",
+        "weight": 0.45,
+        "delayDays": 1,
+        "rationale": "Část odeslaných onboarding e‑mailů je otevřena."
+      },
+      {
+        "from": "onboarding_email",
+        "to": "engagement",
+        "direction": "positive",
+        "weight": 0.4,
+        "delayDays": 0,
+        "rationale": "Samotné odeslání přidává engagement bod (onboarding body)."
+      },
+      {
+        "from": "email_open",
+        "to": "engagement",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Otevření e‑mailu dále zvyšuje engagement zákazníka."
+      },
+      {
+        "from": "order_first",
+        "to": "second_intent",
+        "direction": "positive",
+        "weight": 0.2,
+        "delayDays": 21,
+        "rationale": "Část nových zákazníků v čase projeví druhý nákupní záměr."
+      },
+      {
+        "from": "engagement",
+        "to": "second_engagement_split.cond",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší engagement přesouvá zákazníka do angažované větve druhého záměru."
+      },
+      {
+        "from": "stock",
+        "to": "stock_check_second_eng.cond",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Dostupná zásoba zvyšuje průchod stock-checkem u angažovaných druhých záměrů."
+      },
+      {
+        "from": "stock",
+        "to": "stock_check_second_not.cond",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Dostupná zásoba zvyšuje průchod stock-checkem u neangažovaných druhých záměrů."
+      },
+      {
+        "from": "second_intent",
+        "to": "second_intent_engaged",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 0,
+        "rationale": "Druhé záměry se rozdělí; část spadne do angažované větve."
+      },
+      {
+        "from": "second_intent",
+        "to": "second_intent_not_engaged",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 0,
+        "rationale": "Druhé záměry se rozdělí; část spadne do neangažované větve."
+      },
+      {
+        "from": "second_intent_engaged",
+        "to": "second_ready_eng",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Angažované druhé záměry se při splnění podmínek připraví k objednání."
+      },
+      {
+        "from": "second_intent_not_engaged",
+        "to": "second_ready_not",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Neangažované druhé záměry se při splnění podmínek připraví k objednání."
+      },
+      {
+        "from": "stock",
+        "to": "second_ready_eng",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Dostupnost skladem je nutná pro vznik second_ready_eng."
+      },
+      {
+        "from": "stock",
+        "to": "second_ready_not",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Dostupnost skladem je nutná pro vznik second_ready_not."
+      },
+      {
+        "from": "second_ready_eng",
+        "to": "order_second_eng",
+        "direction": "positive",
+        "weight": 0.35,
+        "delayDays": 0,
+        "rationale": "Angažovaní s připraveným košíkem konvertují na objednávku s vyšší pravděpodobností."
+      },
+      {
+        "from": "second_ready_not",
+        "to": "order_second_not",
+        "direction": "positive",
+        "weight": 0.08,
+        "delayDays": 0,
+        "rationale": "Neangažovaní s připraveným košíkem konvertují na objednávku jen zřídka."
+      },
+      {
+        "from": "order_second_eng",
+        "to": "order",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Proces order_second_eng zapisuje druhé objednávky (angažované) do tabulky order."
+      },
+      {
+        "from": "order_second_not",
+        "to": "order",
+        "direction": "positive",
+        "weight": 1,
+        "delayDays": 0,
+        "rationale": "Proces order_second_not zapisuje druhé objednávky (neangažované) do tabulky order."
+      }
+    ]
+  }
+}

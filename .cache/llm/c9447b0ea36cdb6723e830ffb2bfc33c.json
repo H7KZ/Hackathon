@@ -1,0 +1,11 @@
+{
+  "key": "c9447b0ea36cdb6723e830ffb2bfc33c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select store_id, date, round(avg(unit_price),1) p, count(*) n from purchase_item where line_kind='základní položka' and store_id in ('STO-001','STO-002') and date between '2025-03-26' and '2025-04-05' group by 1,2 order by 1,2"
+    }
+  }
+}

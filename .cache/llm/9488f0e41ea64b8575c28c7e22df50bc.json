@@ -1,0 +1,70 @@
+{
+  "key": "9488f0e41ea64b8575c28c7e22df50bc",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "supplier_delay_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-01",
+            "to": 0.6,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "supplier_delay_max_days",
+        "baseline": 10,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-01",
+            "to": 21,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          8,
+          30
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      },
+      {
+        "id": "cancel_prob",
+        "baseline": 0.2,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Zpoždění dodávek dodavatele SUP-001 se posunulo o měsíc, z 1. března na 1. dubna, a ostatní parametry zůstaly beze změny."
+  }
+}

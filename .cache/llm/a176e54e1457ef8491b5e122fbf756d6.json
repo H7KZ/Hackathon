@@ -1,0 +1,123 @@
+{
+  "key": "a176e54e1457ef8491b5e122fbf756d6",
+  "model": "openai:gpt-5",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Online maloobchod – sportovní vybavení a oblečení",
+    "size": "Střední e‑shop; 35 zaměstnanců; 1 centrální sklad (Brno); bez kamenných prodejen",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "SportPro Distribution CZ",
+        "description": "Velkoobchod se značkovým sportovním oblečením a obuví; dodací lhůty 2–4 týdny; kvóty na novinkové kolekce před sezónou."
+      },
+      {
+        "kind": "supplier",
+        "name": "TrailTech Imports",
+        "description": "Dovozce cyklistické a běžecké elektroniky; vyžaduje předobjednávky; citlivost na kurz EUR a dostupnost čipů."
+      },
+      {
+        "kind": "supplier",
+        "name": "GreenPack Solutions",
+        "description": "Dodavatel obalových materiálů a výplní; množstevní slevy; možné sezónní výpadky při špičkách."
+      },
+      {
+        "kind": "customer",
+        "name": "Rekreační běžci",
+        "description": "Segment nově získaný jarní kampaní; první nákup motivovaný slevou; nízká znalost značky a nižší loajalita."
+      },
+      {
+        "kind": "customer",
+        "name": "Silniční cyklisté",
+        "description": "Vyšší průměrná hodnota košíku; delší obměňovací cyklus; citlivost na dostupnost velikostí a rychlost doručení."
+      },
+      {
+        "kind": "customer",
+        "name": "Věrní multisport zákazníci",
+        "description": "Opakované nákupy bez nutnosti slev; reagují na obsah, klub věrnosti a kvalitní servis."
+      },
+      {
+        "kind": "customer",
+        "name": "Dárkoví nakupující",
+        "description": "Sezónní jednorázové nákupy (svátky, narozeniny); nízká pravděpodobnost druhého nákupu bez silné pobídky."
+      },
+      {
+        "kind": "competitor",
+        "name": "SportMega.cz",
+        "description": "Velký multisport e‑shop; agresivní cenotvorba, rychlé doručení, privátní značky."
+      },
+      {
+        "kind": "competitor",
+        "name": "BikeRunShop.cz",
+        "description": "Specialista na běh a cyklo; silná komunita a obsah; vyšší retence u úzkých kategorií."
+      },
+      {
+        "kind": "competitor",
+        "name": "Tržiště typu marketplace",
+        "description": "Konkurenční tlak na cenu a doručení D+1; snadné porovnání nabídek."
+      },
+      {
+        "kind": "partner",
+        "name": "Agentura Reklamix",
+        "description": "Performance a brand marketing; realizovala jarní akviziční kampaň se slevovým kódem a vysokým dosahem."
+      },
+      {
+        "kind": "partner",
+        "name": "MailPilot (e‑mailing a automatizace)",
+        "description": "Platforma pro onboarding, segmentaci, doporučení a win‑back; řídí scénáře po prvním nákupu."
+      },
+      {
+        "kind": "partner",
+        "name": "PayGate.cz (platební brána)",
+        "description": "Online platby kartou, BNPL a Apple/Google Pay; ovlivňuje konverzi v košíku."
+      },
+      {
+        "kind": "partner",
+        "name": "RychloKurýr s.r.o.",
+        "description": "Hlavní dopravce s doručením D+1; kapacitní limity ve špičkách mohou zvyšovat zpoždění."
+      },
+      {
+        "kind": "employee",
+        "name": "Performance marketing tým",
+        "description": "Správa rozpočtů, cílení a promo kódů; akvizice nových uživatelů během sezónních kampaní."
+      },
+      {
+        "kind": "employee",
+        "name": "CRM a retenční specialista",
+        "description": "Onboarding nových zákazníků, segmentace, personalizace a win‑back komunikace."
+      },
+      {
+        "kind": "employee",
+        "name": "Vedoucí skladu a logistika",
+        "description": "Plánování naskladnění, řízení SLA expedice, koordinace s dopravci."
+      },
+      {
+        "kind": "employee",
+        "name": "Zákaznická podpora",
+        "description": "Řeší dotazy, změny objednávek, vrácení a reklamace; zásadní vliv na spokojenost po prvním nákupu."
+      },
+      {
+        "kind": "other",
+        "name": "Sportovní kluby a influenceři",
+        "description": "Zdroj nových zákazníků přes spolupráce a obsah; pomáhají budovat důvěru mimo promo akce."
+      }
+    ],
+    "keyProcesses": [
+      "spring_campaign_acquisition",
+      "traffic_to_first_purchase_conversion",
+      "discount_code_redemption",
+      "new_customer_onboarding_flow",
+      "product_recommendation_engine",
+      "cross_sell_and_up_sell",
+      "inventory_forecast_and_replenishment",
+      "order_fulfillment_and_shipping",
+      "delivery_sla_management",
+      "customer_support_and_returns",
+      "review_collection_and_nps",
+      "loyalty_program_enrollment",
+      "remarketing_and_winback",
+      "cohort_analysis_and_retention_tracking",
+      "pricing_and_promotion_strategy"
+    ]
+  }
+}

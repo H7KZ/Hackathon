@@ -1,0 +1,70 @@
+{
+  "key": "4d1cc61651a3dc18e48816026b2848a3",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "supplier_delay_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-01",
+            "to": 0.325,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "supplier_delay_max_days",
+        "baseline": 10,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-01",
+            "to": 16,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          8,
+          30
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      },
+      {
+        "id": "cancel_prob",
+        "baseline": 0.2,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Dopad zpoždění dodavatele SUP-001 byl snížen na polovinu: nárůst pravděpodobnosti zpoždění z 0,05 na 0,325 místo 0,6 a maximální délky zpoždění na 16 dní místo 21, zbytek scénáře zůstává beze změny."
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "key": "17c3b5a43e28e784ce4e9da5671f2270",
+  "model": "openai:gpt-5-mini",
+  "schemaName": "01_company",
+  "output": {
+    "industry": "Telekomunikační služby (poskytovatel internetového připojení)",
+    "size": "3 pobočky, 85 zaměstnanců",
+    "actors": [
+      {
+        "kind": "supplier",
+        "name": "Výrobce routerů",
+        "description": "Dodává hardware a firmware pro zákaznické routery; zodpovídá za vydávání aktualizací a poskytuje technické poznámky a opravné balíčky."
+      },
+      {
+        "kind": "supplier",
+        "name": "Distributor síťového vybavení",
+        "description": "Zajišťuje logistiku a náhradní díly pro routery, spolupracuje při hromadné výměně zařízení do terénu."
+      },
+      {
+        "kind": "customer",
+        "name": "Rezidenční zákazníci",
+        "description": "Domácnosti napojené na síť, typicky s malými routery v domácím prostředí; jejich zkušenost s aktualizací ovlivní objem hovorů na podporu."
+      },
+      {
+        "kind": "customer",
+        "name": "Malé a střední podniky (SMB)",
+        "description": "Firmy se službou pro podniky, vyžadují stabilní připojení a rychlé řešení výpadků; mají vyšší nároky na eskalaci."
+      },
+      {
+        "kind": "competitor",
+        "name": "Místní konkurent ISP",
+        "description": "Regionální poskytovatel, sleduje změny v kvalitě služeb konkurence a může získat nespokojené zákazníky."
+      },
+      {
+        "kind": "employee",
+        "name": "Call centrum - linka podpory",
+        "description": "První linie kontaktu pro zákazníky; zpracovává příchozí hovory, triážuje problémy a provádí standardní postupy řešení."
+      },
+      {
+        "kind": "employee",
+        "name": "NOC (síťové operace)",
+        "description": "Monitoruje síť, vytváří incidenty z automatických alarmů, koordinuje hromadné události a komunikuje se supportem a výrobci routerů."
+      },
+      {
+        "kind": "employee",
+        "name": "Terénní technici",
+        "description": "Provádějí výjezdy k zákazníkům, vyměňují zařízení, provádějí fyzickou diagnostiku a restoraci spojení."
+      },
+      {
+        "kind": "partner",
+        "name": "Výrobce management softwaru (remote management)",
+        "description": "Poskytuje nástroje pro hromadné nasazení firmware, vzdálenou konfiguraci a telemetrii routerů; klíčový při řízených aktualizacích."
+      },
+      {
+        "kind": "other",
+        "name": "Regulátor (ČTÚ) a zákaznické fórum",
+        "description": "Regulátor dohlíží na dodržování SLA a řešení stížností; komunitní fórum šíří zkušenosti zákazníků a ovlivňuje veřejné vnímání incidentu."
+      }
+    ],
+    "keyProcesses": [
+      "Plánování a řízení změn firmware (release management)",
+      "Distribuce a nasazení aktualizací na zákaznické routery",
+      "Monitoring zdraví sítě a telemetrie zařízení",
+      "Přijímání a triáž příchozích hovorů podpory (call routing)",
+      "Řešení incidentů první linie (remote troubleshooting)",
+      "Eskalace do NOC a výrobce zařízení",
+      "Plánování a vysílání terénních techniků (dispatch)",
+      "Komunikace se zákazníky o známých problémech a opravných krocích",
+      "Sledování a řízení fronty podpory a SLA",
+      "Analýza příčin incidentů a update post-mortem"
+    ]
+  }
+}

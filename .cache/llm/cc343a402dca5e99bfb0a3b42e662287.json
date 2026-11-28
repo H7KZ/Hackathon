@@ -1,0 +1,81 @@
+{
+  "key": "cc343a402dca5e99bfb0a3b42e662287",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "purchase_order.is_late",
+        "to": "purchase_order.delay_days",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Zpožděná dodávka notebooků má výrazně delší prodlevu (7–25 dnů) než dodávka včasná."
+      },
+      {
+        "from": "purchase_order.delay_days",
+        "to": "purchase_order.delivered_date",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 0,
+        "rationale": "Delší prodleva posouvá skutečné datum doručení na prodejnu."
+      },
+      {
+        "from": "purchase_order.delivered_date",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.7,
+        "delayDays": 10,
+        "rationale": "Pozdější doručení znamená, že zásoby na prodejně nejsou doplněny včas a skladová zásoba klesá."
+      },
+      {
+        "from": "purchase_order.is_short",
+        "to": "purchase_order.delivered_quantity",
+        "direction": "negative",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Nedodání plného množství snižuje počet doručených kusů oproti objednanému."
+      },
+      {
+        "from": "purchase_order.delivered_quantity",
+        "to": "stock",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 7,
+        "rationale": "Menší doručené množství doplní skladové zásoby jen částečně."
+      },
+      {
+        "from": "stock",
+        "to": "sale",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Dostatek zboží na skladě umožňuje úspěšné dokončení nákupu."
+      },
+      {
+        "from": "stock",
+        "to": "lost_sale",
+        "direction": "negative",
+        "weight": 0.85,
+        "delayDays": 0,
+        "rationale": "Nižší zásoba způsobuje, že zákazník odejde bez nákupu a vznikne ztracený prodej."
+      },
+      {
+        "from": "purchase_attempt",
+        "to": "lost_sale",
+        "direction": "positive",
+        "weight": 0.3,
+        "delayDays": 0,
+        "rationale": "Vyšší poptávka při nízkých zásobách vede k většímu počtu neuspokojených nákupních pokusů."
+      },
+      {
+        "from": "lost_sale",
+        "to": "complaint",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 1,
+        "rationale": "Část zákazníků, kteří odešli bez nákupu, podá stížnost na nedostupnost zboží."
+      }
+    ]
+  }
+}

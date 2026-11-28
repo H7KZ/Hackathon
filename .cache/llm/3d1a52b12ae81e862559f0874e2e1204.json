@@ -1,0 +1,70 @@
+{
+  "key": "3d1a52b12ae81e862559f0874e2e1204",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "supplier_delay_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-01",
+            "to": 0.6,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "supplier_delay_max_days",
+        "baseline": 10,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-01",
+            "to": 21,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          8,
+          30
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      },
+      {
+        "id": "cancel_prob",
+        "baseline": 0.2,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Začátek zpoždění dodavatele SUP-001 (pravděpodobnost i maximální délka zpoždění) jsem posunul z 1. března na 1. dubna a vše ostatní nechal beze změny."
+  }
+}

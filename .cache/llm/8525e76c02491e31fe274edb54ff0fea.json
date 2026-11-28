@@ -1,0 +1,105 @@
+{
+  "key": "8525e76c02491e31fe274edb54ff0fea",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "supplier_delivery.is_delayed",
+        "to": "supplier_delivery.delivered_date",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Vyšší pravděpodobnost zpoždění dodavatele posouvá datum doručení dodávky na pozdější termín."
+      },
+      {
+        "from": "supplier_delivery.delay_days",
+        "to": "supplier_delivery.delivered_date",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Delší zpoždění dodavatele přímo prodlužuje dobu do doručení dodávky."
+      },
+      {
+        "from": "supplier_delivery.delivered_date",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.7,
+        "delayDays": 7,
+        "rationale": "Pozdější naskladnění dodávky snižuje dostupné zásoby produktů ve skladu."
+      },
+      {
+        "from": "stock",
+        "to": "order_backorder",
+        "direction": "negative",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Nižší zásoby znamenají víc objednávek, které nelze ihned vyřídit a skončí jako čekající."
+      },
+      {
+        "from": "stock",
+        "to": "order_fulfillment",
+        "direction": "positive",
+        "weight": 0.8,
+        "delayDays": 0,
+        "rationale": "Dostatek zásob umožňuje okamžité vyřízení objednávek."
+      },
+      {
+        "from": "order_fulfillment",
+        "to": "shipment_create",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 2,
+        "rationale": "Vyřízené objednávky jsou expedovány dopravcem po krátké prodlevě."
+      },
+      {
+        "from": "order_backorder",
+        "to": "complaint_create.p",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 3,
+        "rationale": "Zákazníci čekající na zboží si častěji stěžují na zpoždění."
+      },
+      {
+        "from": "complaint_create.p",
+        "to": "complaint",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 3,
+        "rationale": "Vyšší pravděpodobnost stížnosti vede k většímu počtu podaných stížností."
+      },
+      {
+        "from": "complaint",
+        "to": "complaint_resolution",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 2,
+        "rationale": "Každá stížnost je řešena zákaznickou podporou, takže více stížností znamená více řešení."
+      },
+      {
+        "from": "order_backorder",
+        "to": "order_cancellation.p",
+        "direction": "positive",
+        "weight": 0.6,
+        "delayDays": 6,
+        "rationale": "Delší čekání na zboží zvyšuje ochotu zákazníků objednávku zrušit."
+      },
+      {
+        "from": "order_cancellation.p",
+        "to": "order_cancellation",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 6,
+        "rationale": "Vyšší pravděpodobnost zrušení vede k více stornům objednávek."
+      },
+      {
+        "from": "order_cancellation",
+        "to": "refund",
+        "direction": "positive",
+        "weight": 0.97,
+        "delayDays": 3,
+        "rationale": "Každé storno objednávky vyvolá vrácení platby zákazníkovi."
+      }
+    ]
+  }
+}

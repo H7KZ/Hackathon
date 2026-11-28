@@ -1,0 +1,54 @@
+{
+  "key": "0cd1a23a755ab2b44979bbfc03181c56",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04a_overlay",
+  "output": {
+    "name": "Pozdní dodávky a propad tržeb v síti prodejen",
+    "start": "2024-01-01",
+    "end": "2024-08-31",
+    "storyPoints": [
+      {
+        "id": "sp_late_start",
+        "phase": 1,
+        "title": "Dodavatel začíná dodávat pozdě",
+        "description": "Od března začíná problémový dodavatel Domex Distribuce zboží dodávat se zpožděním. Pozdní dodávky se objevují častěji než dříve a první zásoby se vyprazdňují.",
+        "start": "2024-03-01",
+        "end": "2024-04-01"
+      },
+      {
+        "id": "sp_late_peak",
+        "phase": 2,
+        "title": "Výpadky zásob a ztracené prodeje",
+        "description": "Zpoždění dodávek se zhoršuje. Na prodejnách chybí zboží, zákazníci nakupují méně, přibývá neuskutečněných nákupů, stížností a odchodů ke konkurenci. Poptávka přitom zůstává stabilní.",
+        "start": "2024-04-01",
+        "end": "2024-06-01"
+      },
+      {
+        "id": "sp_late_persist",
+        "phase": 3,
+        "title": "Trvale vysoká četnost zpoždění",
+        "description": "Dodavatel dál dodává pozdě, zásoby zůstávají nízké a tržby sítě jsou trvale nižší, přestože zájem zákazníků o zboží neklesl.",
+        "start": "2024-06-01"
+      }
+    ],
+    "levers": [
+      {
+        "lever": "late_prob_problem",
+        "values": [
+          {
+            "storyPointId": "sp_late_start",
+            "value": 0.25
+          },
+          {
+            "storyPointId": "sp_late_peak",
+            "value": 0.5
+          },
+          {
+            "storyPointId": "sp_late_persist",
+            "value": 0.55
+          }
+        ]
+      }
+    ]
+  }
+}

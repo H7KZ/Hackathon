@@ -1,0 +1,48 @@
+{
+  "key": "88b818fc2ff2274eac8c791208fcb840",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "notebook_late_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "to": 0.325,
+            "storyPointId": "sp_late_deliveries"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "notebook_short_prob",
+        "baseline": 0.05,
+        "segments": []
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Dopad zpoždění dodávek dodavatele SUP-002 je poloviční, protože skok pravděpodobnosti zpoždění od března byl snížen z 0,6 na 0,325, tedy zhruba na polovinu nárůstu oproti základní hodnotě 0,05, a vše ostatní zůstává beze změny."
+  }
+}

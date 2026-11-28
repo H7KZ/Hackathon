@@ -1,0 +1,149 @@
+{
+  "key": "2839d754b3e8eaa561c8ff1e43967ca4",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04_story",
+  "output": {
+    "storyPoints": [
+      {
+        "id": "sp_baseline",
+        "phase": 0,
+        "title": "Běžné dodávky",
+        "description": "Leden a únor: dodavatel SUP-001 dodává převážně včas, zpoždění jsou řídká a krátká.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "start": "2025-01-01",
+        "end": "2025-02-28"
+      },
+      {
+        "id": "sp_march_delays",
+        "phase": 1,
+        "title": "Dodavatel začíná zpožďovat dodávky",
+        "description": "Od března dodavatel SUP-001 často zpožďuje dodávky a zpoždění jsou delší. Zásoby jeho produktů docházejí, přibývá čekajících objednávek, stížností a storen.",
+        "entity": {
+          "name": "supplier",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "start": "2025-03-01"
+      }
+    ],
+    "curves": [
+      {
+        "id": "supplier_delay_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-01",
+            "to": 0.6,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "supplier_delay_max_days",
+        "baseline": 10,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-03-01",
+            "to": 21,
+            "storyPointId": "sp_march_delays"
+          }
+        ],
+        "clamp": [
+          8,
+          30
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.3,
+        "segments": []
+      },
+      {
+        "id": "cancel_prob",
+        "baseline": 0.2,
+        "segments": []
+      }
+    ],
+    "expectations": [
+      {
+        "id": "exp_late_delivery_share",
+        "storyPointId": "sp_march_delays",
+        "description": "Podíl zpožděných dodávek (7 a více dní) produktů dodavatele SUP-001 vzroste.",
+        "sql": "SELECT CASE WHEN CAST(sd.order_date AS DATE) >= DATE '2025-01-15' AND CAST(sd.order_date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(sd.order_date AS DATE) >= DATE '2025-03-15' AND CAST(sd.order_date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, AVG(CASE WHEN date_diff('day', CAST(sd.order_date AS DATE), CAST(sd.delivered_date AS DATE)) >= 7 THEN 1.0 ELSE 0.0 END) AS value FROM main.supplier_delivery sd WHERE sd.supplier_id = 'SUP-001' GROUP BY 1 HAVING period IS NOT NULL",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_backorders_per_day",
+        "storyPointId": "sp_march_delays",
+        "description": "Počet čekajících objednávek za den u produktů dodavatele SUP-001 vzroste.",
+        "sql": "WITH d AS (SELECT CASE WHEN CAST(date AS DATE) >= DATE '2025-01-15' AND CAST(date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(date AS DATE) >= DATE '2025-03-15' AND CAST(date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(DISTINCT date) AS n FROM main.customer_order GROUP BY 1), e AS (SELECT CASE WHEN CAST(b.date AS DATE) >= DATE '2025-01-15' AND CAST(b.date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(b.date AS DATE) >= DATE '2025-03-15' AND CAST(b.date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(*) AS c FROM main.order_backorder b JOIN main.product p ON p.id = b.product_id WHERE p.supplier_id = 'SUP-001' GROUP BY 1) SELECT d.period AS period, CAST(COALESCE(e.c, 0) AS DOUBLE) / d.n AS value FROM d LEFT JOIN e ON e.period = d.period WHERE d.period IS NOT NULL",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.5
+        }
+      },
+      {
+        "id": "exp_complaints_per_day",
+        "storyPointId": "sp_march_delays",
+        "description": "Počet stížností za den na objednávky produktů dodavatele SUP-001 vzroste.",
+        "sql": "WITH d AS (SELECT CASE WHEN CAST(date AS DATE) >= DATE '2025-01-15' AND CAST(date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(date AS DATE) >= DATE '2025-03-15' AND CAST(date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(DISTINCT date) AS n FROM main.customer_order GROUP BY 1), e AS (SELECT CASE WHEN CAST(c.date AS DATE) >= DATE '2025-01-15' AND CAST(c.date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(c.date AS DATE) >= DATE '2025-03-15' AND CAST(c.date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(*) AS c FROM main.complaint c JOIN main.customer_order o ON o.id = c.order_id JOIN main.product p ON p.id = o.product_id WHERE p.supplier_id = 'SUP-001' GROUP BY 1) SELECT d.period AS period, CAST(COALESCE(e.c, 0) AS DOUBLE) / d.n AS value FROM d LEFT JOIN e ON e.period = d.period WHERE d.period IS NOT NULL",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.4
+        }
+      },
+      {
+        "id": "exp_cancellations_per_day",
+        "storyPointId": "sp_march_delays",
+        "description": "Počet stornovaných objednávek za den u produktů dodavatele SUP-001 vzroste.",
+        "sql": "WITH d AS (SELECT CASE WHEN CAST(date AS DATE) >= DATE '2025-01-15' AND CAST(date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(date AS DATE) >= DATE '2025-03-15' AND CAST(date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(DISTINCT date) AS n FROM main.customer_order GROUP BY 1), e AS (SELECT CASE WHEN CAST(x.date AS DATE) >= DATE '2025-01-15' AND CAST(x.date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(x.date AS DATE) >= DATE '2025-03-15' AND CAST(x.date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(*) AS c FROM main.order_cancellation x JOIN main.customer_order o ON o.id = x.order_id JOIN main.product p ON p.id = o.product_id WHERE p.supplier_id = 'SUP-001' GROUP BY 1) SELECT d.period AS period, CAST(COALESCE(e.c, 0) AS DOUBLE) / d.n AS value FROM d LEFT JOIN e ON e.period = d.period WHERE d.period IS NOT NULL",
+        "check": {
+          "kind": "increase",
+          "minRelChange": 0.4
+        }
+      },
+      {
+        "id": "exp_control_unaffected_orders",
+        "storyPointId": "sp_march_delays",
+        "description": "Kontrola: počet objednávek za den u produktů nezasaženého dodavatele SUP-002 zůstává stabilní (poptávka se nemění).",
+        "sql": "WITH d AS (SELECT CASE WHEN CAST(date AS DATE) >= DATE '2025-01-15' AND CAST(date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(date AS DATE) >= DATE '2025-03-15' AND CAST(date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(DISTINCT date) AS n FROM main.customer_order GROUP BY 1), e AS (SELECT CASE WHEN CAST(o.date AS DATE) >= DATE '2025-01-15' AND CAST(o.date AS DATE) < DATE '2025-03-01' THEN 'before' WHEN CAST(o.date AS DATE) >= DATE '2025-03-15' AND CAST(o.date AS DATE) < DATE '2025-06-01' THEN 'after' END AS period, COUNT(*) AS c FROM main.customer_order o JOIN main.product p ON p.id = o.product_id WHERE p.supplier_id = 'SUP-002' GROUP BY 1) SELECT d.period AS period, CAST(COALESCE(e.c, 0) AS DOUBLE) / d.n AS value FROM d LEFT JOIN e ON e.period = d.period WHERE d.period IS NOT NULL",
+        "check": {
+          "kind": "stable",
+          "minRelChange": 0.15
+        }
+      }
+    ]
+  }
+}

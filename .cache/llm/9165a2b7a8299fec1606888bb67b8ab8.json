@@ -1,0 +1,113 @@
+{
+  "key": "9165a2b7a8299fec1606888bb67b8ab8",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "03_influences",
+  "output": {
+    "edges": [
+      {
+        "from": "order_attempt.rate",
+        "to": "customer_order",
+        "direction": "positive",
+        "weight": 0.9,
+        "delayDays": 0,
+        "rationale": "Vyšší intenzita příchodu zákazníků po jarní kampani přímo zvyšuje počet objednávek."
+      },
+      {
+        "from": "customer_order",
+        "to": "sale",
+        "direction": "positive",
+        "weight": 0.75,
+        "delayDays": 0,
+        "rationale": "Více objednávek znamená více úspěšných prodejů, pokud je zboží skladem."
+      },
+      {
+        "from": "customer_order",
+        "to": "lost_sale",
+        "direction": "positive",
+        "weight": 0.25,
+        "delayDays": 0,
+        "rationale": "Při nárůstu objednávek roste i počet nedostupných položek a ztracených prodejů."
+      },
+      {
+        "from": "sale",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.6,
+        "delayDays": 0,
+        "rationale": "Každý prodej snižuje skladovou zásobu produktu."
+      },
+      {
+        "from": "repeat_order",
+        "to": "stock",
+        "direction": "negative",
+        "weight": 0.3,
+        "delayDays": 0,
+        "rationale": "Opakované objednávky také odebírají zboží ze skladu."
+      },
+      {
+        "from": "stock",
+        "to": "lost_sale",
+        "direction": "negative",
+        "weight": 0.55,
+        "delayDays": 1,
+        "rationale": "Nižší zásoba zvyšuje šanci, že objednávka skončí jako ztracený prodej, takže vyšší zásoba ztráty snižuje."
+      },
+      {
+        "from": "sale",
+        "to": "campaign_buyer",
+        "direction": "positive",
+        "weight": 0.65,
+        "delayDays": 0,
+        "rationale": "Prodeje zákazníkům v segmentu kampaň vytvářejí záznamy kampaňových kupujících."
+      },
+      {
+        "from": "campaign_buyer",
+        "to": "retention_email",
+        "direction": "positive",
+        "weight": 0.5,
+        "delayDays": 3,
+        "rationale": "Po prvním nákupu kampaňového zákazníka se s určitou pravděpodobností odešle retenční e-mail."
+      },
+      {
+        "from": "campaign_buyer",
+        "to": "repeat_order",
+        "direction": "positive",
+        "weight": 0.3,
+        "delayDays": 45,
+        "rationale": "Část kampaňových kupujících se po 2 až 13 týdnech vrátí k opakovanému nákupu."
+      },
+      {
+        "from": "repeat_campaign.p",
+        "to": "repeat_order",
+        "direction": "positive",
+        "weight": 0.85,
+        "delayDays": 45,
+        "rationale": "Nízká pravděpodobnost opakovaného nákupu kampaňových zákazníků určuje, že se většina podruhé nevrátí."
+      },
+      {
+        "from": "retention_email",
+        "to": "repeat_order",
+        "direction": "positive",
+        "weight": 0.2,
+        "delayDays": 30,
+        "rationale": "Retenční komunikace mírně podporuje návrat zákazníka k dalšímu nákupu."
+      },
+      {
+        "from": "sale",
+        "to": "delivery",
+        "direction": "positive",
+        "weight": 0.95,
+        "delayDays": 1,
+        "rationale": "Každý úspěšný prodej vede k expedici a doručení zásilky."
+      },
+      {
+        "from": "delivery",
+        "to": "return_request",
+        "direction": "positive",
+        "weight": 0.3,
+        "delayDays": 8,
+        "rationale": "Část doručených zásilek skončí vrácením nebo reklamací."
+      }
+    ]
+  }
+}
