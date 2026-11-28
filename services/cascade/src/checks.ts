@@ -34,12 +34,16 @@ export function checkModelShape(model: ModelTables): CompileError[] {
   ];
 }
 
-/** Every curve planned in 04_story must drive some Param, otherwise its story point never shows. */
+/**
+ * Every curve planned in 04_story that bends (has segments) must drive some Param, otherwise its story
+ * point never shows. A flat curve is only a constant: A5 may use it or inline its baseline. Requiring it
+ * deadlocked A5 against checkCurvesOnRoots in a live run (flat complaint_prob on a downstream param).
+ */
 export function checkCurveCoverage(scenario: unknown, story: Pick<StoryPlan, "curves">): CompileError[] {
   const used = new Set<string>();
   collectCurveRefs(scenario, used);
   return story.curves
-    .filter((c) => !used.has(c.id))
+    .filter((c) => c.segments.length > 0 && !used.has(c.id))
     .map((c) => ({
       path: `curves.${c.id}`,
       message: `Curve "${c.id}" from 04_story is not used. Reference it as {"curve": "${c.id}"} in the Param it drives (an arrival rate or a bernoulli p in entities/processes).`,
@@ -359,14 +363,17 @@ export function curveParamRefs(scenario: unknown): { curve: string; ref: string;
  * incoming edge (or a derive/branch whose whole process has one) must emerge from the chain instead.
  */
 export function checkCurvesOnRoots(
-  scenario: Pick<Scenario, "processes">,
+  scenario: Pick<Scenario, "processes"> & { curves?: Pick<Scenario["curves"][number], "id" | "segments">[] },
   influences: InfluenceEdges,
 ): CompileError[] {
+  // a flat curve (no segments) never moves: it is a constant, not a story lever
+  const flat = new Set((scenario.curves ?? []).filter((c) => c.segments.length === 0).map((c) => c.id));
   const incoming = new Map<string, string[]>();
   for (const e of influences.edges) incoming.set(e.to, [...(incoming.get(e.to) ?? []), e.from]);
   const chained = new Set(scenario.processes.filter((p) => p.type !== "arrival").map((p) => p.id));
   const errors: CompileError[] = [];
   for (const { curve, ref, path } of curveParamRefs(scenario)) {
+    if (flat.has(curve)) continue;
     const owner = ref.split(".")[0] ?? "";
     // an edge from the owning process to its own field (delivery -> delivery.is_late) is structure, not a cause
     const from = [

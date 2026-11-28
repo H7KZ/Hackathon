@@ -47,6 +47,20 @@ export function checkCausalMap(map: CausalMap): CompileError[] {
     if ((n.kind === "lever" || n.kind === "branch") && out === 0)
       err(`nodes.${i}`, `${n.kind} "${n.id}" has no outgoing edge; connect it to what it influences.`);
   });
+  // hypotheses multiply edge signs (hypotheses.ts): a branch splits records, so its success outcome
+  // must be positive and its failure outcome negative, or "lost sales rise" is derived as "fall"
+  map.nodes.forEach((n, i) => {
+    if (n.kind !== "branch") return;
+    const outs = map.edges.filter((e) => e.from === n.id);
+    if (outs.length < 2) return;
+    const signs = new Set(outs.map((e) => e.sign));
+    if (signs.size === 2) return;
+    const list = outs.map((e) => `${e.id} (${e.sign})`).join(", ");
+    err(
+      `nodes.${i}`,
+      `Branch "${n.id}" splits records into outcomes, but all its edges are ${[...signs][0] ?? "positive"}: ${list}. Give the success outcome (e.g. sale) a positive edge and the failure outcome (else: lost sale, rejection) a negative edge, so more of the state means more success and fewer failures.`,
+    );
+  });
   const cycle = findCycle(map.edges);
   if (cycle)
     err(

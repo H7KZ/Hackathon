@@ -35,6 +35,17 @@ describe("03a causal map checks", () => {
     const noLever = { ...causalMap, nodes: causalMap.nodes.map((n) => ({ ...n, kind: "event" as const })) };
     expect(checkCausalMap(noLever).some((e) => e.message.includes("no lever"))).toBe(true);
   });
+
+  it("a branch needs a positive (success) and a negative (failure) outcome edge (live run 3)", () => {
+    const branch = causalMap.nodes.find((n) => n.kind === "branch")?.id ?? "";
+    const outs = causalMap.edges.filter((e) => e.from === branch);
+    expect(outs.length).toBeGreaterThan(1);
+    const allPositive = clone(causalMap);
+    for (const e of allPositive.edges) if (e.from === branch) e.sign = "positive";
+    const errors = checkCausalMap(allPositive);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toMatch(/failure outcome.*negative/);
+  });
 });
 
 describe("03b trace and coverage", () => {

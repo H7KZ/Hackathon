@@ -52,6 +52,16 @@ describe("curves only on roots of the map", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toMatch(/complaint_oos.*lost_sale/s);
   });
+
+  it("a flat curve (no segments) on a downstream param is only a constant, not a story lever", () => {
+    const flat = JSON.parse(
+      JSON.stringify({
+        ...base,
+        curves: [...base.curves, { id: "complaint_prob", baseline: 0.25, segments: [] }],
+      }).replace('"p":0.25', '"p":{"curve":"complaint_prob"}'),
+    ) as typeof base;
+    expect(checkCurvesOnRoots(flat, influences)).toEqual([]);
+  });
 });
 
 describe("in the cascade", () => {
