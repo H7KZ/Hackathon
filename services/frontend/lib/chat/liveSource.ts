@@ -106,6 +106,8 @@ export function createLiveSource(sessionId: string): ChatSource {
   let story: StoryArtifact | null = null;
   let lastDataset: string | null = null;
   let pendingApprove: SessionCommand | null = null;
+  /** "Upravit křivky" on a finished dataset: Generovat data re-runs the engine on its scenario (no LLM) */
+  let regen: { from: string; scenario: StoryArtifact } | null = null;
   let progressId = "";
   let progress: Step[] = [];
   let runs = 0;
@@ -129,6 +131,7 @@ export function createLiveSource(sessionId: string): ChatSource {
     story = null;
     lastDataset = null;
     pendingApprove = null;
+    regen = null;
     progressId = "";
     progress = [];
     runs = 0;
@@ -263,7 +266,12 @@ export function createLiveSource(sessionId: string): ChatSource {
   async function showStory() {
     const { value } = await getJson<{ value: StoryArtifact }>(`${base}/artifacts/04_story`);
     story = value;
-    const labels = await labelsFor();
+    await showEditor(value);
+  }
+
+  /** Puts a story (04_story, or a dataset's scenario for "Upravit křivky") into the one story editor. */
+  async function showEditor(value: StoryArtifact, datasetId?: string) {
+    const labels = await labelsFor(datasetId);
     const raw = storyToEdit(value);
     // read-only texts name entities; points stay as written (they go back to the API on approve)
     const edit = {
@@ -368,7 +376,7 @@ export function createLiveSource(sessionId: string): ChatSource {
         compare,
       ),
     });
-    emit({ type: "a2ui", message: readySurface(`ready-${datasetId}`, datasetId) });
+    emit({ type: "a2ui", message: readySurface(`ready-${datasetId}`, datasetId, false, true) });
     emit({ type: "suggest", items: LIVE_SUGGESTIONS });
     if (info?.parent) {
       const passed = ev.expectations.filter((e) => e.pass).length;
@@ -551,7 +559,56 @@ export function createLiveSource(sessionId: string): ChatSource {
     }
   }
 
+  /** "Upravit křivky": the editor, unlocked, with the curves this dataset was generated from. */
+  async function startRegen(from: string) {
+    const scenario = await getJson<{ scenario: StoryArtifact | null }>(`${base}/datasets/${from}/scenario`)
+      .then((r) => r.scenario)
+      .catch(() => null);
+    if (!scenario) {
+      say(`Scénář datasetu **${from}** se nepodařilo načíst, křivky teď upravit nejde.`);
+      return;
+    }
+    regen = { from, scenario };
+    storyLocked = false;
+    await showEditor(scenario, from);
+    if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", false) });
+    say(
+      `Křivky jsou odemčené tak, jak z nich vznikl dataset **${from}**. Upravte je a klikněte **Generovat data**: vznikne nový dataset vedle něj, spočítá ho rovnou engine (bez agentů). Platí jen změny křivek, ostatní nastavení zůstane jako u **${from}**.`,
+    );
+  }
+
+  /** Generovat data after "Upravit křivky": the edited scenario goes to the engine as a new dataset. */
+  function regenerate(context: Record<string, unknown>, from: string, scenario: StoryArtifact) {
+    const config = context.config as StoryConfig | undefined;
+    const edited = (context.points as StoryPointEdit[] | undefined) ?? storyToEdit(scenario).points;
+    const levers = (context.levers as LeverEdit[] | undefined) ?? [];
+    const next = editToStory(scenario, edited, config?.curve.baseline, levers);
+    const same = storyToEdit(scenario);
+    if (
+      JSON.stringify(next) ===
+      JSON.stringify(editToStory(scenario, same.points, same.config.curve.baseline, same.levers))
+    ) {
+      say(
+        `Křivky jste nezměnili, nový dataset by byl stejný jako **${from}**. Posuňte body nebo výchozí hodnotu a zkuste to znovu.`,
+      );
+      return;
+    }
+    if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
+    void command({ type: "edit_scenario", from, scenario: next }).then((ok) => {
+      if (ok) {
+        regen = null;
+        return;
+      }
+      // rejected (the scenario does not compile): leave the editor usable to fix it
+      if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", false) });
+    });
+  }
+
   function approve(context: Record<string, unknown>) {
+    if (regen) {
+      regenerate(context, regen.from, regen.scenario);
+      return;
+    }
     const config = context.config as StoryConfig | undefined;
     const settings = settingsFrom(config, context.expectations as ExpectationToggle[] | undefined);
     if (settings.expectations?.length === 0) {
@@ -642,6 +699,9 @@ export function createLiveSource(sessionId: string): ChatSource {
       const { action } = msg;
       if (action.userMessage) emit({ type: "say", role: "user", text: action.userMessage });
       if (action.name === "approve") approve(action.context);
+      // "Upravit křivky" on the ready card: the workspace opens the editor, the source unlocks it
+      if (action.name === "open_canvas" && typeof action.context.regenFrom === "string")
+        void startRegen(action.context.regenFrom);
       if (action.name === "detect")
         void command({ type: "detect", datasetId: String(action.context.datasetId) });
       if (

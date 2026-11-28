@@ -625,7 +625,8 @@ export function datasetSurface(
   );
 }
 
-export function readySurface(id: string, datasetId: string, demo = false): A2uiMessage {
+/** `live`: also "Upravit křivky", which reopens the story editor to regenerate from this dataset. */
+export function readySurface(id: string, datasetId: string, demo = false, live = false): A2uiMessage {
   return create(
     id,
     "Hotovo",
@@ -638,7 +639,7 @@ export function readySurface(id: string, datasetId: string, demo = false): A2uiM
         component: "Text",
         text: `Dataset **${datasetId}** je hotový a příběh v něm jde dohledat. Co dál?`,
       },
-      { id: "row", component: "Row", gap: "sm", children: ["detect", "open"] },
+      { id: "row", component: "Row", gap: "sm", children: ["detect", "open", ...(live ? ["edit"] : [])] },
       {
         id: "about",
         component: "Text",
@@ -660,6 +661,13 @@ export function readySurface(id: string, datasetId: string, demo = false): A2uiM
         variant: "secondary",
         label: "Otevřít data",
         action: { event: { name: "open_canvas", context: { surfaceId: `dataset-${datasetId}` } } },
+      },
+      {
+        id: "edit",
+        component: "Button",
+        variant: "secondary",
+        label: "Upravit křivky",
+        action: { event: { name: "open_canvas", context: { surfaceId: "story", regenFrom: datasetId } } },
       },
     ],
     {},

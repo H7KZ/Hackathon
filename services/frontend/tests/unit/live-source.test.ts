@@ -419,3 +419,130 @@ describe("live source: a step that gave up (run 7 review)", () => {
     stop();
   });
 });
+
+describe("live source: edit the curves of a finished dataset (user: the chart stayed locked)", () => {
+  const story = {
+    storyPoints: [{ id: "sp1", phase: 1, title: "Zpoždění", description: "", start: "2026-03-02" }],
+    curves: [
+      {
+        id: "late_prob",
+        baseline: 0.05,
+        segments: [{ kind: "ramp", start: "2026-03-02", to: 0.4, storyPointId: "sp1" }],
+      },
+    ],
+    expectations: [{ id: "e1", description: "a" }],
+  };
+  // the dataset's own scenario: a what-if moved the curve, and it carries what 04_story does not
+  const scenario = {
+    ...story,
+    meta: { start: "2026-01-01", end: "2026-06-30", seed: 42 },
+    processes: [{ id: "orders" }],
+    curves: [
+      {
+        id: "late_prob",
+        baseline: 0.05,
+        segments: [{ kind: "ramp", start: "2026-03-02", to: 0.3, storyPointId: "sp1" }],
+      },
+    ],
+  };
+  const ready = { status: "ready", datasets: [{ id: "dat1", parent: null, seed: 42, origin: "approve" }] };
+  const routes = {
+    "/evidence": { expectations: [], series: [] },
+    "/tables": { tables: [] },
+    "/scenario": { scenario },
+    "/labels": { labels: {} },
+  };
+  const send = (name: string, context: Record<string, unknown>) => ({
+    kind: "action" as const,
+    action: { name, surfaceId: "x", sourceComponentId: "b", timestamp: "", context },
+  });
+  const storyData = (events: SourceEvent[], key: string) =>
+    events.flatMap((e) =>
+      e.type === "a2ui" &&
+      "updateDataModel" in e.message &&
+      e.message.updateDataModel.surfaceId === "story" &&
+      e.message.updateDataModel.path === "/"
+        ? [(e.message.updateDataModel.value as Record<string, unknown>)[key]]
+        : [],
+    );
+  const commands = (requests: { url: string; body?: unknown }[]) =>
+    requests.flatMap((r) =>
+      r.url.endsWith("/commands") ? [r.body as { type: string } & Record<string, unknown>] : [],
+    );
+
+  async function finished() {
+    const s = start(ready, { "04_story": story }, routes);
+    s.es.push({ type: "status", status: "awaiting_refinement" }, 1);
+    await vi.waitFor(() => {
+      expect(created(s.events)).toContain("story");
+    });
+    s.es.push({ type: "status", status: "generating" }, 2);
+    s.es.push({ type: "dataset.ready", datasetId: "dat1" }, 3);
+    s.es.push({ type: "status", status: "ready" }, 4);
+    await vi.waitFor(() => {
+      expect(created(s.events)).toContain("ready-dat1");
+    });
+    return s;
+  }
+
+  it("the ready card offers Upravit křivky, which opens the story editor for that dataset", async () => {
+    const { events, stop } = await finished();
+    const card = events.find(
+      (e) =>
+        e.type === "a2ui" &&
+        "createSurface" in e.message &&
+        e.message.createSurface.surfaceId === "ready-dat1",
+    );
+    expect(JSON.stringify(card)).toContain('"label":"Upravit křivky"');
+    expect(JSON.stringify(card)).toContain('"context":{"surfaceId":"story","regenFrom":"dat1"}');
+    stop();
+  });
+
+  it("unlocks the editor with the dataset's curves; Generovat data sends edit_scenario from it", async () => {
+    const { source, events, requests, stop } = await finished();
+    source.send(send("open_canvas", { surfaceId: "story", regenFrom: "dat1" }));
+    await vi.waitFor(() => {
+      expect(storyData(events, "locked").at(-1)).toBe(false);
+    });
+    const points = storyData(events, "points").at(-1) as { id: string; level: number }[];
+    expect(points[0]).toMatchObject({ id: "sp1", level: 0.3 }); // the dataset's value, not 04_story's 0.4
+    const pt = points[0];
+    if (!pt) throw new Error("no point");
+    source.send(
+      send("approve", {
+        points: [{ ...pt, level: 0.6 }],
+        config: { curve: { baseline: 0.05 } },
+        expectations: [{ id: "e1", description: "a", enabled: true }],
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(commands(requests).map((c) => c.type)).toContain("edit_scenario");
+    });
+    const cmd = commands(requests).find((c) => c.type === "edit_scenario") as unknown as {
+      from: string;
+      scenario: typeof scenario;
+    };
+    expect(cmd.from).toBe("dat1");
+    expect(cmd.scenario.curves[0]?.segments[0]?.to).toBe(0.6);
+    // everything else of the dataset's scenario goes back as it was
+    expect(cmd.scenario.meta).toEqual(scenario.meta);
+    expect(cmd.scenario.processes).toEqual(scenario.processes);
+    expect(commands(requests).some((c) => c.type === "approve")).toBe(false);
+    stop();
+  });
+
+  it("Generovat data without a change sends nothing and says so", async () => {
+    const { source, events, requests, stop } = await finished();
+    source.send(send("open_canvas", { surfaceId: "story", regenFrom: "dat1" }));
+    await vi.waitFor(() => {
+      expect(storyData(events, "locked").at(-1)).toBe(false);
+    });
+    const points = storyData(events, "points").at(-1);
+    source.send(send("approve", { points, config: { curve: { baseline: 0.05 } }, expectations: [] }));
+    await vi.waitFor(() => {
+      expect(events.some((e) => e.type === "say" && e.text.includes("nezměnil"))).toBe(true);
+    });
+    expect(commands(requests).filter((c) => c.type !== "cancel")).toEqual([]);
+    stop();
+  });
+});
