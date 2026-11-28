@@ -355,7 +355,14 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         }),
       },
     );
-    if (res.ok) return res.scenario;
+    if (res.ok) {
+      if (res.misses?.length)
+        opts.onEvent?.({
+          type: "log",
+          message: `Agent ani po ${String(res.iterations)} pokusech nesplnil všechny hypotézy (${String(res.misses.length)} kontrol neprošlo). Data vznikla z jeho nejlepší verze; které hypotézy neplatí, ukazuje záložka Důkazy.`,
+        });
+      return res.scenario;
+    }
     opts.onEvent?.({
       type: "log",
       message: `Krok A5 ani po ${res.iterations} pokusech nesestavil platný scénář. Neúspěšné pokusy jsou v 05_scenario.rejected-N.json; uprav 04_story nebo nahraj 05_scenario ručně.`,

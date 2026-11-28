@@ -85,6 +85,7 @@ POST /sessions/:id/commands            SessionCommand union    → 202 { seq } |
 PUT  /sessions/:id/artifacts/:name     artifact JSON           → 202 | 409 | 422
 GET  /sessions/:id/datasets/:d/evidence | /tables | /tables/:t?limit= | /compare/:other | /detective
 GET  /sessions/:id/datasets/:d/export?format=xlsx|csv|parquet|duckdb   (attachment, observed tables only)
+GET  /sessions/:id/labels[?dataset=:d]                        → { labels: { "STO-001": "Novák s.r.o." } } (display only)
 ```
 - Pros: one zod union in `@s2d/schema/api` is shared by the core, the route and the UI. 409 is handled in one place. A new command doesn't touch `app.ts` (a conflict hotspot).
 - Cons: a discriminated-union body is less self-documenting than separate routes.
@@ -114,6 +115,7 @@ One line per change to `services/api/src/ports.ts` (date, team, what changed, wh
 
 - 2026-11-27, API: `dataer.evidence(dbPath, expectations)`. Expectations come from the scenario (SPEC rule 7) and run on the sandbox.
 - 2026-11-27, API: adapters split into `src/adapters/{cascade,noiser,dataer}.ts` (one file per team). Fakes in `src/adapters/fake.ts`, enabled with `API_FAKE`.
+- 2026-11-28, run-5 follow-up (no port change): every `SessionEvent` has `at` (server epoch ms); a failed job keeps `job.json` and `resume` retries it while `state.error` is set; `edit_artifact` of 04_story fills entities from curve scopes and rejects story-ref errors (422); `GET /sessions/:id/labels` (entity names from `entityLabels`, noiser); `API_FAKE_DELAY_MS` slows fake steps for UI tests.
 - 2026-11-28, run-4 follow-up: `dataer.export(db, format, outDir)` → `{file, filename, contentType}` (observed tables only, written once into `datasets/<d>/export/`). `approve.settings.period` sets `meta.start/end` of the dataset scenario; rejected (422, path `settings.period`) when it does not contain the story of `04_story`. Dataset ids are `dat1`, `dat2`, … (older sessions keep `d1`).
 - 2026-11-28, API (integration): `dataer.tables(db)` and `dataer.preview(db, table, limit)` (schema `main` only, read-only; `TableInfo`/`TablePreview` in `@s2d/schema/evidence`). Routes `GET …/datasets/:d/tables` → `{tables}` and `GET …/datasets/:d/tables/:t?limit=` → `TablePreview` (404 for unknown or ground-truth tables).
 - 2026-11-28, API (integration): `approve` takes optional `settings` (`GenerationSettings`: seed, scale, noise %, kept expectation ids), applied by `src/settings.ts` to the dataset copy of `05_scenario` (curves never change). `resume` also works after a draft that `failed` or was `cancelled` (its `job.json` is kept).

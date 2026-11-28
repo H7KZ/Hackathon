@@ -13,7 +13,19 @@ Template:
 ```
 
 
+## 2026-11-28 — Run-5 follow-up: edited stories, resumable failures, gate misses, detective v2, plausibility
 
+- **Decision:** (1) A story point added in the curve editor names the curve's entity/segment: the frontend copies it from a sibling point, `fillStoryEntities` (noiser) fills it from the curve scope in `edit_artifact` and again before A5, and an edited 04_story whose story refs still fail is rejected with 422 / fails before any A5 call. (2) A failed job keeps `job.json`; `resume` retries it while `state.error` is set (a legacy session without a job retries approve). (3) A5 `acceptGateMisses`: out of attempts but some attempt compiled, passed the checks and ran, it generates from the best such attempt, logs it, and the UI says how many hypotheses fail (evidence shows which). (4) Detective v2: tables overview computed by code in the first prompt, up to 4 queries per step, 8 steps (was 15), "first week of a sustained shift" dating, one finding per cause phase, consequences in the narrative. Scoring unchanged. (5) The compiler rejects a `dateOffset` whose days can exceed min(60, period/3); the gate feedback asks for more records or higher probability over extreme magnitudes. (6) A4/what-if prompts explain the four segment kinds. (7) `@s2d/llm`: per-request timeout (detective 60 s, others 4 min, `LLM_TIMEOUT_MS`) with one retry.
+- **Why:** user run "obchod s obovi": two editor-added points had no entity, A5 could not change them and burnt 5 attempts; the same run's edit also moved demand back to normal before a hypothesis window, which no parameter can satisfy. User session 5c1019ac: deliveries 90–150 days late passed every check; the detective took minutes (15 sequential calls with a growing transcript) and scored 50 %/25 % on a re-run. Live: several detective steps stalled for 4–15+ minutes with no timeout.
+- **Who:** integration (agent), run-5 follow-up.
+- **Affects:** `packages/schema/src/api.ts` (`SessionEvent.at`), `packages/llm`, `services/noiser` (compiler/story, compiler/plausibility, labels), `services/cascade` (cascade, loop, a5_detail, gate, prompts), `services/dataer/src/detective/loop.ts`, `services/api` (orchestrator, `GET /sessions/:id/labels`, `API_FAKE_DELAY_MS`), `services/frontend`, `.cache/llm/`.
+
+## 2026-11-28 — Run-5 follow-up: UI reload keeps the timeline; entity names instead of ids
+
+- **Decision:** every `SessionEvent` carries the server time `at` (optional, epoch ms); the live source handles events strictly in order (a card that needs a fetch is emitted before the next event), resets its state on every start, and starts step timers at the event's `at`. Job errors become a "Zkusit znovu" card in their place in the timeline (plain Czech), not raw text. Read-only texts (curve help, hypotheses, evidence, detective) show entity ids as "Name (STO-001)", with names from `GET /sessions/:id/labels` (engine-generated from seed + entity definition, same names as the data). Editable story point titles stay as written.
+- **Why:** user feedback: after a reload the running card and its timer scrolled out of view (fetched cards landed after all progress cards), the generation error sat above the timeline, and users do not know what STO-001 or SUP-001 mean without opening the tables.
+- **Who:** integration (agent), run-5 follow-up.
+- **Affects:** `packages/schema/src/api.ts`, `services/api`, `services/noiser/src/labels.ts`, `services/frontend/lib/chat/{liveSource,labels}.ts`.
 
 ## 2026-11-28 — Run-4 follow-up: lever scope from story entities, curve-shape checks, v1 seed-robust gate
 

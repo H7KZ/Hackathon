@@ -54,8 +54,10 @@ The step budget is small: batch related queries in one step and aggregate in SQL
 How to investigate:
 - Group a rate or count per week and per entity (supplier, store, product, segment...) and compare each
   entity with the others: the story is usually one entity or group that changes while the rest stay flat.
-- A change starts on the first week of a SUSTAINED shift (the new level holds for the following weeks),
-  not on a single noisy week before it; with ~30 records a week, a few percentage points are noise.
+- Estimate the normal level from ALL the quiet weeks before a change (their average), not from the
+  lowest weeks: with ~30 records a week a share jumps by 5–10 percentage points from noise alone.
+- A change starts on the first week that is clearly above that normal level AND stays there in the
+  following weeks; weeks that only wobble around the normal level are not the start.
 - If the same entity shifts again later (escalation, peak, recovery), that is another phase: report it
   as its own finding with its own start date.
 

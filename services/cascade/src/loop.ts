@@ -56,10 +56,16 @@ export interface RepairLoopOptions<T> {
   firstN?: number | undefined;
   /** A rejected attempt (raw agent output or assembled scenario) and why, e.g. to keep it or resume from it. */
   onRejected?: ((n: number, value: unknown, feedback: Feedback, stage: Stage) => void) | undefined;
+  /**
+   * Out of attempts, but some reached the story gate (compiled, passed the checks, ran): return the best
+   * of those with `misses` instead of failing. A user-edited story can contradict a fixed hypothesis
+   * that no parameter change can satisfy (user run: demand back to normal in March, "sales grow in May").
+   */
+  acceptGateMisses?: boolean | undefined;
 }
 
 export type RepairResult<T> =
-  | { ok: true; scenario: Scenario; output: T; iterations: number }
+  | { ok: true; scenario: Scenario; output: T; iterations: number; misses?: Feedback }
   | { ok: false; feedback: Feedback; iterations: number };
 
 export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairResult<T>> {
@@ -88,6 +94,8 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
     feedback = fb;
     if (opts.keepBest) best = { rank, previous, feedback };
   };
+  /** best attempt that ran and failed only the story gate (acceptGateMisses) */
+  let gateBest: { scenario: Scenario; output: T; misses: Feedback } | undefined;
   const first = opts.firstN ?? 1;
   for (let n = first; n < first + max; n++) {
     opts.signal?.throwIfAborted();
@@ -120,8 +128,15 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
       feedback: compiled.ok ? [] : compiled.errors,
     });
     if (compiled.ok) return { ok: true, scenario: compiled.scenario, output, iterations: n };
+    if (
+      stage === "story gate" &&
+      compiledRaw.ok &&
+      (!gateBest || checkErrors.length < gateBest.misses.length)
+    )
+      gateBest = { scenario: compiledRaw.scenario, output, misses: checkErrors };
     reject(n, assembled.ok ? assembled.scenario : output, compiled.errors, stage, output);
   }
+  if (opts.acceptGateMisses && gateBest) return { ok: true, ...gateBest, iterations: max };
   return { ok: false, feedback, iterations: max };
 }
 

@@ -10,6 +10,12 @@ describe("humanizeIds (user: nobody knows what STO-001 means)", () => {
     );
   });
 
+  it('leaves an id alone when the text already names it right after (detective: "SUP-002 (Import Asie a.s.)")', () => {
+    expect(humanizeIds("Dodavatel SUP-002 (Import Asie a.s.) zpožďuje", labels)).toBe(
+      "Dodavatel SUP-002 (Import Asie a.s.) zpožďuje",
+    );
+  });
+
   it("is idempotent", () => {
     const once = humanizeIds("Vratky u SUP-002", labels);
     expect(humanizeIds(once, labels)).toBe(once);

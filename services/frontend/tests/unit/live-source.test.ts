@@ -47,6 +47,7 @@ afterEach(() => {
 function start(
   state: Record<string, unknown> = { status: "ready", datasets: [] },
   artifacts: Record<string, unknown> = {},
+  routes: Record<string, unknown> = {},
 ) {
   vi.stubGlobal("EventSource", FakeEventSource);
   const requests: { url: string; body?: unknown }[] = [];
@@ -55,11 +56,14 @@ function start(
     vi.fn((url: string, init?: RequestInit) => {
       const raw = typeof init?.body === "string" ? init.body : undefined;
       requests.push({ url, ...(raw ? { body: JSON.parse(raw) as unknown } : {}) });
-      const body = url.endsWith("/commands")
-        ? { ok: true, seq: 1 }
-        : url.includes("/artifacts/")
-          ? { value: artifacts[url.split("/artifacts/")[1] ?? ""] ?? {} }
-          : state;
+      const route = Object.keys(routes).find((k) => url.includes(k));
+      const body = route
+        ? routes[route]
+        : url.endsWith("/commands")
+          ? { ok: true, seq: 1 }
+          : url.includes("/artifacts/")
+            ? { value: artifacts[url.split("/artifacts/")[1] ?? ""] ?? {} }
+            : state;
       return Promise.resolve(
         new Response(JSON.stringify(body), { status: url.endsWith("/commands") ? 202 : 200 }),
       );
@@ -286,6 +290,35 @@ describe("live source: reload keeps the timeline (user: refresh lost the timer, 
             e.message.updateDataModel.value === true,
         ),
       ).toBe(true);
+    });
+    stop();
+  });
+});
+
+describe("live source: a dataset whose hypotheses do not all hold", () => {
+  it("says how many fail and where to look", async () => {
+    const evidence = {
+      expectations: [
+        { id: "e1", description: "a", pass: true, before: 1, after: 2, relChange: 1 },
+        { id: "e2", description: "b", pass: false, before: 1, after: 1, relChange: 0 },
+      ],
+      series: [],
+    };
+    const { es, events, stop } = start(
+      { status: "ready", datasets: [{ id: "dat1", parent: null, seed: 42, origin: "approve" }] },
+      { "04_story": { storyPoints: [], curves: [], expectations: [] } },
+      {
+        "/evidence": evidence,
+        "/tables": { tables: [] },
+        "/scenario": { scenario: null },
+        "/labels": { labels: {} },
+      },
+    );
+    es.push({ type: "dataset.ready", datasetId: "dat1" }, 1);
+    await vi.waitFor(() => {
+      expect(events.some((e) => e.type === "say" && e.text.includes("1 hypotéza v nich neplatí (z 2)"))).toBe(
+        true,
+      );
     });
     stop();
   });

@@ -45,6 +45,31 @@ describe("repairLoop keeps the best attempt and passes the history (live run 3: 
     ]);
   });
 
+  it("acceptGateMisses: when every attempt runs but some hypotheses still fail, the best runnable attempt is used and the misses reported", async () => {
+    let n = 0;
+    const res = await repairLoop<string>({
+      step: "05_scenario",
+      keepBest: true,
+      acceptGateMisses: true,
+      ask: () => Promise.resolve(["gate-2", "compile-fail", "gate-1"][n++] ?? "gate-1"),
+      assemble: (o) => (o === "compile-fail" ? { ok: false, errors: [rootError] } : { ok: true, scenario }),
+      verify: () => Promise.resolve(n === 1 ? [gateError, gateError] : [gateError]),
+      maxIterations: 3,
+    });
+    expect(res).toMatchObject({ ok: true, output: "gate-1", misses: [gateError] });
+  });
+
+  it("without acceptGateMisses a run that never passes the gate fails", async () => {
+    const res = await repairLoop<string>({
+      step: "05_scenario",
+      ask: () => Promise.resolve("x"),
+      assemble: () => ({ ok: true, scenario }),
+      verify: () => Promise.resolve([gateError]),
+      maxIterations: 2,
+    });
+    expect(res.ok).toBe(false);
+  });
+
   it("without keepBest the last attempt stays `previous` (whatIf, 4b)", async () => {
     const prev: unknown[] = [];
     await repairLoop<string>({

@@ -35,6 +35,8 @@ Changed by the run-3 follow-up (run 4):
 - Segment story points (`segment: {field, values}`) replace invented entity ids for group stories.
 - Causal: hypotheses on a branch's success outcome (sales) need 5 % (`MIN_CHANGE_DILUTED`), others 10 %.
 
+Changed by the run-5 follow-up (run 6, [report](../runs/2026-11-28-live-e2e-6.md)): an edited 04_story is completed (`fillStoryEntities`, written back) and its story refs checked before A5 — a failure costs no A5 call; A5 `acceptGateMisses` generates from the best runnable attempt when attempts run out and logs how many hypotheses failed; the gate feedback prefers more records / higher probability over extreme magnitudes; A4 and what-if prompts explain the segment kinds (cache keys of A4, what-if and A5 repair attempts changed, re-recorded).
+
 Changed by the run-4 follow-up (run 5, [report](../runs/2026-11-28-live-e2e-5.md)):
 
 - Causal: an unscoped lever whose story points name entity ids is scoped to them by code (`entityScope` in `causal/curves.ts`, field `self.<entity>_id`); if the records using the lever lack that field, the overlay check asks for a scope. Run 4's lever moved every supplier while the answer key named one.

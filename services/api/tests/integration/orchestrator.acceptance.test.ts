@@ -2,7 +2,7 @@
  * Goal loops of the API orchestrator (docs/api-orchestrator.md). Written before the implementation.
  * Each `describe` is one loop: its goal is the assertion, its stop condition the awaited state.
  */
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { makeTempDir } from "@s2d/test-utils";
@@ -265,6 +265,18 @@ describe("L6b recovery after a failed or cancelled draft", () => {
     expect(second.orch.get(id).datasets[0]?.seed).toBe(7);
     // once it succeeded there is nothing left to retry
     expect(second.orch.command(id, { type: "resume" }).errors?.[0]?.message).toMatch(/Není co obnovit/);
+  });
+
+  it("a failed generation of an older session (no job kept) is retried as approve", async () => {
+    const first = setup({ failAt: "05_scenario" });
+    const id = await drafted(first.orch);
+    first.orch.command(id, { type: "approve" });
+    await first.orch.idle(id);
+    rmSync(join(tmp.dir, id, "job.json"), { force: true });
+    const second = setup();
+    expect(second.orch.command(id, { type: "resume" }).errors).toBeUndefined();
+    await second.orch.idle(id);
+    expect(second.orch.get(id).status).toBe("ready");
   });
 
   it("every event carries the server time, so a reloaded UI shows true elapsed times", async () => {

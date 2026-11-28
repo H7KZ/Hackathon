@@ -346,6 +346,13 @@ export function createLiveSource(sessionId: string): ChatSource {
       say(
         `Hotovo: **${datasetId}** odpovídá na „${question}“. Původní důkazy teď platí ${String(passed)} z ${String(ev.expectations.length)}, rozdíly proti ${info.parent} najdete v záložce **Porovnání s ${info.parent}**.`,
       );
+    } else {
+      // the agent may run out of attempts with a runnable scenario (e.g. an edit contradicts a hypothesis)
+      const failed = ev.expectations.filter((e) => !e.pass).length;
+      if (failed > 0)
+        say(
+          `Data jsou hotová, ale ${plural(failed, "hypotéza v nich neplatí", "hypotézy v nich neplatí", "hypotéz v nich neplatí")} (z ${String(ev.expectations.length)}). Které to jsou, ukazuje záložka **Důkazy**; po úpravě příběhu je můžete zkusit vygenerovat znovu.`,
+        );
     }
   }
 

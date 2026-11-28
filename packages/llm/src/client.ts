@@ -63,23 +63,64 @@ export function resolveModel(id: string): LanguageModel {
   throw new Error(`Unknown LLM provider in "${id}"`);
 }
 
-export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, model }) => {
-  if (model.startsWith("anthropic:")) return anthropicJsonText({ schema, instructions, prompt, model });
+/** Per-request limit (LLM_TIMEOUT_MS, default 4 min): one hung HTTP call must not block a job forever. */
+const timeoutMs = (schemaName: string) =>
+  Number(process.env.LLM_TIMEOUT_MS) ||
+  // a healthy detective step answers in 2–12 s (live, LLM_DEBUG=1); stalls happen: retry soon
+  (schemaName.startsWith("detective") ? 60_000 : 240_000);
+const isTimeout = (e: unknown) =>
+  e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+
+/** Runs one model request with a timeout; a timed-out request is retried once (live: a step hung 15+ min). */
+async function withTimeout<T>(schemaName: string, run: (abortSignal: AbortSignal) => Promise<T>): Promise<T> {
+  const ms = timeoutMs(schemaName);
+  // LLM_DEBUG=1: one stderr line per request (duration, finish reason, output tokens) to tell a slow
+  // long answer from a stalled connection
+  const debug = process.env.LLM_DEBUG === "1";
+  for (let attempt = 1; ; attempt++) {
+    const t0 = Date.now();
+    try {
+      const out = await run(AbortSignal.timeout(ms));
+      if (debug) {
+        const r = out as { finishReason?: string; usage?: { outputTokens?: number } };
+        console.error(
+          `[llm] ${schemaName} ${String(Date.now() - t0)} ms ${r.finishReason ?? ""} out=${String(r.usage?.outputTokens ?? "?")}`,
+        );
+      }
+      return out;
+    } catch (err) {
+      if (debug) console.error(`[llm] ${schemaName} ${String(Date.now() - t0)} ms failed: ${String(err)}`);
+      if (!isTimeout(err)) throw err;
+      if (attempt >= 2)
+        throw new Error(
+          `The model did not answer within ${String(Math.round(ms / 1000))} s (2 tries, ${schemaName}).`,
+          { cause: err },
+        );
+    }
+  }
+}
+
+export const aiSdkGenerate: Generate = async ({ schemaName, schema, instructions, prompt, model }) => {
+  if (model.startsWith("anthropic:"))
+    return anthropicJsonText({ schemaName, schema, instructions, prompt, model });
   try {
-    const result = await generateText({
-      model: resolveModel(model),
-      // an empty system block is rejected by some providers
-      instructions: instructions || undefined,
-      prompt,
-      output: Output.object({ schema: providerSafeSchema(schema) }),
-      // Groq: strict mode needs every field required (ours has optional ones; zod validates anyway),
-      // and gpt-oss spends most of the output budget on reasoning unless told otherwise.
-      ...(model.startsWith("groq:") && {
-        providerOptions: { openai: { strictJsonSchema: false, reasoningEffort: "low" } },
+    const result = await withTimeout(schemaName, (abortSignal) =>
+      generateText({
+        abortSignal,
+        model: resolveModel(model),
+        // an empty system block is rejected by some providers
+        instructions: instructions || undefined,
+        prompt,
+        output: Output.object({ schema: providerSafeSchema(schema) }),
+        // Groq: strict mode needs every field required (ours has optional ones; zod validates anyway),
+        // and gpt-oss spends most of the output budget on reasoning unless told otherwise.
+        ...(model.startsWith("groq:") && {
+          providerOptions: { openai: { strictJsonSchema: false, reasoningEffort: "low" } },
+        }),
+        // OpenAI strict mode needs every property required; ours has optional ones (zod validates anyway)
+        ...(model.startsWith("openai:") && { providerOptions: { openai: { strictJsonSchema: false } } }),
       }),
-      // OpenAI strict mode needs every property required; ours has optional ones (zod validates anyway)
-      ...(model.startsWith("openai:") && { providerOptions: { openai: { strictJsonSchema: false } } }),
-    });
+    );
     return result.output;
   } catch (err) {
     if (!NoObjectGeneratedError.isInstance(err)) throw err;
@@ -103,11 +144,13 @@ export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, mo
  * key is computed from the caller's instructions, not this suffix, so recordings stay valid.
  */
 async function anthropicJsonText({
+  schemaName,
   schema,
   instructions,
   prompt,
   model,
 }: {
+  schemaName: string;
   schema: z.ZodType;
   instructions: string;
   prompt: string;
@@ -123,7 +166,9 @@ async function anthropicJsonText({
       throw new Error(`LLM output was cut off (token limit) for ${model}; the JSON is incomplete.`);
     return parseJson(r.text);
   };
-  const first = await generateText({ model: resolveModel(model), instructions: system, prompt });
+  const first = await withTimeout(schemaName, (abortSignal) =>
+    generateText({ abortSignal, model: resolveModel(model), instructions: system, prompt }),
+  );
   const raw = read(first);
   // valid: done. Otherwise one follow-up turn with the model's own answer and what is wrong with it
   // (live run 5: a detective step answered with prose only, another left out the `action` wrapper;
@@ -136,15 +181,18 @@ async function anthropicJsonText({
           schema.safeParse(raw),
         );
   if (issues === undefined) return raw;
-  const again = await generateText({
-    model: resolveModel(model),
-    instructions: system,
-    messages: [
-      { role: "user", content: prompt },
-      { role: "assistant", content: first.text },
-      { role: "user", content: `${issues}\nReply with only the corrected JSON object.` },
-    ],
-  });
+  const again = await withTimeout(schemaName, (abortSignal) =>
+    generateText({
+      abortSignal,
+      model: resolveModel(model),
+      instructions: system,
+      messages: [
+        { role: "user", content: prompt },
+        { role: "assistant", content: first.text },
+        { role: "user", content: `${issues}\nReply with only the corrected JSON object.` },
+      ],
+    }),
+  );
   const retried = read(again);
   if (retried === undefined) throw new Error(`LLM answer for ${model} contained no JSON object.`);
   // still invalid: the caller's zod parse reports it (repair loops turn it into feedback)

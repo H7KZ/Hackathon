@@ -361,7 +361,12 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
           break;
         }
         case "resume": {
-          const job = store.readJob(id);
+          // sessions from before failed jobs were kept: a failed generation left only state.error behind
+          const legacy: JobSpec | null =
+            s.status === "awaiting_refinement" && s.error
+              ? { kind: "approve", command: { type: "approve" }, fallback: "awaiting_refinement" }
+              : null;
+          const job = store.readJob(id) ?? legacy;
           const resumable: SessionStatus[] = ["interrupted", "failed", "cancelled"];
           // also a job that failed and fell back to a stable state (state.error is set until the next job)
           if (!job || !(resumable.includes(s.status) || s.error))
