@@ -24,6 +24,7 @@ import {
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
+import { seedRobust } from "./gate";
 import { checkCausalMap } from "./causal/map";
 import { finishCausal } from "./causal/assemble";
 import { deriveHypotheses } from "./causal/hypotheses";
@@ -70,7 +71,7 @@ export interface CascadeOptions {
 export type CascadeDesign = "v1" | "causal";
 
 /** Causal design: how many times a failed story gate on 05 goes back to 4b. */
-export const GATE_REPAIRS = 2;
+export const GATE_REPAIRS = 3;
 
 /** Artifacts each design writes, in order. `until` must name one of them. */
 export const DESIGN_STEPS: Record<CascadeDesign, readonly ArtifactName[]> = {
@@ -228,9 +229,11 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     const scenario = await step("05_scenario", Scenario, async () => {
       // Story gate failures (weak effect, drift) go back to 4b, which owns rates, counts and initial
       // values; map, overlay, curves and SQL stay fixed. Same idea as v1, where A5 gets them.
+      // The code-derived story must also hold on >= 4/5 other seeds (live run 4: seed 42 was luck).
+      const verify = opts.verify && seedRobust(opts.verify);
       for (let round = 0; ; round++) {
         const res = finishCausal({ input, runId: opts.runId, plan, overlay, story });
-        const errors = res.ok ? ((await opts.verify?.(res.scenario)) ?? []) : res.errors;
+        const errors = res.ok ? ((await verify?.(res.scenario)) ?? []) : res.errors;
         if (res.ok && errors.length === 0) return res.scenario;
         const repairable = res.ok && round < GATE_REPAIRS;
         if (repairable) {

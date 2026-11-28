@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { baselineDrift, formatExpectationFailure } from "../../src/gate";
+import { loadScenarioFixture } from "@s2d/test-utils";
+import { Scenario } from "@s2d/schema/scenario";
+import { baselineDrift, formatExpectationFailure, seedRobust } from "../../src/gate";
 import { runCascade } from "../../src/cascade";
 import type { CascadeEvent } from "../../src/events";
 import { company, detail, influences, model, setup, story } from "./fixtures";
@@ -78,5 +80,37 @@ describe("story gate in the A5 loop", () => {
     // the lever reach of the failed expectation is part of the feedback
     expect(t.fake.calls.at(-1)?.prompt).toMatch(/expectations.e1.reach: "e1" reads .*"late_prob"/);
     expect(t.fake.calls.at(-1)?.prompt).toContain("## Best attempt so far (this is attempt 2)");
+  });
+});
+
+describe("seedRobust (causal gate: >= 4/5 seeds, live run 4)", () => {
+  const s = Scenario.parse(loadScenarioFixture("supplier_delay"));
+  const failAt =
+    (bad: number[]) =>
+    (x: Scenario): Promise<{ path: string; message: string }[]> =>
+      Promise.resolve(
+        bad.includes(x.meta.seed)
+          ? [
+              {
+                path: "expectations[0]",
+                message: `Expectation "e1" (d) failed: before 10, after 9.8 (change -2.0%); it needs ...`,
+              },
+            ]
+          : [],
+      );
+
+  it("passes when at most one of seeds 1..5 fails", async () => {
+    expect(await seedRobust(failAt([3]))(s)).toEqual([]);
+  });
+
+  it("names the failing seeds with their measurement", async () => {
+    const [e] = await seedRobust(failAt([1, 2]))(s);
+    expect(e?.path).toBe("expectations[0]");
+    expect(e?.message).toMatch(/seed 1: before 10, after 9\.8 \(change -2\.0%\); seed 2:/);
+    expect(e?.message).toMatch(/at least 4 of seeds 1, 2, 3, 4, 5/);
+  });
+
+  it("returns the scenario seed's own failures unchanged", async () => {
+    expect(await seedRobust(failAt([42]))(s)).toHaveLength(1);
   });
 });

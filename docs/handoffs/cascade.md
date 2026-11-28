@@ -28,6 +28,13 @@ Changed by live run 3 ([report](../runs/2026-11-28-live-e2e-3.md)):
 - **A5 resumes:** running the cascade again after A5 gave up continues at attempt 6, 7, … from the last rejected attempt for the same story (`05_scenario.rejected-N.feedback.json` holds the feedback and a story key). Without this, "Generovat data" again replayed the cached failures.
 - The what-if prompt leaves out `meta.id` (the session id), so a recorded what-if replays in any session.
 
+Changed by the run-3 follow-up (run 4):
+
+- A5 edits its **best** rejected attempt (stage reached, then fewest errors), sees the history of all attempts with recurring errors marked, and a failed expectation comes with the lever reach (`reach.ts`). Resume starts from the best attempt.
+- The compiler checks curve scopes on arrival `rate` and derive `p` (a `self.*` scope there never matched; marketing's campaign curve stayed at baseline).
+- Segment story points (`segment: {field, values}`) replace invented entity ids for group stories.
+- Causal: hypotheses on a branch's success outcome (sales) need 5 % (`MIN_CHANGE_DILUTED`), others 10 %.
+
 Open:
 
 - Elektro Novák was re-recorded through the API in run 3 (pinned Sonnet 5.5).
@@ -106,7 +113,7 @@ The API calls `run` with `until: "04_story"` (draft) and then `"05_scenario"` (a
 | Loop | Attempts | Feedback |
 |---|---|---|
 | A1–A4, 4a, overlay, SQL (`withSchemaRetry`) | 3 | zod issues + step checks (`checks.ts`, `causal/*.ts`) |
-| A5 (`repairLoop`) | 5 | `compileScenario` → story checks → `verify` |
+| A5 (`repairLoop`, `keepBest`) | 5 | `compileScenario` → story checks → `verify` (+ lever reach); the agent edits its best attempt and sees the history |
 | 4b (`repairLoop`) | 3 | `compileScenario` on flat lever curves + `checkTrace` |
 | causal 05 → 4b | 2 rounds | `verify` failures go back to 4b; map, overlay, curves and SQL stay |
 | whatIf | 3 | `compileScenario` + `checkCurveCoverage` |

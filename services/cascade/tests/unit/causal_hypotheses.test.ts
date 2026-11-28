@@ -10,6 +10,7 @@ import {
   pathsFrom,
 } from "../../src/causal/hypotheses";
 import { causalStory, checkQueries } from "../../src/causal/sql";
+import { ROBUST_SEEDS } from "../../src/gate";
 import { causalMap, overlay, processesPlan, queries } from "./causal_fixtures";
 import { company, model, setup } from "./fixtures";
 
@@ -209,7 +210,8 @@ describe("causal design end to end (fake LLM)", () => {
       },
     });
     ok.cleanup();
-    expect(seen).toEqual(["c5"]);
+    // the scenario seed, then seeds 1..5 (seedRobust)
+    expect(seen).toEqual(Array.from({ length: 1 + ROBUST_SEEDS.length }, () => "c5"));
     const { GATE_REPAIRS } = await import("../../src/cascade");
     const bad = setup([...answers, ...Array.from({ length: GATE_REPAIRS }, () => processesPlan)]);
     cleanup = bad.cleanup;
@@ -239,7 +241,7 @@ describe("causal design end to end (fake LLM)", () => {
     expect(t.fake.calls.map((c) => c.schemaName).slice(-2)).toEqual(["04b_expectations", "03b_processes"]);
     expect(t.fake.calls.at(-1)?.prompt).toContain("effect too weak");
     expect(res.scenario).toBeDefined();
-    expect(n).toBe(2);
+    expect(n).toBe(2 + ROBUST_SEEDS.length);
   });
 
   it("gives up after GATE_REPAIRS rounds of 4b", async () => {

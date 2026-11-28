@@ -31,6 +31,10 @@ Lower-level exports: `compileScenario`, `runScenario`, `topoSort`, `evaluateCurv
 | `seed`  | `meta.seed`       | Integer. Same scenario + seed ⇒ identical tables.                                                                                                                                                                                                                                                                                                                      |
 | `scale` | `meta.scale ?? 1` | Shrinks entities with `count >= 50` and the total volume of every arrival to ~`scale`. A per-stream rate is divided by how much its `per` entities already shrank, so `per: [customer]` is not scaled twice. Small entity sets (suppliers, stores) are never scaled, so ids like `SUP-002` keep existing. Flow levels and `topUp` targets are absolute and not scaled. |
 
+### Worker thread
+
+`generateInWorker(input, opts)` and `runScenarioInWorker(scenario, opts)` (`src/worker/`) run the same `generate` in one lazily started, unref'd `worker_threads` worker, so a server stays responsive during large runs. The worker entry (`engine.worker.mjs`) registers the tsx ESM hook and loads the engine from source. Output is identical to the in-process call (`tests/integration/worker.test.ts` checks the golden hashes). `stopEngineWorker()` ends it (tests).
+
 ## Engine semantics
 
 ```

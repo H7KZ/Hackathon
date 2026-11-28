@@ -108,3 +108,38 @@ export async function storyGate(raw: unknown): Promise<CompileError[]> {
     rmSync(dir, { recursive: true, force: true });
   }
 }
+
+/** Seeds and passes the causal design's gate demands, as the eval gate does (AGENTS.md, eval gate 3). */
+export const ROBUST_SEEDS = [1, 2, 3, 4, 5];
+export const MIN_ROBUST_PASSES = 4;
+
+/**
+ * A gate that also demands the story at >= 4 of seeds 1..5 once it passes at the scenario seed. Live run
+ * 4 (causal): sale passed at seed 42 and moved only -1..-5 % on seeds 1..5, so one seed is luck, not a
+ * story. Failures name every failing seed with its measurement, so 4b can strengthen the chain.
+ */
+export function seedRobust(
+  verify: (scenario: Scenario) => Promise<CompileError[]>,
+): (scenario: Scenario) => Promise<CompileError[]> {
+  return async (scenario) => {
+    const main = await verify(scenario);
+    if (main.length > 0) return main;
+    const fails = new Map<string, string[]>();
+    let failedSeeds = 0;
+    for (const seed of ROBUST_SEEDS) {
+      if (failedSeeds > ROBUST_SEEDS.length - MIN_ROBUST_PASSES) break;
+      const errors = await verify({ ...scenario, meta: { ...scenario.meta, seed } });
+      if (errors.length === 0) continue;
+      failedSeeds++;
+      for (const e of errors) {
+        const measured = /failed: ([^;]+);/.exec(e.message)?.[1] ?? e.message.slice(0, 120);
+        fails.set(e.path, [...(fails.get(e.path) ?? []), `seed ${seed}: ${measured}`]);
+      }
+    }
+    if (failedSeeds <= ROBUST_SEEDS.length - MIN_ROBUST_PASSES) return [];
+    return [...fails].map(([path, list]) => ({
+      path,
+      message: `Passes at seed ${scenario.meta.seed} but fails at other seeds (${list.join("; ")}). It must pass on at least ${MIN_ROBUST_PASSES} of seeds ${ROBUST_SEEDS.join(", ")}: the effect is too weak to survive random variation. Strengthen the chain (more affected records, lower initial stock or slower replenishment, higher probabilities along the path).`,
+    }));
+  };
+}
