@@ -29,6 +29,8 @@ export default defineConfig({
         API_PORT: String(API_PORT),
         CORS_ORIGIN: `http://localhost:${String(WEB_PORT)}`,
         API_FAKE: real ? "" : (process.env.API_FAKE ?? "all"),
+        // never share runs/ with a dev server: each API marks the other one's busy sessions interrupted
+        RUNS_DIR: process.env.E2E_RUNS_DIR ?? "runs-e2e",
       },
       url: `http://localhost:${String(API_PORT)}/health`,
       reuseExistingServer: false,

@@ -44,12 +44,21 @@ const cases = JSON.parse(readFileSync(resolve(ROOT, values.cases), "utf8")).filt
   (c) => !values.only || values.only.split(",").includes(c.id),
 );
 
-async function call(method, path, body) {
-  const res = await fetch(API + path, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+/** Transient network failures (server busy in a synchronous engine run) are retried; GETs only. */
+async function call(method, path, body, tries = method === "GET" ? 6 : 1) {
+  let res;
+  try {
+    res = await fetch(API + path, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (err) {
+    if (tries <= 1) throw err;
+    say(`  (retry ${method} ${path}: ${String(err.cause?.code ?? err.cause ?? err)})`);
+    await new Promise((r) => setTimeout(r, 3000));
+    return call(method, path, body, tries - 1);
+  }
   const text = await res.text();
   let json;
   try {

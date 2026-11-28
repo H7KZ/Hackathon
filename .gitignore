@@ -11,6 +11,7 @@ test-results/
 # generated data
 out/
 runs/*
+runs-*/
 !runs/.gitkeep
 !runs/demo-*/
 .cache/*
