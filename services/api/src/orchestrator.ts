@@ -122,7 +122,7 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
     const dir = store.datasetDir(id, datasetId);
     mkdirSync(dir, { recursive: true });
     store.writeJson(join(dir, "scenario.json"), scenario);
-    const run = ports.noiser.run(scenario, seed);
+    const run = await ports.noiser.run(scenario, seed);
     const db = join(dir, "db.duckdb");
     await ports.dataer.store(run, db);
     const evidence = await ports.dataer.evidence(db, scenario.expectations);

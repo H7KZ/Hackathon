@@ -22,7 +22,8 @@ export interface Ports {
     whatIf(question: string, base: Scenario, opts: JobOptions): Promise<Scenario>;
   };
   noiser: {
-    run(scenario: Scenario, seed: number): RunResult;
+    /** Runs in a worker thread (`runScenarioInWorker`), so HTTP and SSE stay responsive. */
+    run(scenario: Scenario, seed: number): Promise<RunResult>;
   };
   dataer: {
     store(run: RunResult, dbPath: string): Promise<void>;

@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dailySeries, runExpectations, storeRun, withSandbox, type DailySeries } from "@s2d/dataer";
-import { generate } from "@s2d/noiser";
+import { generateInWorker } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
 import type { Expectation, ExpectationResult } from "@s2d/schema/evidence";
 import { Scenario } from "@s2d/schema/scenario";
@@ -71,7 +71,7 @@ export function baselineDrift(series: DailySeries[], start: string, storyStart: 
 }
 
 export async function storyGate(raw: unknown): Promise<CompileError[]> {
-  const gen = generate(raw);
+  const gen = await generateInWorker(raw);
   if (!gen.ok) return gen.errors;
   const s = Scenario.parse(raw);
   const dir = mkdtempSync(join(tmpdir(), "s2d-gate-"));

@@ -140,7 +140,7 @@ export function fakePorts(opts: FakeOptions) {
     noiser: {
       run(s, seed) {
         calls.noiserSeeds.push(seed);
-        return {
+        return Promise.resolve({
           tables: [],
           storyPoints: s.storyPoints,
           meta: {
@@ -149,7 +149,7 @@ export function fakePorts(opts: FakeOptions) {
             scenarioHash: JSON.stringify(s).length.toString(),
             engineVersion: "fake",
           },
-        };
+        });
       },
     },
     dataer: {

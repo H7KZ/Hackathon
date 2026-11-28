@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@faker-js/faker": "^10.6.0",
-    "@s2d/schema": "workspace:*"
+    "@s2d/schema": "workspace:*",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@s2d/test-utils": "workspace:*"
