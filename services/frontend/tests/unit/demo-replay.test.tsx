@@ -89,6 +89,28 @@ describe("demo replay (recorded session, no API)", () => {
     expect(events).toContainEqual({ type: "suggest", items: bundle.suggestions });
   });
 
+  it("a story with two levers (card_fraud) freezes every lever tab and offers no curve edit", async () => {
+    const fraud = read("card_fraud.json") as DemoBundle;
+    const events: SourceEvent[] = [];
+    const source = sourceFromBundle(fraud, { speed: 0 });
+    const stop = source.start((e) => events.push(e));
+    await vi.waitFor(() => {
+      expect(ids(events)).toContain("story");
+    });
+    const story = surface(events, "story");
+    expect(story.find((c) => c.id === "root")?.children).toEqual(["intro", "leverTabs", "s-exp", "actions"]);
+    const curves = story.filter((c) => c.component === "CurveEditor" && c.id.startsWith("lv"));
+    expect(curves.length).toBe(2);
+    for (const c of curves) expect(c.locked).toBe(true);
+    expect(story.find((c) => c.id === "lv")?.children).toEqual(["lvCurve", "lvHelp"]);
+    source.send(action("approve", { points: [] }));
+    await vi.waitFor(() => {
+      expect(ids(events)).toContain("ready-dat1");
+    });
+    stop();
+    expect(surface(events, "ready-dat1").find((c) => c.id === "row")?.children).toEqual(["detect", "open"]);
+  });
+
   it("the lazy source shows the recorded prompt, and a failed load says so", async () => {
     const events: SourceEvent[] = [];
     const stop = createDemoSource("eshop_carrier", { speed: 0, load: () => Promise.resolve(bundle) }).start(
