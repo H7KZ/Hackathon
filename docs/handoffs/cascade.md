@@ -37,9 +37,9 @@ Changed by the run-3 follow-up (run 4):
 
 Open:
 
-- Elektro Novák was re-recorded through the API in run 3 (pinned Sonnet 5.5).
-- Podpora (ISP) needs the second "Generovat data" on Sonnet (A5 succeeds at attempt 9); causal design fails its story gate on effect strength. Details in the run 3 report.
+- Run 4 ([report](../runs/2026-11-28-live-e2e-4.md)): all 4 v1 prompts ready on the first approve; causal passes its seed-robust gate. Its detective scored recall 0 on its own run.
 - The detective (eval gate 4) is not part of the cascade evals.
+- v1 keeps a single-seed story gate (causal checks seeds 1..5 too).
 
 ## Where it sits
 

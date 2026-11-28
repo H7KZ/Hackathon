@@ -14,6 +14,14 @@ Template:
 
 
 
+
+## 2026-11-28 — Run-3 follow-up: A5 repair strategy, causal gate, worker, replayable detective
+
+- **Decision:** (1) A5 edits its **best** rejected attempt (stage reached: schema < compile < check < story gate, then fewest errors), sees the history of all attempts with recurring errors marked, and each failed expectation gets a "lever reach" line (where the levers sit, the process chain to the measured table or its absence). Resume starts from the best attempt. (2) `compileScenario` checks curve scopes on arrival `rate` and derive `p` (a `self.*` scope there never matches). (3) Causal design: hypotheses reached through a branch's success outcome need 5 % (`MIN_CHANGE_DILUTED`), others 10 %; its story gate also demands ≥ 4/5 of seeds 1..5 (`seedRobust`) and 4b gets 3 rounds. v1 keeps the single-seed gate. (4) `Ports.noiser.run` is async; the engine runs in a `worker_threads` worker (same output). (5) The DuckDB sandbox is single-threaded so detective SQL results, and thus the replay, are deterministic. (6) `LLM_CACHE_TRACE` lists the recordings a replay reads.
+- **Why:** live run 3: marketing and podpora failed 5 A5 attempts (a silent no-op scope, regressions between attempts); causal fell short by 1.4 points at seed 42 and on seeds 1..5 its sale effect was −1..−5 %; ECONNRESET during engine runs; a podpora replay missed the cache because of row order. Live run 4 ([report](runs/2026-11-28-live-e2e-4.md)): all 4 v1 cases ready on the first approve.
+- **Who:** integration (agent), items 1, 3, 4, 5 of the run-3 follow-up.
+- **Affects:** `services/cascade` (loop, a5_detail, reach, gate, causal/hypotheses, cascade), `services/noiser` (compiler, worker), `services/api` (ports, adapters), `services/dataer` (sandbox), `packages/llm` (cache trace), `.cache/llm/`.
+
 ## 2026-11-28 — Segment story points; detective scores category values
 
 - **Decision:** `StoryPoint.segment = {field, values}` (optional) names a group of records by category values (e.g. customer segment "kampaň"). The compiler (`checkStoryRefs`) demands it on a story point whose curve is scoped by non-id values, instead of an entity (A4 invented CUS-001..005 in live run 3). `writeRun` stores `segment_field` and `segment_values` (JSON) in `truth.story_points`; `TruthPoint.segmentValues`; a point is findable with phase ≥ 1 and an entity id **or** a segment value. `scoreFindings` matches a finding's `entities` against ids (exact) or segment values (case, spacing and quotes ignored); the date window and nearest-point rule stay. The detective prompt says `entities` may hold the category values of a group. Precision stays one match per point: true downstream findings count as unmatched (precision is a lower bound), so the honest-scoring rules of run 2 hold.
