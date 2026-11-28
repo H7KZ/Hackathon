@@ -1,0 +1,32 @@
+{
+  "key": "f8508603974b98f5daf61eafbe4e7fda",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatel SUP-001 (Richter a.s., profil „spolehlivý“) se od konce února 2024 zhoršil. Do týdne 19. 2. bylo zpožděno jen asi 4 % jeho objednávek a průměrné zpoždění bylo asi 1,2 dne. Od týdne 26. 2. podíl zpožděných dodávek stoupl na 21–33 % (týdny 26. 2. a 4. 3., 11. 3. krátce kolísá na 7 %, 18. 3. je 23 %). Od týdne 25. 3. se zhoršení vystupňovalo a drží se na 36–65 %, tedy v průměru asi 51 % zpožděných objednávek a zpoždění asi 10,6 dne. Zhoršení se týká všech 5 prodejen, takže jde o problém dodavatele, ne jedné prodejny. Ostatní dodavatelé (SUP-002 a SUP-003) zůstali celé období na zhruba 5–10 % zpožděných objednávek. Následek: průměrné zásoby produktů SUP-001 klesly v týdnech 1. a 8. 4. (8,8 a 7,7 oproti zhruba 10–12 dříve). Počet ušlých prodejů u produktů SUP-001 vzrostl z asi 7,8 na 16,5 týdně po 25. 3., s vrcholem 30 v týdnu 8. 4. U stížností je dopad slabý: SUP-001 má 1–3 stížnosti týdně, jen v týdnu 10. 6. jich bylo 7. Výkyv u SUP-003 v týdnu 6. 5. (10 stížností a 33 ušlých prodejů) vypadá jako samostatná jednorázová událost a nesouvisí s dodavatelským zpožděním.",
+        "findings": [
+          {
+            "claim": "SUP-001 začal poprvé zpožďovat dodávky. Podíl pozdních objednávek vzrostl ze zhruba 4 % na 21–33 % a průměrné zpoždění z asi 1,2 dne na 5–7 dní. Týká se všech prodejen.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-02-26",
+            "end": "2024-03-24",
+            "supportingSql": "select strftime(date_trunc('week',order_date),'%m-%d') w, count(*) n, round(avg(is_late::int),2) late_rate, round(avg(delay_days),1) d from purchase_order where supplier_id='SUP-001' group by 1 order by 1"
+          },
+          {
+            "claim": "SUP-001 se dál zhoršil. Od týdne 25. 3. je pozdních asi 51 % objednávek (36–65 % týdně) se zpožděním přes 10 dní, proti 4 % před 26. 2. Zásoby produktů SUP-001 v dubnu klesly a ušlé prodeje u jeho produktů se zdvojnásobily, z asi 7,8 na 16,5 týdně. Stížnosti tím byly ovlivněny jen málo.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-03-25",
+            "supportingSql": "select round(avg(is_late::int) filter (where order_date<'2024-02-26'),3) pre_rate, round(avg(is_late::int) filter (where order_date>='2024-03-25'),3) post_rate, round(avg(delay_days) filter (where order_date<'2024-02-26'),2) pre_delay, round(avg(delay_days) filter (where order_date>='2024-03-25'),2) post_delay from purchase_order where supplier_id='SUP-001'"
+          }
+        ]
+      }
+    }
+  }
+}

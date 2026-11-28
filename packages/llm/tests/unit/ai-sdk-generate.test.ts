@@ -141,3 +141,26 @@ describe("anthropic text mode corrects schema misses (live detective_step: no `a
     await expect(aiSdkGenerate({ ...req, schema, model: "anthropic:m" })).resolves.toEqual({ kind: "b" });
   });
 });
+
+describe("hung requests (live: a detective step waited 15+ minutes for one answer)", () => {
+  const timeout = () =>
+    Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" });
+
+  it("every request carries an abort signal and a timed-out one is retried once", async () => {
+    generateText.mockReset();
+    generateText
+      .mockRejectedValueOnce(timeout())
+      .mockResolvedValueOnce({ text: '{"a":3}', finishReason: "stop" });
+    await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).resolves.toEqual({ a: 3 });
+    expect(generateText).toHaveBeenCalledTimes(2);
+    for (const [args] of generateText.mock.calls)
+      expect((args as { abortSignal?: unknown }).abortSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("gives up after the retry with a readable error", async () => {
+    generateText.mockReset();
+    generateText.mockRejectedValue(timeout());
+    await expect(aiSdkGenerate({ ...req, model: "anthropic:m" })).rejects.toThrow(/did not answer within/);
+    generateText.mockReset();
+  });
+});

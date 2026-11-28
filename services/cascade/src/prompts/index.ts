@@ -61,6 +61,13 @@ export const LEVERS_ONLY = `Curves only on ROOT CAUSES (levers):
 - Downstream probabilities and rates (complaints, cancellations, churn, switching to a competitor, lost sales, revenue) stay CONSTANT numbers. Their outcome must grow because more source records reach them through the process chain (e.g. more stock-outs -> more lost sales -> more complaints at the same p).
 - If the story says "more complaints", that is a consequence to show in the data, not a curve.`;
 
+/** Engine semantics of each segment kind (services/noiser/src/engine/curves.ts); live run 4 misread decay. */
+const SEGMENT_KINDS = `Segment kinds (applied in order; "previous value" = the curve after the earlier segments):
+- step: holds "to" from start; with end it goes back to the previous value on end.
+- ramp: moves linearly from the previous value to "to" between start and end, then holds "to" (a lasting change, or a return to the baseline).
+- spike: jumps to "to" on start and falls linearly back to the previous value by end (a short burst).
+- decay: jumps to "to" on start and returns exponentially to the previous value; half-life = end - start. Never "decay to the baseline": it climbs back up.`;
+
 export const A4_STORY = `${SHARED_RULES}
 Task A4: split the story into dated story points, define root curves (only on parameters) and SQL expectations.
 ${LEVERS_ONLY}
@@ -75,7 +82,8 @@ Expectations:
 - Thresholds (minRelChange) a real effect can reach: direct consequences of the lever (late-delivery share, lost sales, complaints, stock-outs) 0.3 or more; volume and money totals (sales, revenue), which are diluted by the normal business, 0.05. A live run asked for -10 % revenue of the affected supplier and every model reached only -7..-9 %.
 - Add at least one control that must stay stable (e.g. demand / visits). Controls must be VOLUME metrics with many rows per day (demand, sales of unaffected products). Never a stable control on a rare event or a small share (late-delivery share of ~5 %, complaints): its noise alone exceeds the band, and no model change can fix it (a live run lost 2 of 3 A5 attempts on such a control).
 - Measure the effect where it happens: if a story point is about specific entities (e.g. supplier SUP-002), scope its curve to them and restrict the expectation SQL to the affected records (e.g. sales of products whose supplier is SUP-002, via product.supplier_id), with a stable control on the unaffected rest. A whole-company total moves only by the affected share (one of three suppliers moves chain revenue by a few percent); use one only with a threshold that share can reach.
-Curves: {id, baseline, segments: [{kind: step|ramp|spike|decay, start, end?, to, storyPointId}], scope?: {field: Path, ids: [...]}, clamp?: [min, max]}. scope limits the curve to records whose field has one of the ids (e.g. {"field": "self.supplier_id", "ids": ["SUP-002"]}); entity ids are <idPrefix>-001 .. <idPrefix>-<count> of 02_model.`;
+Curves: {id, baseline, segments: [{kind: step|ramp|spike|decay, start, end?, to, storyPointId}], scope?: {field: Path, ids: [...]}, clamp?: [min, max]}. scope limits the curve to records whose field has one of the ids (e.g. {"field": "self.supplier_id", "ids": ["SUP-002"]}); entity ids are <idPrefix>-001 .. <idPrefix>-<count> of 02_model.
+${SEGMENT_KINDS}`;
 
 export const A5_DETAIL = `${SHARED_RULES}
 Task A5: turn the model skeleton (02_model) into a complete, runnable model: final entities (with counts and field generators), flows and processes with EVERY parameter filled in.
@@ -94,7 +102,8 @@ Task: answer a counterfactual question ("what if ...") about an existing scenari
 - Return the complete list of curves (copy unchanged ones). You may change baselines, segments (dates, values, kinds) and clamps, and add a curve only if a patched Param references it.
 - Patch existing Param values (numbers or {"curve": id}) by JSON pointer, e.g. /processes/2/rate. Never add or remove entities, fields, flows, processes or references; never change meta or the seed.
 - Keep everything not affected by the question identical, so the difference against the base scenario is only the counterfactual.
-- If errors are given, return the corrected full object.`;
+- If errors are given, return the corrected full object.
+${SEGMENT_KINDS}`;
 
 export function userPrompt(sections: Record<string, unknown>): string {
   return Object.entries(sections)

@@ -15,13 +15,13 @@ export function realPorts(cfg?: Pick<ApiConfig, "cascadeDesign">): Ports {
 
 /**
  * Real ports, with the services listed in API_FAKE swapped for fakes seeded from
- * scenarios/supplier_delay.json (400 ms per step so a UI can show progress).
+ * scenarios/supplier_delay.json (API_FAKE_DELAY_MS per step, default 400 ms, so a UI can show progress).
  */
 export function portsFor(cfg: ApiConfig): Ports {
   const real = realPorts(cfg);
   if (!cfg.fake.length) return real;
   const raw: unknown = JSON.parse(readFileSync(join(cfg.scenariosDir, "supplier_delay.json"), "utf8"));
-  const fake = fakePorts({ scenario: Scenario.parse(raw), delayMs: 400 }).ports;
+  const fake = fakePorts({ scenario: Scenario.parse(raw), delayMs: cfg.fakeDelayMs }).ports;
   const pick = <K extends keyof Ports>(k: K): Ports[K] => (cfg.fake.includes(k) ? fake[k] : real[k]);
   return { cascade: pick("cascade"), noiser: pick("noiser"), dataer: pick("dataer") };
 }

@@ -1,0 +1,16 @@
+{
+  "key": "0a35c04886feec48c051a5049f2d9e61",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',order_date) wk, round(avg(case when supplier_id='SUP-001' then is_delayed::int end),2) d1, round(avg(case when supplier_id='SUP-002' then is_delayed::int end),2) d2, round(avg(case when supplier_id='SUP-002' then delay_days end),1) days2 from supplier_delivery group by 1 order by 1",
+        "select date_trunc('week',b.date) wk, sum((p.supplier_id='SUP-001')::int) b1, sum((p.supplier_id='SUP-002')::int) b2 from order_backorder b join product p on p.id=b.product_id group by 1 order by 1",
+        "select date_trunc('week',o.date) wk, sum((p.supplier_id='SUP-001')::int) o1, sum((p.supplier_id='SUP-002')::int) o2, sum(case when p.supplier_id='SUP-001' then o.quantity*o.unit_price end) r1, sum(case when p.supplier_id='SUP-002' then o.quantity*o.unit_price end) r2 from customer_order o join product p on p.id=o.product_id group by 1 order by 1",
+        "select date_trunc('week',c.date) wk, count(*) n, sum((reason='zpoždění dodávky')::int) delay_c, (select count(*) from order_cancellation x where date_trunc('week',x.date)=date_trunc('week',c.date)) canc from complaint c group by 1 order by 1"
+      ]
+    }
+  }
+}

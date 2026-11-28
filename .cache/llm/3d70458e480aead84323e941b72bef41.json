@@ -1,0 +1,16 @@
+{
+  "key": "3d70458e480aead84323e941b72bef41",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select strftime(date_trunc('week',l.date),'%m-%d') w, count(*) filter (where p.supplier_id='SUP-001') s1, count(*) filter (where p.supplier_id='SUP-002') s2, count(*) filter (where p.supplier_id='SUP-003') s3 from lost_sale l join product p on p.id=l.product_id group by 1 order by 1",
+        "select strftime(date_trunc('week',c.date),'%m-%d') w, count(*) filter (where c.supplier_id='SUP-001') s1, count(*) filter (where c.supplier_id='SUP-002') s2, count(*) filter (where c.supplier_id='SUP-003') s3 from complaint c group by 1 order by 1",
+        "select store_id, count(*) n, round(avg(is_late::int),2) late, round(avg(is_late::int) filter (where order_date>='2024-02-26'),2) late_after from purchase_order where supplier_id='SUP-001' group by 1 order by 1",
+        "select strftime(date_trunc('week',date),'%m-%d') w, round(avg(value) filter (where product_id in (select id from product where supplier_id='SUP-001')),1) stock1, round(avg(value) filter (where product_id in (select id from product where supplier_id='SUP-003')),1) stock3 from stock_snapshot group by 1 order by 1"
+      ]
+    }
+  }
+}

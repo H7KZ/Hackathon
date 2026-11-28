@@ -1,0 +1,16 @@
+{
+  "key": "5bfdd91add3524e6b877934ef3454c17",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',date) w, customer_segment, count(*) n, sum(quantity*unit_price) rev from sale where date>='2025-03-17' group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, count(*) n, sum((reason='zpoždění zásilky')::int) late_r, sum((reason='vadné zboží')::int) defect, sum((reason='nevyhovující velikost')::int) size_r, sum((reason='změna názoru')::int) mind from return_request group by 1 order by 1",
+        "select date_trunc('week',date) w, avg(value) s, sum((value=0)::int) zero from stock_snapshot group by 1 order by 1",
+        "select p.supplier_id, date_trunc('month',s.date) m, count(*) n, count(distinct s.product_id) prods from sale s join product p on p.id=s.product_id group by 1,2 order by 1,2"
+      ]
+    }
+  }
+}

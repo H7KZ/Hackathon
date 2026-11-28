@@ -1,6 +1,6 @@
 export { checkCurveShapes, compileScenario, type CompileResult } from "./compiler/validate";
 export { topoSort } from "./compiler/dag";
-export { checkStoryRefs, entityId } from "./compiler/story";
+export { checkStoryRefs, entityId, fillStoryEntities } from "./compiler/story";
 export { createStream, hashString, type Rng } from "./engine/rng";
 export { evaluateCurve } from "./engine/curves";
 export { toDay, fromDay } from "./engine/days";
@@ -8,3 +8,4 @@ export { runScenario, ENGINE_VERSION, type RunOptions } from "./engine/run";
 export { generate, type GenerateResult } from "./generate";
 export { EngineError } from "./engine/errors";
 export { generateInWorker, runScenarioInWorker, stopEngineWorker } from "./worker/pool";
+export { entityLabels } from "./labels";

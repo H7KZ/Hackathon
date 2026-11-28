@@ -88,11 +88,48 @@ describe("storyToEdit / editToStory on a real-shaped story", () => {
     ]);
   });
 
+  it("a point added in the editor names the same entity as the curve's other points (user run: A5 failed 5× on it)", () => {
+    const [late] = storyToEdit(story).points;
+    if (!late) throw new Error("no knot");
+    const added = { id: "sp1", title: "Nový bod", description: "", start: "2025-04-15", level: 0.9 };
+    const next = editToStory(story, [late, added]);
+    expect(next.storyPoints.find((p) => p.id === "sp1")).toMatchObject({
+      phase: 3,
+      entity: { name: "supplier", ids: ["SUP-001"] },
+    });
+  });
+
+  it("a point added on a curve scoped to a group copies the group segment", () => {
+    const grouped: StoryArtifact = {
+      ...story,
+      storyPoints: story.storyPoints.map(({ entity: _e, ...p }) =>
+        p.id === "sp_late" ? { ...p, segment: { field: "key.segment", values: ["kampaň"] } } : p,
+      ),
+    };
+    const [late] = storyToEdit(grouped).points;
+    if (!late) throw new Error("no knot");
+    const next = editToStory(grouped, [
+      late,
+      { id: "sp1", title: "Nový bod", description: "", start: "2025-04-15", level: 0.9 },
+    ]);
+    const added = next.storyPoints.find((p) => p.id === "sp1");
+    expect(added?.segment).toEqual({ field: "key.segment", values: ["kampaň"] });
+    expect(added?.entity).toBeUndefined();
+  });
+
   it("an unedited round trip is a no-op", () => {
     const e = storyToEdit(story);
     const once = editToStory(story, e.points, e.config.curve.baseline);
     const again = editToStory(once, storyToEdit(once).points, storyToEdit(once).config.curve.baseline);
     expect(JSON.stringify(again)).toBe(JSON.stringify(once));
+  });
+});
+
+describe("humanError: provider billing (live run 6: credits ran out mid-run)", () => {
+  it("says the account has no credit, in Czech", () => {
+    expect(
+      humanError("Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing"),
+    ).toMatch(/došel kredit/);
   });
 });
 

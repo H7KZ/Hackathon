@@ -131,9 +131,14 @@
   display: grid;
   gap: 0;
 }
-.sb-list a[aria-current="page"] {
-  background: var(--color-wash);
-  box-shadow: inset 2px 0 0 var(--color-green);
+/* current chat: a quiet filled pill, title a touch stronger (no accent stripe) */
+.sb-list a[aria-current="page"],
+.sb-list a[aria-current="page"]:hover {
+  background: #eef2f1;
+}
+.sb-list a[aria-current="page"] .sb-title {
+  color: var(--color-fis-dark);
+  font-weight: 600;
 }
 .sb-title {
   overflow: hidden;

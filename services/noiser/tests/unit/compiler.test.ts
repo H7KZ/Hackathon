@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { loadScenarioFixture } from "@s2d/test-utils";
 import { compileScenario } from "../../src/compiler/validate";
+import { fillStoryEntities } from "../../src/compiler/story";
+import type { Scenario } from "@s2d/schema/scenario";
 
 type Mutable = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- test fixture surgery
 
@@ -239,6 +241,25 @@ describe("compileScenario — curve scopes and story entities (live run 2026-11-
     expect(errorsOf(s)).toEqual([]);
   });
 
+  it("fillStoryEntities gives a curve-driving point without entity the ids its curve is scoped to (user-added point)", () => {
+    const s = fixture();
+    delete s.storyPoints[0].entity;
+    const filled = fillStoryEntities(s as Scenario);
+    expect(filled[0]?.entity).toEqual({ name: "supplier", ids: s.curves[0].scope.ids });
+    expect(errorsOf({ ...s, storyPoints: filled })).toEqual([]);
+  });
+
+  it("fillStoryEntities names the segment for a category-scoped curve and leaves other points alone", () => {
+    const s = fixture();
+    s.curves[0].scope = { field: "self.supplier_id", ids: ["kampaň"] };
+    delete s.storyPoints[0].entity;
+    const other = structuredClone(s.storyPoints[1]);
+    const filled = fillStoryEntities(s as Scenario);
+    expect(filled[0]?.segment).toEqual({ field: "self.supplier_id", values: ["kampaň"] });
+    expect(filled[0]?.entity).toBeUndefined();
+    expect(filled[1]).toEqual(other);
+  });
+
   it("checks the scope of a curve on a derive p against the source record", () => {
     const s = fixture();
     s.processes[3].p = { curve: "demand" };
@@ -303,5 +324,19 @@ describe("curve semantics checks (live run 4: marketing second wave)", () => {
     s.processes[0].fields = { ...fields, is_late_2: { gen: "bernoulli", p: { curve: "late_prob" } } };
     const e = errorsOf(s).find((x) => x.path === "processes[0].fields.is_late_2.p");
     expect(e?.message).toMatch(/already the p of "is_late"/);
+  });
+});
+
+describe("plausible magnitudes (user session: deliveries 90–150 days late)", () => {
+  it("rejects a date offset longer than a third of the period (max 60 days) and says what is valid", () => {
+    const s = fixture();
+    const delivery = (s.processes as Mutable[]).find((p) => p.id === "delivery") as Mutable;
+    delivery.fields.delay_days.then = { gen: "uniformInt", min: 90, max: 150 };
+    const e = errorsOf(s).find((x) => x.path.endsWith("fields.delay_days"));
+    expect(e?.message).toMatch(/can reach 150 days.*at most 60 days.*raise a probability/);
+  });
+
+  it("accepts the reference scenario's 30–60-day delays", () => {
+    expect(errorsOf(fixture())).toEqual([]);
   });
 });

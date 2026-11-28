@@ -1,0 +1,16 @@
+{
+  "key": "00a55194acdf75f1f738ef4d4dff1471",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',o.date) wk, sum((p.supplier_id='SUP-001')::int) o1, sum((p.supplier_id='SUP-002')::int) o2, round(sum(case when p.supplier_id='SUP-001' then o.quantity*o.unit_price end)/1e6,2) r1, round(sum(case when p.supplier_id='SUP-002' then o.quantity*o.unit_price end)/1e6,2) r2 from customer_order o join product p on p.id=o.product_id group by 1 order by 1",
+        "select date_trunc('week',c.date) wk, count(*) n, sum((reason='zpoždění dodávky')::int) delay_c, (select count(*) from order_cancellation x where date_trunc('week',x.date)=date_trunc('week',c.date)) canc from complaint c group by 1 order by 1",
+        "select product_id, count(*) n, round(avg(is_delayed::int),2) dr, round(avg(case when order_date>='2024-03-04' then is_delayed::int end),2) dr_after, round(avg(case when order_date<'2024-03-04' then is_delayed::int end),2) dr_before from supplier_delivery where supplier_id='SUP-001' group by 1 order by 1",
+        "select date_trunc('week',date) wk, round(avg(case when product_id in (select id from product where supplier_id='SUP-001') then value end),0) s1, round(avg(case when product_id in (select id from product where supplier_id='SUP-002') then value end),0) s2 from stock_snapshot group by 1 order by 1"
+      ]
+    }
+  }
+}

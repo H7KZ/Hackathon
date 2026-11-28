@@ -25,6 +25,14 @@ import {
   storyToEdit,
   type StoryArtifact,
 } from "./liveMapping";
+import {
+  humanizeCompare,
+  humanizeDataset,
+  humanizeDetective,
+  humanizeIds,
+  humanizeToggles,
+  type Labels,
+} from "./labels";
 import { STEP_HINTS, STEP_LABELS, type StepKey } from "./phrases";
 import {
   companySurface,
@@ -55,8 +63,17 @@ async function getJson<T>(path: string): Promise<T> {
 export function humanError(message: string): string {
   if (/LLM_OFFLINE=1|LlmCacheMiss|no cache entry/i.test(message))
     return "Na tohle je potřeba živý jazykový model: offline režim přehrává jen nahrané odpovědi. Zkuste nabídnutou otázku, nebo API spusťte bez LLM_OFFLINE.";
+  if (/credit balance|Plans & Billing|insufficient_quota|billing/i.test(message))
+    return "Jazykový model odmítl požadavek: na účtu u poskytovatele došel kredit. Po jeho doplnění klikněte Zkusit znovu.";
   if (/API key|apiKey|401|authentication/i.test(message))
     return "Jazykový model odmítl přístup (chybí nebo neplatí API klíč).";
+  // compiler / gate feedback is English for the agent; the user gets what happened and what to do
+  const issues = message.split("\n").filter((l) => l.startsWith("- ")).length;
+  const what = issues ? ` (${plural(issues, "problém", "problémy", "problémů")})` : "";
+  if (/^04_story does not fit/.test(message))
+    return `Upravený návrh příběhu nesedí na datový model${what}. Upravte body v grafu, nebo to zkuste znovu.`;
+  if (/^(Scenario does not compile|Causal scenario fails the checks|Processes do not realize)/.test(message))
+    return `Agentům se nepodařilo sestavit scénář, který projde všemi kontrolami${what}. Další pokus často vyjde: agent pokračuje od své nejlepší verze.`;
   return message;
 }
 
@@ -83,6 +100,46 @@ export function createLiveSource(sessionId: string): ChatSource {
   let storyLocked = false;
   let companyShown = false;
   const shownDatasets = new Set<string>();
+  /** server time of the event being handled (reload: timers continue instead of restarting at 0:00) */
+  let eventAt = Date.now();
+  /** a job error waiting for the status that follows it, then shown as a retry card */
+  let lastError: string | null = null;
+  /** recovery cards whose button still works; a new job locks them */
+  let openRecover: string[] = [];
+  /** bumped on every start: async work of a stopped run must not emit into the next one */
+  let generation = 0;
+  let connected = false;
+
+  const reset = () => {
+    story = null;
+    lastDataset = null;
+    pendingApprove = null;
+    progressId = "";
+    progress = [];
+    runs = 0;
+    recoverN = 0;
+    storySurfaceId = "";
+    storyLocked = false;
+    companyShown = false;
+    shownDatasets.clear();
+    labelCache.clear();
+    lastError = null;
+    openRecover = [];
+    connected = false;
+  };
+
+  /** entity id → name per dataset ("" = before any data); a failure only leaves the ids as they are */
+  const labelCache = new Map<string, Promise<Labels>>();
+  const labelsFor = (datasetId = ""): Promise<Labels> => {
+    let p = labelCache.get(datasetId);
+    if (!p) {
+      p = getJson<{ labels: Labels }>(`${base}/labels${datasetId ? `?dataset=${datasetId}` : ""}`)
+        .then((r) => r.labels)
+        .catch(() => ({}));
+      labelCache.set(datasetId, p);
+    }
+    return p;
+  };
 
   const say = (text: string) => {
     emit({ type: "say", role: "agent", text });
@@ -137,7 +194,7 @@ export function createLiveSource(sessionId: string): ChatSource {
       const hint = STEP_HINTS[key as StepKey];
       const next: Step = { ...s, state, ...(detail && { detail }) };
       if (state === "running") {
-        if (s.state !== "running") next.startedAt = Date.now();
+        if (s.state !== "running") next.startedAt = eventAt;
         if (hint) next.hint = hint;
       } else {
         delete next.startedAt;
@@ -189,7 +246,17 @@ export function createLiveSource(sessionId: string): ChatSource {
   async function showStory() {
     const { value } = await getJson<{ value: StoryArtifact }>(`${base}/artifacts/04_story`);
     story = value;
-    const edit = storyToEdit(value);
+    const labels = await labelsFor();
+    const raw = storyToEdit(value);
+    // read-only texts name entities; points stay as written (they go back to the API on approve)
+    const edit = {
+      ...raw,
+      config: {
+        ...raw.config,
+        curve: { ...raw.config.curve, help: humanizeIds(raw.config.curve.help ?? "", labels) },
+      },
+      expectations: humanizeToggles(raw.expectations, labels),
+    };
     // one story surface per session: a replay (reload, reopened from history) or a re-run after an
     // edit updates it in place instead of stacking copies
     if (storySurfaceId) {
@@ -240,13 +307,14 @@ export function createLiveSource(sessionId: string): ChatSource {
       story = await getJson<{ value: StoryArtifact }>(`${base}/artifacts/04_story`)
         .then((r) => r.value)
         .catch(() => null);
-    const [ev, tables, own] = await Promise.all([
+    const [ev, tables, own, labels] = await Promise.all([
       getJson<DatasetEvidence>(`${base}/datasets/${datasetId}/evidence`),
       loadTables(datasetId),
       // the dataset's own scenario: a what-if moved its curves, so its markers move too
       getJson<{ scenario: StoryArtifact }>(`${base}/datasets/${datasetId}/scenario`)
         .then((r) => r.scenario)
         .catch(() => story),
+      labelsFor(datasetId),
     ]);
     // a what-if dataset carries its comparison with the parent as a tab ("Porovnání s dat1")
     const state = await getJson<SessionState>(base);
@@ -259,14 +327,16 @@ export function createLiveSource(sessionId: string): ChatSource {
         getJson<{ diff: MetricDiff[] }>(`${base}/datasets/${datasetId}/compare/${parent}`),
         getJson<DatasetEvidence>(`${base}/datasets/${parent}/evidence`),
       ])
-        .then(([{ diff }, parentEv]) => compareToView(parent, datasetId, question, diff, parentEv, ev, own))
+        .then(([{ diff }, parentEv]) =>
+          humanizeCompare(compareToView(parent, datasetId, question, diff, parentEv, ev, own), labels),
+        )
         .catch(() => undefined);
     }
     emit({
       type: "a2ui",
       message: datasetSurface(
         `dataset-${datasetId}`,
-        evidenceToView(datasetId, ev, own, tables),
+        humanizeDataset(evidenceToView(datasetId, ev, own, tables), labels),
         false,
         compare,
       ),
@@ -278,6 +348,13 @@ export function createLiveSource(sessionId: string): ChatSource {
       say(
         `Hotovo: **${datasetId}** odpovídá na „${question}“. Původní důkazy teď platí ${String(passed)} z ${String(ev.expectations.length)}, rozdíly proti ${info.parent} najdete v záložce **Porovnání s ${info.parent}**.`,
       );
+    } else {
+      // the agent may run out of attempts with a runnable scenario (e.g. an edit contradicts a hypothesis)
+      const failed = ev.expectations.filter((e) => !e.pass).length;
+      if (failed > 0)
+        say(
+          `Data jsou hotová, ale ${plural(failed, "hypotéza v nich neplatí", "hypotézy v nich neplatí", "hypotéz v nich neplatí")} (z ${String(ev.expectations.length)}). Které to jsou, ukazuje záložka **Důkazy**; po úpravě příběhu je můžete zkusit vygenerovat znovu.`,
+        );
     }
   }
 
@@ -286,48 +363,70 @@ export function createLiveSource(sessionId: string): ChatSource {
       `${base}/datasets/${datasetId}/detective`,
     );
     if (!result) return;
+    const labels = await labelsFor(datasetId);
     const matched = new Set(result.score.matched.map((m) => m.findingIndex));
     emit({
       type: "a2ui",
-      message: detectiveSurface(`detective-${datasetId}`, {
-        datasetId,
-        narrative: result.report.narrative,
-        recall: result.score.recall,
-        precision: result.score.precision,
-        findings: result.report.findings.map((f, i) => ({
-          claim: f.claim,
-          start: f.start,
-          entities: f.entities.join(", "),
-          matched: matched.has(i),
-        })),
-      }),
+      message: detectiveSurface(
+        `detective-${datasetId}`,
+        humanizeDetective(
+          {
+            datasetId,
+            narrative: result.report.narrative,
+            recall: result.score.recall,
+            precision: result.score.precision,
+            findings: result.report.findings.map((f, i) => ({
+              claim: f.claim,
+              start: f.start,
+              entities: f.entities.join(", "),
+              matched: matched.has(i),
+            })),
+          },
+          labels,
+        ),
+      ),
     });
     say(`Detektiv data neznal a našel ${String(Math.round(result.score.recall * 100))} % bodů příběhu.`);
   }
+
+  const recoverCard = (text: string, label: string) => {
+    const id = `recover-${String(++recoverN)}`;
+    openRecover.push(id);
+    emit({ type: "a2ui", message: recoverSurface(id, text, label, "resume") });
+  };
+  const lockRecovery = () => {
+    for (const id of openRecover) emit({ type: "a2ui", message: a2ui.data(id, "/locked", true) });
+    openRecover = [];
+  };
 
   /** Offer to continue only if the session is still stuck (a replay may already be past it). */
   async function offerRecovery(status: string) {
     const state = await getJson<SessionState>(base);
     if (state.status !== status) return;
-    const id = `recover-${String(++recoverN)}`;
+    lastError = null;
     const text =
       status === "interrupted"
         ? "Server se během práce restartoval. Můžu pokračovat tam, kde skončil."
         : status === "cancelled"
           ? "Návrh byl zrušen. Můžu v něm pokračovat."
           : `Návrh se nepovedl: ${humanError(state.error ?? "neznámá chyba")}`;
-    emit({
-      type: "a2ui",
-      message: recoverSurface(id, text, status === "failed" ? "Zkusit znovu" : "Pokračovat", "resume"),
-    });
+    recoverCard(text, status === "failed" ? "Zkusit znovu" : "Pokračovat");
   }
 
-  function onEvent(e: SessionEvent) {
+  /**
+   * One event at a time, in stream order: a card that needs a fetch (Firma, story, data) is emitted
+   * before the next event is handled. On a reload the whole history replays at once, and without
+   * this the fetched cards landed after every progress card and error (user: the running card and its
+   * timer scrolled out of view, the error sat on top of the timeline).
+   */
+  async function onEvent(e: SessionEvent) {
+    eventAt = e.at ?? Date.now();
     const fail = (err: unknown) => {
       say(`Data se nepodařilo načíst: ${err instanceof Error ? err.message : String(err)}`);
     };
     switch (e.type) {
       case "status":
+        if (["drafting", "refining", "generating", "detecting"].includes(e.status)) lockRecovery();
         if (e.status === "drafting") newProgress("Agenti navrhují příběh", DRAFT_KEYS);
         if (e.status === "refining") newProgress("Přepočítávám návrh", ["04_story"]);
         if (e.status === "generating") {
@@ -348,15 +447,20 @@ export function createLiveSource(sessionId: string): ChatSource {
             const cmd = pendingApprove;
             pendingApprove = null;
             void command(cmd);
-          } else void showStory().catch(fail);
+          } else await showStory().catch(fail);
         }
         if (e.status === "ready") {
           pruneProgress();
           emit({ type: "busy", step: null });
         }
+        if ((e.status === "awaiting_refinement" || e.status === "ready") && lastError) {
+          // the job failed and the session fell back to its last stable state: the job stays resumable
+          recoverCard(`Nepovedlo se to: ${humanError(lastError)}`, "Zkusit znovu");
+          lastError = null;
+        }
         if (e.status === "failed" || e.status === "interrupted" || e.status === "cancelled") {
           emit({ type: "busy", step: null });
-          void offerRecovery(e.status).catch(() => undefined);
+          await offerRecovery(e.status).catch(() => undefined);
         }
         if (["drafting", "refining", "generating", "detecting"].includes(e.status))
           emit({
@@ -378,7 +482,7 @@ export function createLiveSource(sessionId: string): ChatSource {
         } else if (c.type === "step.done") {
           mark(c.step, "done", c.cached ? "z cache" : undefined);
           if (c.step === "05_scenario") mark("engine", "running");
-          void describeStep(c.step).catch(() => undefined); // details are a nicety, never an error
+          await describeStep(c.step).catch(() => undefined); // details are a nicety, never an error
         } else if (c.type === "loop.iteration") {
           // the next attempt runs right after a failed one: show which one and why in plain words
           const attempt = { n: c.n + 1, max: Math.max(A5_ATTEMPTS, c.n + 1) };
@@ -393,11 +497,11 @@ export function createLiveSource(sessionId: string): ChatSource {
         mark("05_scenario", "done");
         mark("engine", "done");
         mark("evidence", "done");
-        void showDataset(e.datasetId).catch(fail);
+        await showDataset(e.datasetId).catch(fail);
         break;
       case "detective.done":
         mark("detective", "done");
-        void showDetective(e.datasetId).catch(fail);
+        await showDetective(e.datasetId).catch(fail);
         break;
       case "error":
         emit({ type: "busy", step: null });
@@ -407,7 +511,8 @@ export function createLiveSource(sessionId: string): ChatSource {
             .forEach((s) => {
               mark(s.id, "failed");
             });
-        say(`Chyba: ${humanError(e.message)}`);
+        // shown by the status that follows (retry card in its place in the timeline), not as raw text
+        lastError = e.message;
         break;
     }
   }
@@ -456,15 +561,29 @@ export function createLiveSource(sessionId: string): ChatSource {
       void command({ type: "cancel" });
     },
     start(next) {
-      emit = next;
+      const run = ++generation;
+      reset();
+      // a stopped run (StrictMode, closed tab) may still finish a fetch: drop what it emits
+      emit = (e) => {
+        if (run === generation) next(e);
+      };
+      let queue = Promise.resolve();
       const source = new EventSource(`${apiUrl()}${base}/events`);
       source.onmessage = (m: MessageEvent<string>) => {
-        onEvent(JSON.parse(m.data) as SessionEvent);
+        connected = true;
+        const e = JSON.parse(m.data) as SessionEvent;
+        queue = queue.then(() => onEvent(e)).catch(() => undefined);
       };
       source.onerror = () => {
         emit({ type: "busy", step: null });
+        // EventSource retries by itself; say it once if the very first connection fails (blank page before)
+        if (!connected) {
+          connected = true;
+          say(`Nepodařilo se připojit k API (${apiUrl()}). Zkontrolujte, že běží; spojení se obnoví samo.`);
+        }
       };
       return () => {
+        generation++;
         source.close();
       };
     },

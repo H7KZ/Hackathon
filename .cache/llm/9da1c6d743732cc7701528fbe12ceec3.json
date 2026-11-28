@@ -1,0 +1,16 @@
+{
+  "key": "9da1c6d743732cc7701528fbe12ceec3",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select product_id, count(*) n, round(avg(is_delayed::int),2) dr, round(avg(case when order_date>='2024-03-04' then is_delayed::int end),2) dr_after, round(avg(case when order_date<'2024-03-04' then is_delayed::int end),2) dr_before from supplier_delivery where supplier_id='SUP-001' group by 1 order by 1",
+        "select date_trunc('week',date) wk, round(avg(case when product_id in (select id from product where supplier_id='SUP-001') then value end),0) s1, round(avg(case when product_id in (select id from product where supplier_id='SUP-002') then value end),0) s2 from stock_snapshot group by 1 order by 1",
+        "select date_trunc('week',order_date) wk, sum(case when supplier_id='SUP-001' then quantity end) q1, round(avg(case when supplier_id='SUP-001' then delay_days end),1) d1 from supplier_delivery group by 1 order by 1",
+        "select date_trunc('week',date) wk, count(*) n from order_cancellation group by 1 order by 1"
+      ]
+    }
+  }
+}

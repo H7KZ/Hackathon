@@ -1,0 +1,16 @@
+{
+  "key": "d32c32cf35d2ee7ea580fe8fb8839045",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select p.supplier_id, case when s.date between '2025-03-31' and '2025-04-20' then 'camp' when s.date<'2025-03-31' then 'pre' else 'post' end ph, count(*) n, count(distinct s.product_id) prods from sale s join product p on p.id=s.product_id where s.customer_segment='kampaň' group by 1,2 order by 1,2",
+        "select date_trunc('week',r.date) w, s.customer_segment, count(*) n from return_request r join sale s on s.id=r.sale_id where r.date>='2025-03-10' group by 1,2 order by 1,2",
+        "select date_trunc('week',d.shipped_date) w, s.customer_segment, count(*) n, avg(d.is_late::int) late from delivery d join sale s on s.id=d.sale_id where d.shipped_date>='2025-03-10' and d.shipped_date<'2025-05-05' group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, count(*) n, count(distinct customer_id) c from campaign_buyer group by 1 order by 1"
+      ]
+    }
+  }
+}

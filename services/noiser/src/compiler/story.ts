@@ -34,6 +34,34 @@ function badEntityId(entities: StoryRefs["entities"], id: string): string | null
   return null;
 }
 
+/**
+ * Deterministic completion of what a story point's curve already says: a point that drives a scoped
+ * curve but names neither entity nor segment (e.g. one the user added in the curve editor) gets the
+ * curve's scope — entity ids → `entity`, category values → `segment`. Nothing is invented; points
+ * that already name one, drive no curve or drive an unscoped curve are returned unchanged.
+ */
+export function fillStoryEntities(s: StoryRefs): StoryRefs["storyPoints"] {
+  return s.storyPoints.map((sp) => {
+    if (sp.entity || sp.segment) return sp;
+    const curve = s.curves.find(
+      (c) =>
+        c.scope &&
+        c.scope.field !== "day" &&
+        c.scope.ids.length > 0 &&
+        c.segments.some((seg) => seg.storyPointId === sp.id),
+    );
+    const scope = curve?.scope;
+    if (!scope) return sp;
+    if (scope.ids.every((id) => !ENTITY_ID.test(id)))
+      return { ...sp, segment: { field: scope.field, values: [...scope.ids] } };
+    const prefix = scope.ids.map((id) => ENTITY_ID.exec(id)?.[1]).find(Boolean);
+    const entity = s.entities.find((e) => e.idPrefix === prefix);
+    if (!entity) return sp;
+    const ids = scope.ids.filter((id) => ENTITY_ID.exec(id)?.[1] === prefix);
+    return { ...sp, entity: { name: entity.name, ids } };
+  });
+}
+
 export function checkStoryRefs(s: StoryRefs): CompileError[] {
   const errors: CompileError[] = [];
   const err = (path: string, message: string) => errors.push({ path, message });

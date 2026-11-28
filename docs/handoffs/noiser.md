@@ -6,6 +6,8 @@ Shared rules and the API overview: [README.md](README.md). Package docs (engine 
 
 The compiler and engine are implemented and wired into the API, the CLI (`pnpm gen`) and the cascade. This document says how the rest of the system plugs into them and what breaks if they change.
 
+Run-5 follow-up (run 6): `fillStoryEntities` (compiler/story) completes a curve-driving story point without entity/segment from its curve's scope; `checkMagnitudes` (compiler/plausibility) rejects a `dateOffset` whose days can exceed min(60, period/3); `entityLabels` (labels.ts) returns entity id → name exactly as the engine generates them for a seed (display only).
+
 Open:
 
 - The "expectations pass at ≥ 4/5 of seeds 1..5" check on `supplier_delay` has no automated test. Only seed 42 is covered.

@@ -73,6 +73,16 @@ test("story → timeline → data → detective → what-if → comparison", asy
   await page.reload();
   await expect(page.getByRole("region", { name: "Dataset dat2" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Dataset dat1" })).toHaveCount(1);
+  // user: after a reload the cards must keep the timeline order (Firma above the generation card)
+  const firmaY = (await page.getByText("Firma", { exact: true }).first().boundingBox())?.y ?? 0;
+  const genY =
+    (
+      await page
+        .getByText(/Generování dat/)
+        .first()
+        .boundingBox()
+    )?.y ?? 0;
+  expect(firmaY).toBeLessThan(genY);
   expect(errors).toEqual([]);
 });
 

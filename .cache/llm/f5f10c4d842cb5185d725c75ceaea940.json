@@ -1,0 +1,80 @@
+{
+  "key": "f5f10c4d842cb5185d725c75ceaea940",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "supplier_delay_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-01",
+            "end": "2024-03-15",
+            "to": 0.375,
+            "storyPointId": "sp_delay_start"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "supplier_delay_max_days",
+        "baseline": 10,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-03-01",
+            "end": "2024-03-15",
+            "to": 19,
+            "storyPointId": "sp_delay_start"
+          }
+        ],
+        "clamp": [
+          8,
+          40
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.25,
+        "segments": [],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "cancel_prob",
+        "baseline": 0.15,
+        "segments": [],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Nárůst pravděpodobnosti zpoždění dodavatele SUP-001 (0,05 → 0,375 místo 0,7) i jeho maximální délky (10 → 19 dní místo 28) je poloviční oproti základnímu scénáři, ostatní parametry zůstávají beze změny."
+  }
+}

@@ -110,7 +110,8 @@ Failures and cancel:
 ### Detective and the LLM
 
 - Needs `ANTHROPIC_API_KEY` (or the key for the provider in `LLM_MODEL`). Per-call overrides: `LLM_MODEL_DETECTIVE_STEP`, `LLM_MODEL_DETECTIVE_REPORT`.
-- Up to 15 steps, plus one forced report: at most 16 LLM calls.
+- Up to 8 steps (`DETECTIVE_MAX_STEPS`), plus one forced report. The first prompt already holds every main table (columns, row count, date ranges, 2 sample rows; `overviewOf`), and one `run_sql` step may carry up to 4 `queries`. Live (run 6): 4–6 calls and 31–71 s per investigation, was 12 calls and up to 6 minutes.
+- `@s2d/llm` cuts a detective request after 60 s and retries it once (stalled connections happened live); `LLM_DEBUG=1` prints one timing line per request.
 - `LLM_OFFLINE=1` works only if the cache holds this exact investigation. The prompts contain query results, so different data or a different model is a cache miss (`LlmCacheMiss`). The recorded demo is described in [run #2](../runs/2026-11-27-live-e2e-2.md).
 - The adapter creates the LLM client on first use; pass your own with `dataerPort({ llm })` in tests.
 

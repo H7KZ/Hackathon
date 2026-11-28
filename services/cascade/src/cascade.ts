@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from "node:path";
 import type { z } from "zod";
 import { LlmCacheMiss, LlmOutputInvalid, type Llm } from "@s2d/llm";
-import { checkStoryRefs } from "@s2d/noiser";
+import { checkStoryRefs, fillStoryEntities } from "@s2d/noiser";
 import {
   CausalMap,
   CompanySpec,
@@ -299,7 +299,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     ),
   );
   if (!shouldRun("04_story")) return { dir, company, model, influences };
-  const story = await step("04_story", StoryPlan, () =>
+  const drafted = await step("04_story", StoryPlan, () =>
     a4Story(
       llm("04_story", (v) => {
         const plan = StoryPlan.parse(v);
@@ -316,8 +316,24 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       influences,
     ),
   );
+  // an edited 04_story (curve editor, by hand) skipped A4's checks and goes into 05 verbatim, where A5
+  // cannot repair it (user run: a point added in the editor had no entity, A5 burnt 5 attempts on it).
+  // Complete what the curve scopes already say, and fail before A5 on whatever is still wrong.
+  const story = completeStory(dir, drafted, model.entities);
   if (!shouldRun("05_scenario")) return { dir, company, model, influences, story };
   const scenario = await step("05_scenario", Scenario, async () => {
+    const storyErrors = checkStoryRefs({
+      entities: model.entities,
+      curves: story.curves,
+      storyPoints: story.storyPoints,
+    });
+    if (storyErrors.length)
+      throw new CascadeStepError(
+        "05_scenario",
+        new Error(
+          `04_story does not fit the data model (fix it in the story editor):\n${formatFeedback(storyErrors)}`,
+        ),
+      );
     // a new run after A5 gave up continues from its best rejected attempt for the same story, with the
     // history of all of them: with the disk cache, starting over at attempt 1 would only replay the same answers
     const key = storyKey(story);
@@ -339,7 +355,14 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         }),
       },
     );
-    if (res.ok) return res.scenario;
+    if (res.ok) {
+      if (res.misses?.length)
+        opts.onEvent?.({
+          type: "log",
+          message: `Agent ani po ${String(res.iterations)} pokusech nesplnil všechny hypotézy (${String(res.misses.length)} kontrol neprošlo). Data vznikla z jeho nejlepší verze; které hypotézy neplatí, ukazuje záložka Důkazy.`,
+        });
+      return res.scenario;
+    }
     opts.onEvent?.({
       type: "log",
       message: `Krok A5 ani po ${res.iterations} pokusech nesestavil platný scénář. Neúspěšné pokusy jsou v 05_scenario.rejected-N.json; uprav 04_story nebo nahraj 05_scenario ručně.`,
@@ -350,6 +373,15 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     );
   });
   return { dir, company, model, influences, story, scenario };
+}
+
+/** 04_story with entities filled from curve scopes; written back when that changed something. */
+function completeStory(dir: string, story: StoryPlan, entities: DataModel["entities"]): StoryPlan {
+  const storyPoints = fillStoryEntities({ entities, curves: story.curves, storyPoints: story.storyPoints });
+  if (JSON.stringify(storyPoints) === JSON.stringify(story.storyPoints)) return story;
+  const done = { ...story, storyPoints };
+  writeFileSync(join(dir, "04_story.json"), `${JSON.stringify(done, null, 2)}\n`);
+  return done;
 }
 
 /** Identity of the story an A5 attempt was made for (an edited 04_story must not resume old attempts). */

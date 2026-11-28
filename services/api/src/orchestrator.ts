@@ -5,9 +5,16 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { compileScenario } from "@s2d/noiser";
+import { DEFAULT_SEED } from "@s2d/cascade";
+import { checkStoryRefs, compileScenario, entityLabels, fillStoryEntities } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
-import { ArtifactName, ArtifactSchemas, StoryPlan, type CascadeEvent } from "@s2d/schema/artifacts";
+import {
+  ArtifactName,
+  ArtifactSchemas,
+  DataModel,
+  StoryPlan,
+  type CascadeEvent,
+} from "@s2d/schema/artifacts";
 import { MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { Scenario } from "@s2d/schema/scenario";
 import {
@@ -55,6 +62,11 @@ export interface Orchestrator {
   detective(sessionId: string, datasetId: string): Promise<DetectiveResult | null>;
   /** The scenario a dataset was generated from (what-if edits and approve settings applied). */
   scenario(sessionId: string, datasetId: string): Scenario;
+  /**
+   * Entity id → name ("STO-001" → "Novák s.r.o."), display only: from the dataset's scenario and seed,
+   * or before any data from 02_model and the default seed (the engine makes the same names).
+   */
+  labels(sessionId: string, datasetId?: string): Record<string, string>;
   /** Observed tables of a dataset (name, row count, columns). */
   tables(sessionId: string, datasetId: string): Promise<TableInfo[]>;
   /** First rows of one observed table; NotFoundError for unknown or ground-truth tables. */
@@ -65,7 +77,11 @@ export interface Orchestrator {
   artifact(sessionId: string, name: ArtifactName): unknown;
 }
 
-type NewEvent = SessionEvent extends infer E ? (E extends SessionEvent ? Omit<E, "seq"> : never) : never;
+type NewEvent = SessionEvent extends infer E
+  ? E extends SessionEvent
+    ? Omit<E, "seq" | "at">
+    : never
+  : never;
 
 const ORDER = ArtifactName.options;
 const BUSY: SessionStatus[] = ["drafting", "refining", "generating", "detecting"];
@@ -91,7 +107,7 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
 
   function emit(id: string, event: NewEvent): number {
     const l = liveOf(id);
-    const full: SessionEvent = { ...event, seq: ++l.seq };
+    const full: SessionEvent = { ...event, seq: ++l.seq, at: Date.now() };
     store.append(id, full);
     for (const fn of l.listeners) fn(full);
     return full.seq;
@@ -248,7 +264,8 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
           const errors = (err as { errors?: CompileError[] }).errors;
           emit(id, { type: "error", message, ...(errors ? { errors } : {}) });
           update(id, { status: job.fallback === "cancelled" ? "failed" : job.fallback, error: message });
-          keepJob = job.fallback === "cancelled";
+          // a failed job stays resumable ("Zkusit znovu"): a retry of A5 continues from its best attempt
+          keepJob = true;
         }
       } finally {
         if (!keepJob) store.clearJob(id);
@@ -258,10 +275,30 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
     jobs.set(id, { abort, done });
   }
 
+  /**
+   * A user-edited 04_story goes into 05 verbatim, so A5 cannot repair it (a user run burnt 5 attempts on a
+   * point added in the editor without an entity). Complete what the curve scope already says, then check
+   * the story refs against the model now, before any LLM call.
+   */
+  function editedStory(id: string, story: StoryPlan): { story: StoryPlan; errors: CompileError[] } {
+    const modelPath = store.artifactPath(id, "02_model");
+    const model = existsSync(modelPath) ? DataModel.safeParse(store.readJson(modelPath)) : null;
+    if (!model?.success) return { story, errors: [] };
+    const refs = { entities: model.data.entities, curves: story.curves, storyPoints: story.storyPoints };
+    const filled = { ...story, storyPoints: fillStoryEntities(refs) };
+    return { story: filled, errors: checkStoryRefs({ ...refs, storyPoints: filled.storyPoints }) };
+  }
+
   function editArtifact(id: string, name: ArtifactName, value: unknown): CompileError[] | null {
     if (name === "05_scenario") {
       const res = compileScenario(value);
       if (!res.ok) return res.errors;
+    } else if (name === "04_story") {
+      const res = StoryPlan.safeParse(value);
+      if (!res.success) return zodErrors(res.error.issues);
+      const { story, errors } = editedStory(id, res.data);
+      if (errors.length) return errors;
+      value = story;
     } else {
       const res = ARTIFACT_SCHEMAS[name].safeParse(value);
       if (!res.success) return zodErrors(res.error.issues);
@@ -324,9 +361,16 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
           break;
         }
         case "resume": {
-          const job = store.readJob(id);
+          // sessions from before failed jobs were kept: a failed generation left only state.error behind
+          const legacy: JobSpec | null =
+            s.status === "awaiting_refinement" && s.error
+              ? { kind: "approve", command: { type: "approve" }, fallback: "awaiting_refinement" }
+              : null;
+          const job = store.readJob(id) ?? legacy;
           const resumable: SessionStatus[] = ["interrupted", "failed", "cancelled"];
-          if (!resumable.includes(s.status) || !job) return wrongState(`Není co obnovit (stav ${s.status}).`);
+          // also a job that failed and fell back to a stable state (state.error is set until the next job)
+          if (!job || !(resumable.includes(s.status) || s.error))
+            return wrongState(`Není co obnovit (stav ${s.status}).`);
           start(id, job);
           break;
         }
@@ -365,6 +409,23 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       const stored = join(da.dir, `compare_${db.info.id}.json`);
       if (existsSync(stored)) return MetricDiff.array().parse(store.readJson(stored));
       return ports.dataer.compare(join(db.dir, "db.duckdb"), join(da.dir, "db.duckdb"));
+    },
+
+    labels(id, datasetId) {
+      if (datasetId) {
+        const d = datasetOf(id, datasetId);
+        const sc = store.readJson(join(d.dir, "scenario.json")) as Scenario;
+        return entityLabels(sc.entities, {
+          seed: d.info.seed,
+          start: sc.meta.start,
+          end: sc.meta.end,
+          curves: sc.curves,
+        });
+      }
+      const path = store.artifactPath(id, "02_model");
+      if (!existsSync(path)) return {};
+      const model = DataModel.safeParse(store.readJson(path));
+      return model.success ? entityLabels(model.data.entities, { seed: DEFAULT_SEED }) : {};
     },
 
     scenario: (id, datasetId) =>

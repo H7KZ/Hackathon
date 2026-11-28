@@ -2,7 +2,7 @@
  * Goal loops of the API orchestrator (docs/api-orchestrator.md). Written before the implementation.
  * Each `describe` is one loop: its goal is the assertion, its stop condition the awaited state.
  */
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { makeTempDir } from "@s2d/test-utils";
@@ -89,6 +89,40 @@ describe("L2 refinement ⟲: edit an artifact → only later steps recompute", (
     expect(orch.get(id).status).toBe("awaiting_refinement");
     expect(statSync(company).mtimeMs).toBe(before);
     expect(calls.produced).toEqual([]); // 04 edited by user, nothing after it until approve
+  });
+
+  it("an edited 04_story gets the curve's scope as entity on a point added in the editor (user run: A5 failed 5× on it)", async () => {
+    const { orch, scenario } = setup();
+    const id = await drafted(orch);
+    const [first, ...rest] = scenario.storyPoints;
+    if (!first) throw new Error("fixture has story points");
+    const { entity: _drop, ...added } = first;
+    const story = {
+      storyPoints: [added, ...rest],
+      curves: scenario.curves,
+      expectations: scenario.expectations,
+    };
+    const res = orch.command(id, { type: "edit_artifact", name: "04_story", value: story });
+    expect(res.errors).toBeUndefined();
+    await orch.idle(id);
+    const saved = JSON.parse(readFileSync(join(tmp.dir, id, "04_story.json"), "utf8")) as typeof story;
+    const scope = scenario.curves.find((c) => c.segments.some((s) => s.storyPointId === first.id))?.scope;
+    expect(saved.storyPoints[0]).toMatchObject({ entity: { name: "supplier", ids: scope?.ids } });
+  });
+
+  it("rejects an edited 04_story whose story refs cannot compile before any LLM call", async () => {
+    const { orch, scenario } = setup();
+    const id = await drafted(orch);
+    const [first, ...rest] = scenario.storyPoints;
+    if (!first) throw new Error("fixture has story points");
+    const story = {
+      storyPoints: [{ ...first, entity: { name: "supplier", ids: ["SUP-042"] } }, ...rest],
+      curves: scenario.curves,
+      expectations: scenario.expectations,
+    };
+    const res = orch.command(id, { type: "edit_artifact", name: "04_story", value: story });
+    expect(res.errors?.map((e) => e.path)).toContain("storyPoints[0].entity.ids[0]");
+    expect(orch.get(id).status).toBe("awaiting_refinement");
   });
 
   it("an edit of 02_model deletes 03 and 04 and recomputes them", async () => {
@@ -218,6 +252,40 @@ describe("L6b recovery after a failed or cancelled draft", () => {
     expect(orch.get(id).status).toBe("awaiting_refinement");
   });
 
+  it("a failed approve can be retried with resume, keeping its settings (user: let me rerun it)", async () => {
+    const first = setup({ failAt: "05_scenario" });
+    const id = await drafted(first.orch);
+    first.orch.command(id, { type: "approve", settings: { seed: 7 } });
+    await first.orch.idle(id);
+    expect(first.orch.get(id)).toMatchObject({ status: "awaiting_refinement", error: expect.any(String) });
+    const second = setup();
+    expect(second.orch.command(id, { type: "resume" }).errors).toBeUndefined();
+    await second.orch.idle(id);
+    expect(second.orch.get(id).status).toBe("ready");
+    expect(second.orch.get(id).datasets[0]?.seed).toBe(7);
+    // once it succeeded there is nothing left to retry
+    expect(second.orch.command(id, { type: "resume" }).errors?.[0]?.message).toMatch(/Není co obnovit/);
+  });
+
+  it("a failed generation of an older session (no job kept) is retried as approve", async () => {
+    const first = setup({ failAt: "05_scenario" });
+    const id = await drafted(first.orch);
+    first.orch.command(id, { type: "approve" });
+    await first.orch.idle(id);
+    rmSync(join(tmp.dir, id, "job.json"), { force: true });
+    const second = setup();
+    expect(second.orch.command(id, { type: "resume" }).errors).toBeUndefined();
+    await second.orch.idle(id);
+    expect(second.orch.get(id).status).toBe("ready");
+  });
+
+  it("every event carries the server time, so a reloaded UI shows true elapsed times", async () => {
+    const { orch } = setup();
+    const before = Date.now();
+    const id = await drafted(orch);
+    for (const e of orch.events(id)) expect(e.at).toBeGreaterThanOrEqual(before);
+  });
+
   it("a finished job leaves nothing to resume", async () => {
     const { orch } = setup();
     const id = await drafted(orch);
@@ -289,5 +357,17 @@ describe("L7 event log", () => {
     const id = await drafted(orch);
     const again = setup();
     expect(again.orch.events(id)).toEqual(orch.events(id));
+  });
+});
+
+describe("entity labels (user: nobody knows what STO-001 means)", () => {
+  it("names entity ids before any data (02_model, default seed) and per dataset (its seed)", async () => {
+    const { orch } = setup();
+    const id = await drafted(orch);
+    const draft = orch.labels(id);
+    expect(draft["SUP-001"]).toEqual(expect.any(String));
+    orch.command(id, { type: "approve", settings: { seed: 42 } });
+    await orch.idle(id);
+    expect(orch.labels(id, "dat1")["SUP-001"]).toBe(draft["SUP-001"]);
   });
 });

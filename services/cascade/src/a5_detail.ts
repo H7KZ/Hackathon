@@ -87,6 +87,8 @@ export function a5Detail(
     ...opts,
     // the agent always edits its best attempt so far, never a regression (live run 3, podpora)
     keepBest: true,
+    // out of attempts but runnable: generate and let the evidence show which hypotheses fail
+    acceptGateMisses: true,
     // a failed expectation also says where the levers sit and whether a chain reaches the measured table
     verify:
       verify &&

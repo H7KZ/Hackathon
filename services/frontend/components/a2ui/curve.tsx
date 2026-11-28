@@ -252,174 +252,177 @@ export function CurveEditor({ node }: NodeProps) {
     return true;
   };
 
-  // the root is sticky: it stays in view while the settings below are scrolled and edited
+  // the graph is sticky: it stays in view while the settings below are scrolled and edited.
+  // The selected point's form is a sibling, not part of the sticky block, so it scrolls away under it.
   return (
-    <div ref={rootRef} className={`a2-curve${locked ? " locked" : ""}${stuck ? " stuck" : ""}`}>
-      <div className="a2-curve-sticky">
-        <div className="a2-curve-bar">
-          <strong>{label}</strong>
-          {!locked && (
-            <div className="a2-curve-tools">
-              <button
-                type="button"
-                onClick={() => {
-                  const last = sorted.at(-1);
-                  const start = last ? addDays(last.start, 21) : addDays(from, Math.round(span / 2));
-                  add(start > to ? to : start, round1(curveAt(start, baseline, points, ramp) + 1));
-                }}
-              >
-                + Bod
-              </button>
-              <button type="button" aria-label="Zpět" title="Zpět (Ctrl+Z)" onClick={undo}>
-                ↶
-              </button>
-              <button type="button" aria-label="Znovu" title="Znovu (Ctrl+Shift+Z)" onClick={redo}>
-                ↷
-              </button>
-            </div>
-          )}
-        </div>
-        <div
-          ref={wrap}
-          className="a2-curve-canvas"
-          tabIndex={0}
-          role="group"
-          aria-label={`${label}: editor křivky`}
-          aria-describedby={`${base}-hint`}
-          onKeyDown={onKey}
-        >
-          <svg
-            ref={svg}
-            width={W}
-            height={H}
-            viewBox={`0 0 ${String(W)} ${String(H)}`}
-            onPointerMove={onMove}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-            onPointerLeave={() => {
-              setHover(null);
-            }}
-          >
-            <rect
-              x={PAD.l}
-              y={PAD.t}
-              width={innerW}
-              height={innerH}
-              className={ghost ? "hit adding" : "hit"}
-              onClick={() => {
-                if (!addAtGhost()) setSelected(null);
-              }}
-              onDoubleClick={(e) => {
-                if (locked || ghost) return;
-                const { px, py } = local(e);
-                add(addDays(dayAt(px), -ramp), valueAt(py));
-              }}
-            />
-            {yTicks.map((t) => (
-              <g key={`y${String(t)}`} className="tick">
-                <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} />
-                <text x={PAD.l - 8} y={y(t) + 4} textAnchor="end">
-                  {num(t)}
-                </text>
-              </g>
-            ))}
-            {xTicks.map((d) => (
-              <text key={d} className="xtick" x={x(d)} y={H - 8} textAnchor="middle">
-                {formatDate(d).replace(/ \d{4}$/, "")}
-              </text>
-            ))}
-            <path className="area" d={area} />
-            <path className="line" d={line} />
-            {hoverDay && !dragging && (
-              <g className="guide">
-                <line x1={x(hoverDay)} x2={x(hoverDay)} y1={PAD.t} y2={H - PAD.b} />
-                {ghost && (
-                  <g className="ghost">
-                    <circle cx={x(hoverDay)} cy={y(hoverValue)} r={7} />
-                    <text x={x(hoverDay)} y={y(hoverValue) + 4} textAnchor="middle">
-                      +
-                    </text>
-                  </g>
-                )}
-                <text x={x(hoverDay) + 6} y={PAD.t + 12}>
-                  {formatDate(hoverDay)} · {num(hoverValue)} {unit}
-                  {ghost && " · klikněte pro nový bod"}
-                </text>
-              </g>
+    <>
+      <div ref={rootRef} className={`a2-curve${locked ? " locked" : ""}${stuck ? " stuck" : ""}`}>
+        <div className="a2-curve-sticky">
+          <div className="a2-curve-bar">
+            <strong>{label}</strong>
+            {!locked && (
+              <div className="a2-curve-tools">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const last = sorted.at(-1);
+                    const start = last ? addDays(last.start, 21) : addDays(from, Math.round(span / 2));
+                    add(start > to ? to : start, round1(curveAt(start, baseline, points, ramp) + 1));
+                  }}
+                >
+                  + Bod
+                </button>
+                <button type="button" aria-label="Zpět" title="Zpět (Ctrl+Z)" onClick={undo}>
+                  ↶
+                </button>
+                <button type="button" aria-label="Znovu" title="Znovu (Ctrl+Shift+Z)" onClick={redo}>
+                  ↷
+                </button>
+              </div>
             )}
-            {sorted.map((p, i) => {
-              const hx = x(handleDay(p.start));
-              const hy = y(curveAt(handleDay(p.start), baseline, points, ramp));
-              const on = p.id === selected;
-              return (
-                <g key={p.id} className={`knot${on ? " on" : ""}`}>
-                  <line className="mark" x1={x(p.start)} x2={x(p.start)} y1={PAD.t - 8} y2={H - PAD.b} />
-                  <text className="num" x={x(p.start)} y={PAD.t - 12} textAnchor="middle">
-                    {i + 1}
+          </div>
+          <div
+            ref={wrap}
+            className="a2-curve-canvas"
+            tabIndex={0}
+            role="group"
+            aria-label={`${label}: editor křivky`}
+            aria-describedby={`${base}-hint`}
+            onKeyDown={onKey}
+          >
+            <svg
+              ref={svg}
+              width={W}
+              height={H}
+              viewBox={`0 0 ${String(W)} ${String(H)}`}
+              onPointerMove={onMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+              onPointerLeave={() => {
+                setHover(null);
+              }}
+            >
+              <rect
+                x={PAD.l}
+                y={PAD.t}
+                width={innerW}
+                height={innerH}
+                className={ghost ? "hit adding" : "hit"}
+                onClick={() => {
+                  if (!addAtGhost()) setSelected(null);
+                }}
+                onDoubleClick={(e) => {
+                  if (locked || ghost) return;
+                  const { px, py } = local(e);
+                  add(addDays(dayAt(px), -ramp), valueAt(py));
+                }}
+              />
+              {yTicks.map((t) => (
+                <g key={`y${String(t)}`} className="tick">
+                  <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} />
+                  <text x={PAD.l - 8} y={y(t) + 4} textAnchor="end">
+                    {num(t)}
                   </text>
-                  {p.end && (
-                    <rect
-                      className="end"
+                </g>
+              ))}
+              {xTicks.map((d) => (
+                <text key={d} className="xtick" x={x(d)} y={H - 8} textAnchor="middle">
+                  {formatDate(d).replace(/ \d{4}$/, "")}
+                </text>
+              ))}
+              <path className="area" d={area} />
+              <path className="line" d={line} />
+              {hoverDay && !dragging && (
+                <g className="guide">
+                  <line x1={x(hoverDay)} x2={x(hoverDay)} y1={PAD.t} y2={H - PAD.b} />
+                  {ghost && (
+                    <g className="ghost">
+                      <circle cx={x(hoverDay)} cy={y(hoverValue)} r={7} />
+                      <text x={x(hoverDay)} y={y(hoverValue) + 4} textAnchor="middle">
+                        +
+                      </text>
+                    </g>
+                  )}
+                  <text x={x(hoverDay) + 6} y={PAD.t + 12}>
+                    {formatDate(hoverDay)} · {num(hoverValue)} {unit}
+                    {ghost && " · klikněte pro nový bod"}
+                  </text>
+                </g>
+              )}
+              {sorted.map((p, i) => {
+                const hx = x(handleDay(p.start));
+                const hy = y(curveAt(handleDay(p.start), baseline, points, ramp));
+                const on = p.id === selected;
+                return (
+                  <g key={p.id} className={`knot${on ? " on" : ""}`}>
+                    <line className="mark" x1={x(p.start)} x2={x(p.start)} y1={PAD.t - 8} y2={H - PAD.b} />
+                    <text className="num" x={x(p.start)} y={PAD.t - 12} textAnchor="middle">
+                      {i + 1}
+                    </text>
+                    {p.end && (
+                      <rect
+                        className="end"
+                        role="slider"
+                        tabIndex={locked ? -1 : 0}
+                        aria-label={`${p.title}: návrat k normálu`}
+                        aria-valuetext={formatDate(p.end)}
+                        x={x(handleDay(p.end)) - 5}
+                        y={y(curveAt(handleDay(p.end), baseline, points, ramp)) - 5}
+                        width={10}
+                        height={10}
+                        onPointerDown={(e) => {
+                          startDrag(e, p.id, "end");
+                        }}
+                        onFocus={() => {
+                          setSelected(p.id);
+                        }}
+                      />
+                    )}
+                    <circle
+                      className="handle"
                       role="slider"
                       tabIndex={locked ? -1 : 0}
-                      aria-label={`${p.title}: návrat k normálu`}
-                      aria-valuetext={formatDate(p.end)}
-                      x={x(handleDay(p.end)) - 5}
-                      y={y(curveAt(handleDay(p.end), baseline, points, ramp)) - 5}
-                      width={10}
-                      height={10}
+                      aria-label={`${String(i + 1)} · ${p.title}`}
+                      aria-valuetext={`${formatDate(p.start)}, ${num(p.level)} ${unit}`}
+                      cx={hx}
+                      cy={hy}
+                      r={on ? 8 : 6.5}
                       onPointerDown={(e) => {
-                        startDrag(e, p.id, "end");
+                        startDrag(e, p.id, "knot");
                       }}
                       onFocus={() => {
                         setSelected(p.id);
                       }}
                     />
-                  )}
-                  <circle
-                    className="handle"
-                    role="slider"
-                    tabIndex={locked ? -1 : 0}
-                    aria-label={`${String(i + 1)} · ${p.title}`}
-                    aria-valuetext={`${formatDate(p.start)}, ${num(p.level)} ${unit}`}
-                    cx={hx}
-                    cy={hy}
-                    r={on ? 8 : 6.5}
-                    onPointerDown={(e) => {
-                      startDrag(e, p.id, "knot");
-                    }}
-                    onFocus={() => {
-                      setSelected(p.id);
-                    }}
-                  />
-                  {on && (
-                    <text className="tip" x={hx} y={hy - 14} textAnchor="middle">
-                      {p.title}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-        {outside > 0 && !locked && (
-          <p className="a2-curve-outside" role="status">
-            {outside === 1 ? "1 bod je" : `${String(outside)} body jsou`} mimo zvolené období.
-            <button
-              type="button"
-              onClick={() => {
-                commit(fitInto(points, from, to));
-              }}
-            >
-              Rozložit body do období
-            </button>
+                    {on && (
+                      <text className="tip" x={hx} y={hy - 14} textAnchor="middle">
+                        {p.title}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+          {outside > 0 && !locked && (
+            <p className="a2-curve-outside" role="status">
+              {outside === 1 ? "1 bod je" : `${String(outside)} body jsou`} mimo zvolené období.
+              <button
+                type="button"
+                onClick={() => {
+                  commit(fitInto(points, from, to));
+                }}
+              >
+                Rozložit body do období
+              </button>
+            </p>
+          )}
+          <p id={`${base}-hint`} className="a2-curve-hint">
+            {locked
+              ? "Křivka je zamčená, data se generují z této verze."
+              : "Najeďte na křivku a klikněte = nový bod · táhněte body · šipky posouvají (Shift = víc) · Delete smaže · Ctrl+Z zpět"}
           </p>
-        )}
-        <p id={`${base}-hint`} className="a2-curve-hint">
-          {locked
-            ? "Křivka je zamčená, data se generují z této verze."
-            : "Najeďte na křivku a klikněte = nový bod · táhněte body · šipky posouvají (Shift = víc) · Delete smaže · Ctrl+Z zpět"}
-        </p>
+        </div>
       </div>
       {sel && !locked && (
         <div className="a2-curve-edit" aria-label={`Upravit bod ${sel.title}`} role="group">
@@ -508,6 +511,6 @@ export function CurveEditor({ node }: NodeProps) {
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }

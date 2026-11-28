@@ -49,6 +49,8 @@ describe("formatExpectationFailure", () => {
     );
     expect(m).toMatch(/"e1".*late share rises.*0\.057.*0\.053.*-7(\.0)?%.*increase.*\+50%/);
     expect(m).toMatch(/curves and expectations are fixed/);
+    // user session: A5 reached the gate with 90–150-day delays
+    expect(m).toMatch(/more affected records or a higher probability over extreme magnitudes/);
   });
 });
 
