@@ -306,6 +306,10 @@ describe("run-4 follow-up: readable curve, attempts, period", () => {
     expect(curveLabel("demand_mult")).toBe("Násobek poptávky");
     expect(curveLabel("wibble_prob")).toBe("Pravděpodobnost „wibble“");
     expect(curveLabel("foo")).toBe("Páka příběhu „foo“");
+    // the last kind word is the head noun (a live run showed "Zpoždění (dny) „prob“")
+    expect(curveLabel("delay_prob")).toBe("Pravděpodobnost zpoždění");
+    expect(curveLabel("checkout_prob")).toBe("Pravděpodobnost dokončení nákupu");
+    expect(curveLabel("shipping_fee")).toBe("Cena dopravy");
   });
 
   it("the editor explains the curve: id, baseline, percent hint and the points that bend it", () => {

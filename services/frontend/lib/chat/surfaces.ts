@@ -28,6 +28,17 @@ export type StoryPointEdit = {
   /** live: the scenario segment kind, so the chart draws what the engine will do */
   kind?: string;
 };
+/** One further lever in the live editor: another curve story points bend, besides the main one. */
+export type LeverEdit = {
+  curveId: string;
+  label: string;
+  help: string;
+  baseline: number;
+  min: number;
+  max: number;
+  step: number;
+  points: StoryPointEdit[];
+};
 
 /** Everything the Generate button sends (basic + advanced settings). */
 export type StoryConfig = {
@@ -170,6 +181,8 @@ export function storySurface(
    * hypotheses) plus the curve itself.
    */
   live = false,
+  /** live: every further curve the story bends, each with its own editor under the main one */
+  levers: LeverEdit[] = [],
 ): A2uiMessage {
   const section = (sid: string, title: string, children: string[]): ComponentNode[] => [
     { id: sid, component: "Column", gap: "sm", children: [`${sid}-t`, ...children] },
@@ -184,8 +197,17 @@ export function storySurface(
         id: "root",
         component: "Column",
         gap: "lg",
-        children: ["intro", "curve", ...(live ? ["curveHelp"] : []), "basic", "advanced", "actions"],
+        children: [
+          "intro",
+          "curve",
+          ...(live ? ["curveHelp"] : []),
+          ...(levers.length > 0 ? ["levers"] : []),
+          "basic",
+          "advanced",
+          "actions",
+        ],
       },
+      ...(levers.length > 0 ? leverNodes() : []),
       {
         id: "intro",
         component: "Text",
@@ -360,14 +382,49 @@ export function storySurface(
               points: path("/points"),
               config: path("/config"),
               expectations: path("/expectations"),
+              ...(levers.length > 0 && { levers: path("/levers") }),
             },
           },
         },
       },
     ],
-    { points, config, expectations },
+    { points, config, expectations, ...(levers.length > 0 && { levers }) },
     demo,
   );
+}
+
+/** One card per further lever: what it is, its own draggable curve and its value before the story. */
+function leverNodes(): ComponentNode[] {
+  return [
+    { id: "levers", component: "Column", gap: "md", children: ["leversT", "leverList"] },
+    { id: "leversT", component: "Text", variant: "label", text: "Další páky příběhu" },
+    { id: "leverList", component: "List", children: { componentId: "lever", path: "/levers" } },
+    { id: "lever", component: "Card", child: "lvCol" },
+    { id: "lvCol", component: "Column", gap: "sm", children: ["lvCurve", "lvHelp", "lvBase"] },
+    {
+      id: "lvCurve",
+      component: "CurveEditor",
+      points: path("points"),
+      baseline: path("baseline"),
+      rampDays: path("/config/curve/rampDays"),
+      from: path("/config/time/from"),
+      to: path("/config/time/to"),
+      min: path("min"),
+      max: path("max"),
+      label: path("label"),
+      locked: path("/locked"),
+    },
+    { id: "lvHelp", component: "Text", variant: "caption", text: path("help") },
+    {
+      id: "lvBase",
+      component: "Slider",
+      label: "Výchozí hodnota",
+      min: path("min"),
+      max: path("max"),
+      steps: path("step"),
+      value: path("baseline"),
+    },
+  ];
 }
 
 // ---------- dataset (canvas) + chat summary ----------
