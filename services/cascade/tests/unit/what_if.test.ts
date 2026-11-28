@@ -94,6 +94,23 @@ describe("whatIf", () => {
     expect(t.fake.calls[1]?.prompt).toContain("/meta/seed");
   });
 
+  it("the prompt does not depend on the session-derived meta.id, so a recorded what-if replays in any session", async () => {
+    const edit = { curves: lateFromMay, params: [], rationale: "zpoždění od května" };
+    const t = setup([edit, edit]);
+    cleanup = t.cleanup;
+    const a = await whatIf(t.llm, "Co kdyby od května?", {
+      ...base,
+      meta: { ...base.meta, id: "session-a" },
+    });
+    const b = await whatIf(t.llm, "Co kdyby od května?", {
+      ...base,
+      meta: { ...base.meta, id: "session-b" },
+    });
+    expect(t.fake.calls).toHaveLength(1); // the second call is a cache hit
+    expect(t.fake.calls[0]?.prompt).not.toContain("session-a");
+    expect([a.meta.id, b.meta.id]).toEqual(["session-a", "session-b"]);
+  });
+
   it("sends back an edit that leaves a curve unused (story check), then accepts the fix", async () => {
     const latePtr = [...paramPointers(base)].find((p) => p.endsWith("/is_late/p"));
     expect(latePtr).toBeDefined();
