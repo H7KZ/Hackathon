@@ -104,7 +104,7 @@ describe("runCascade A1–A5", () => {
     ]);
     expect(JSON.stringify(loops[0]?.feedback)).toContain("missing_curve");
     expect(r.fake.calls[5]?.prompt).toContain("missing_curve");
-    expect(r.fake.calls[5]?.prompt).toContain("Compiler errors");
+    expect(r.fake.calls[5]?.prompt).toContain("Errors of that attempt");
   });
 
   it("treats a schema-invalid agent answer as feedback, not a crash", async () => {

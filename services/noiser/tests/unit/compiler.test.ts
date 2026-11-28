@@ -229,4 +229,22 @@ describe("compileScenario — curve scopes and story entities (live run 2026-11-
     const e = errorsOf(s).find((x) => x.path === "storyPoints[0].segment.values[0]");
     expect(e?.message).toMatch(/"jaro".*"kampaň"/);
   });
+
+  it("rejects a self.* scope on an arrival rate: the record does not exist yet (live run 3: the campaign curve stayed at baseline)", () => {
+    const s = fixture();
+    s.curves[1].scope = { field: "self.customer_id", ids: ["CUS-001"] };
+    const e = errorsOf(s).find((x) => x.path === "processes[1].rate.curve");
+    expect(e?.message).toMatch(/scope field "self.customer_id" of curve "demand".*key.customer/);
+    s.curves[1].scope = { field: "key.customer", ids: ["CUS-001"] };
+    expect(errorsOf(s)).toEqual([]);
+  });
+
+  it("checks the scope of a curve on a derive p against the source record", () => {
+    const s = fixture();
+    s.processes[3].p = { curve: "demand" };
+    s.curves[1].scope = { field: "self.store_id", ids: ["STO-001"] };
+    expect(errorsOf(s).map((x) => x.path)).toContain("processes[3].p.curve");
+    s.curves[1].scope = { field: "source.store_id", ids: ["STO-001"] };
+    expect(errorsOf(s).filter((x) => x.path.startsWith("processes[3].p"))).toEqual([]);
+  });
 });

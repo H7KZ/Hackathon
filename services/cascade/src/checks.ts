@@ -311,7 +311,7 @@ export function influenceNames(model: ModelTables): Set<string> {
   return names;
 }
 
-type InfluenceEdges = { edges: { from: string; to: string }[] };
+export type InfluenceEdges = { edges: { from: string; to: string }[] };
 
 /** A3 edges must name existing parts of 02_model, otherwise the map is decoration nobody can check. */
 export function checkInfluenceRefs(influences: InfluenceEdges, model: ModelTables): CompileError[] {

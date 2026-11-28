@@ -14,13 +14,33 @@ export const MAX_ITERATIONS = 3;
 
 export type Feedback = CompileError[] | string[];
 
+/** How far an attempt got: later stages are better (a story-gate failure beats a compile error). */
+export type Stage = "schema" | "compile" | "check" | "story gate";
+const STAGE_RANK: Record<Stage, number> = { schema: 0, compile: 1, check: 2, "story gate": 3 };
+
+/** One rejected attempt, for the history shown to the agent and for resuming. */
+export interface Attempt {
+  n: number;
+  stage: Stage;
+  feedback: Feedback;
+}
+
+/** Higher is better: the stage reached, then fewer errors. */
+export const attemptRank = (a: Pick<Attempt, "stage" | "feedback">) =>
+  STAGE_RANK[a.stage] * 1000 - a.feedback.length;
+
 export interface RepairLoopOptions<T> {
   step: ArtifactName;
   /**
    * One agent call. `feedback` is empty on the first iteration; `previous` is the last agent output.
    * Put `n` into the prompt on retries: an identical prompt would replay the same cached answer.
    */
-  ask: (feedback: Feedback, previous: unknown, n: number) => Promise<T>;
+  ask: (feedback: Feedback, previous: unknown, n: number, history: readonly Attempt[]) => Promise<T>;
+  /**
+   * A5: `previous`/`feedback` are the BEST rejected attempt so far (stage reached, then fewest errors),
+   * not the last one, so a regression is never what the agent edits next. Default: the last attempt.
+   */
+  keepBest?: boolean | undefined;
   /** Deterministic code: agent output -> candidate scenario, or errors (e.g. a patch on a non-Param). */
   assemble: (output: T) => { ok: true; scenario: unknown } | { ok: false; errors: CompileError[] };
   onEvent?: OnEvent | undefined;
@@ -31,11 +51,11 @@ export interface RepairLoopOptions<T> {
   /** Slow checks on a scenario that compiled and passed `check` (e.g. the story gate, gate.ts). */
   verify?: ((scenario: Scenario) => Promise<CompileError[]>) | undefined;
   /** Start as a repair: errors found later (e.g. the story gate on 05) and the output they refer to. */
-  initial?: { feedback: Feedback; previous: unknown } | undefined;
+  initial?: { feedback: Feedback; previous: unknown; history?: Attempt[] | undefined } | undefined;
   /** Number of the first attempt (default 1): a resumed repair continues the numbering, so its prompts are new. */
   firstN?: number | undefined;
   /** A rejected attempt (raw agent output or assembled scenario) and why, e.g. to keep it or resume from it. */
-  onRejected?: ((n: number, value: unknown, feedback: Feedback) => void) | undefined;
+  onRejected?: ((n: number, value: unknown, feedback: Feedback, stage: Stage) => void) | undefined;
 }
 
 export type RepairResult<T> =
@@ -46,28 +66,50 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
   const max = opts.maxIterations ?? MAX_ITERATIONS;
   let feedback: Feedback = opts.initial?.feedback ?? [];
   let previous: unknown = opts.initial?.previous;
+  const history: Attempt[] = [...(opts.initial?.history ?? [])];
+  // the best attempt so far; a resumed repair starts from the attempt it was given
+  let best: { rank: number; previous: unknown; feedback: Feedback } | undefined =
+    opts.initial && opts.keepBest
+      ? {
+          rank: Math.max(...history.map(attemptRank), Number.NEGATIVE_INFINITY),
+          previous: opts.initial.previous,
+          feedback: opts.initial.feedback,
+        }
+      : undefined;
+  const reject = (n: number, value: unknown, fb: Feedback, stage: Stage, raw: unknown) => {
+    history.push({ n, stage, feedback: fb });
+    opts.onRejected?.(n, value, fb, stage);
+    const rank = attemptRank({ stage, feedback: fb });
+    if (opts.keepBest && best && rank < best.rank) {
+      ({ previous, feedback } = best);
+      return;
+    }
+    if (raw !== undefined) previous = raw;
+    feedback = fb;
+    if (opts.keepBest) best = { rank, previous, feedback };
+  };
   const first = opts.firstN ?? 1;
   for (let n = first; n < first + max; n++) {
     opts.signal?.throwIfAborted();
     let output: T;
     try {
-      output = await opts.ask(feedback, previous, n);
+      output = await opts.ask(feedback, previous, n, history);
     } catch (err) {
       // Schema-invalid agent output is a repairable mistake, not a crash.
       if (!(err instanceof LlmOutputInvalid)) throw err;
-      feedback = [...describeShape(err.raw), err.issues];
-      if (err.raw !== undefined) previous = err.raw;
-      opts.onRejected?.(n, err.raw, feedback);
-      opts.onEvent?.({ type: "loop.iteration", step: opts.step, n, ok: false, feedback });
+      const fb = [...describeShape(err.raw), err.issues];
+      opts.onEvent?.({ type: "loop.iteration", step: opts.step, n, ok: false, feedback: fb });
+      reject(n, err.raw, fb, "schema", err.raw);
       continue;
     }
-    previous = output;
     const assembled = opts.assemble(output);
     const compiledRaw = assembled.ok ? compileScenario(assembled.scenario) : assembled;
     let checkErrors = compiledRaw.ok ? (opts.check?.(compiledRaw.scenario) ?? []) : [];
+    let stage: Stage = compiledRaw.ok ? "check" : "compile";
     if (compiledRaw.ok && checkErrors.length === 0 && opts.verify) {
       opts.signal?.throwIfAborted();
       checkErrors = await opts.verify(compiledRaw.scenario);
+      stage = "story gate";
     }
     const compiled = checkErrors.length > 0 ? { ok: false as const, errors: checkErrors } : compiledRaw;
     opts.onEvent?.({
@@ -78,8 +120,7 @@ export async function repairLoop<T>(opts: RepairLoopOptions<T>): Promise<RepairR
       feedback: compiled.ok ? [] : compiled.errors,
     });
     if (compiled.ok) return { ok: true, scenario: compiled.scenario, output, iterations: n };
-    feedback = compiled.errors;
-    opts.onRejected?.(n, assembled.ok ? assembled.scenario : output, feedback);
+    reject(n, assembled.ok ? assembled.scenario : output, compiled.errors, stage, output);
   }
   return { ok: false, feedback, iterations: max };
 }
@@ -160,4 +201,36 @@ function fixRequest(attempt: number, err: LlmOutputInvalid, byCheck: boolean): s
 
 export function formatFeedback(feedback: Feedback): string {
   return feedback.map((f) => (typeof f === "string" ? `- ${f}` : `- ${f.path}: ${f.message}`)).join("\n");
+}
+
+/**
+ * Earlier attempts for the agent, oldest first: what each one failed on, and which errors came back
+ * after an attempt that did not have them (podpora, live run 3: root-rule and story-gate errors alternated).
+ */
+export function formatHistory(history: readonly Attempt[]): string {
+  const sig = (f: Feedback[number]) => (typeof f === "string" ? f : f.path + ": " + f.message).slice(0, 90);
+  const short = (f: Feedback[number]) => {
+    const t = typeof f === "string" ? f : `${f.path}: ${f.message}`;
+    return t.length > 220 ? `${t.slice(0, 217)}...` : t;
+  };
+  const lines = history.map((a) => {
+    const shown = a.feedback.slice(0, 4).map(short).join(" | ");
+    const more = a.feedback.length > 4 ? ` (+${a.feedback.length - 4} more)` : "";
+    return `- attempt ${a.n} (${a.stage}): ${shown}${more}`;
+  });
+  const back: string[] = [];
+  history.forEach((a, k) => {
+    for (const f of a.feedback) {
+      const s = sig(f);
+      const firstSeen = history.findIndex((h) => h.feedback.some((x) => sig(x) === s));
+      const gap = history.slice(firstSeen + 1, k).some((h) => !h.feedback.some((x) => sig(x) === s));
+      if (firstSeen < k && gap) back.push(`- "${short(f).slice(0, 120)}" came back in attempt ${a.n}`);
+    }
+  });
+  return [
+    ...lines,
+    ...(back.length > 0
+      ? ["Errors that came back after being fixed (do not undo the change that fixed them):", ...back]
+      : []),
+  ].join("\n");
 }

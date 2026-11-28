@@ -38,7 +38,14 @@ import {
   checkStoryPlan,
 } from "./checks";
 import type { OnEvent } from "./events";
-import { formatFeedback, withSchemaRetry, type Feedback } from "./loop";
+import {
+  attemptRank,
+  formatFeedback,
+  withSchemaRetry,
+  type Attempt,
+  type Feedback,
+  type Stage,
+} from "./loop";
 import { a1Company, a2Model, a3Influences, a4Story, type CascadeInput } from "./steps";
 
 export interface CascadeOptions {
@@ -139,14 +146,16 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
     throw new CascadeRunMismatch(opts.runId);
   }
   writeFileSync(inputFile, inputJson);
-  const rejected = (name: ArtifactName, key?: string) => (n: number, value: unknown, feedback: Feedback) => {
-    writeFileSync(join(dir, `${name}.rejected-${n}.json`), `${JSON.stringify(value, null, 2)}\n`);
-    if (key !== undefined)
-      writeFileSync(
-        join(dir, `${name}.rejected-${n}.feedback.json`),
-        `${JSON.stringify({ key, feedback }, null, 2)}\n`,
-      );
-  };
+  const rejected =
+    (name: ArtifactName, key?: string) => (n: number, value: unknown, feedback: Feedback, stage: Stage) => {
+      // a schema-invalid answer may have no value at all; keep the file parseable for a resume
+      writeFileSync(join(dir, `${name}.rejected-${n}.json`), `${JSON.stringify(value ?? null, null, 2)}\n`);
+      if (key !== undefined)
+        writeFileSync(
+          join(dir, `${name}.rejected-${n}.feedback.json`),
+          `${JSON.stringify({ key, stage, feedback }, null, 2)}\n`,
+        );
+    };
   const llm = (name: ArtifactName, check?: (value: unknown) => CompileError[]) =>
     withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal, check });
   const company = await step("01_company", CompanySpec, () => a1Company(llm("01_company"), input));
@@ -300,10 +309,10 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
   );
   if (!shouldRun("05_scenario")) return { dir, company, model, influences, story };
   const scenario = await step("05_scenario", Scenario, async () => {
-    // a new run after A5 gave up continues from its last rejected attempt for the same story: with the
-    // disk cache, starting over at attempt 1 would only replay the same answers
+    // a new run after A5 gave up continues from its best rejected attempt for the same story, with the
+    // history of all of them: with the disk cache, starting over at attempt 1 would only replay the same answers
     const key = storyKey(story);
-    const resume = lastRejected(dir, "05_scenario", key);
+    const resume = bestRejected(dir, "05_scenario", key);
     const res = await a5Detail(
       opts.llm,
       { input, runId: opts.runId, model, influences, story },
@@ -314,8 +323,8 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         // kept next to the artifacts so a failed A5 can be inspected, fixed by hand or resumed
         onRejected: rejected("05_scenario", key),
         ...(resume && {
-          initial: { previous: resume.previous, feedback: resume.feedback },
-          firstN: resume.n + 1,
+          initial: { previous: resume.previous, feedback: resume.feedback, history: resume.history },
+          firstN: resume.lastN + 1,
         }),
       },
     );
@@ -340,23 +349,44 @@ function storyKey(story: { storyPoints: unknown; curves: unknown; expectations: 
     .slice(0, 16);
 }
 
-/** The highest-numbered rejected attempt of `name` made for this story, with its feedback. */
-function lastRejected(dir: string, name: ArtifactName, key: string) {
+/**
+ * The rejected attempts of `name` made for this story: the best one (stage reached, then fewest errors;
+ * the later one on a tie) with its feedback, the history of all of them, and the highest attempt number.
+ */
+function bestRejected(dir: string, name: ArtifactName, key: string) {
   const suffix = ".feedback.json";
   const prefix = `${name}.rejected-`;
   const ns = readdirSync(dir)
     .filter((f) => f.startsWith(prefix) && f.endsWith(suffix))
     .map((f) => Number(f.slice(prefix.length, -suffix.length)))
     .filter((n) => Number.isInteger(n))
-    .sort((a, b) => b - a);
+    .sort((a, b) => a - b);
+  const history: Attempt[] = [];
+  let best: { n: number; rank: number; feedback: Feedback; previous: unknown } | undefined;
   for (const n of ns) {
     const side = JSON.parse(readFileSync(join(dir, `${prefix}${n}${suffix}`), "utf8")) as {
       key: string;
+      stage?: Stage;
       feedback: Feedback;
     };
     if (side.key !== key) continue;
-    const previous: unknown = JSON.parse(readFileSync(join(dir, `${prefix}${n}.json`), "utf8"));
-    return { n, previous, feedback: side.feedback };
+    // files written before stages were stored: an expectation failure means the story gate was reached
+    const stage: Stage =
+      side.stage ??
+      (side.feedback.some((f) => typeof f !== "string" && f.path.startsWith("expectations"))
+        ? "story gate"
+        : "check");
+    history.push({ n, stage, feedback: side.feedback });
+    const rank = attemptRank({ stage, feedback: side.feedback });
+    if (best && rank < best.rank) continue;
+    let previous: unknown;
+    try {
+      previous = JSON.parse(readFileSync(join(dir, `${prefix}${n}.json`), "utf8"));
+    } catch {
+      continue; // an older run wrote "undefined" for an answer that had no value
+    }
+    best = { n, rank, feedback: side.feedback, previous };
   }
-  return undefined;
+  if (!best) return undefined;
+  return { previous: best.previous, feedback: best.feedback, history, lastN: history.at(-1)?.n ?? best.n };
 }

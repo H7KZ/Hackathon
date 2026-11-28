@@ -100,9 +100,15 @@ describe("in the cascade", () => {
   });
 
   it("A5 driving a downstream param with a curve is sent back", async () => {
-    const onDownstream = JSON.parse(
-      JSON.stringify(detail).replace('"p":0.25', '"p":{"curve":"late_prob"}'),
-    ) as typeof detail;
+    // the curve sits on a field of complaint_oos (after the field its scope reads), which 03_influences explains
+    const onDownstream = structuredClone(detail);
+    const oos = onDownstream.processes.find((p) => p.id === "complaint_oos");
+    if (oos?.type !== "derive") throw new Error("fixture changed");
+    oos.fields = {
+      supplier_id: { gen: "lookup", entity: "product", key: "source.product_id", field: "supplier_id" },
+      ...oos.fields,
+      angry: { gen: "bernoulli", p: { curve: "late_prob" } },
+    };
     const t = setup([company, model, influences, story, onDownstream, detail]);
     cleanup = t.cleanup;
     const events: CascadeEvent[] = [];
@@ -112,6 +118,6 @@ describe("in the cascade", () => {
     );
     const loops = events.filter((e) => e.type === "loop.iteration" && e.step === "05_scenario");
     expect(loops.map((e) => e.type === "loop.iteration" && e.ok)).toEqual([false, true]);
-    expect(JSON.stringify(loops[0])).toContain("complaint_oos.p");
+    expect(JSON.stringify(loops[0])).toContain("complaint_oos.angry");
   });
 });

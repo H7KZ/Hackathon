@@ -75,5 +75,8 @@ describe("story gate in the A5 loop", () => {
     const loops = events.filter((e) => e.type === "loop.iteration" && e.step === "05_scenario");
     expect(loops.map((e) => e.type === "loop.iteration" && e.ok)).toEqual([false, true]);
     expect(t.fake.calls.at(-1)?.prompt).toContain("e1 failed: flat");
+    // the lever reach of the failed expectation is part of the feedback
+    expect(t.fake.calls.at(-1)?.prompt).toMatch(/expectations.e1.reach: "e1" reads .*"late_prob"/);
+    expect(t.fake.calls.at(-1)?.prompt).toContain("## Best attempt so far (this is attempt 2)");
   });
 });
