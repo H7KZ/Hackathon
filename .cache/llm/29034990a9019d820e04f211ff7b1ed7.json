@@ -1,0 +1,11 @@
+{
+  "key": "29034990a9019d820e04f211ff7b1ed7",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', date) AS wk, agent_id, count(*) AS n, avg(wait_minutes) AS w FROM support_call WHERE date BETWEEN '2025-02-17' AND '2025-04-14' GROUP BY 1,2 ORDER BY 2,1"
+    }
+  }
+}

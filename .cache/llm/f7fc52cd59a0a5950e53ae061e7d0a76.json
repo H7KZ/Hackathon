@@ -1,0 +1,127 @@
+{
+  "key": "f7fc52cd59a0a5950e53ae061e7d0a76",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.2,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-21",
+            "to": 3,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "rollout_old",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-21",
+            "to": 0.2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_new",
+        "baseline": 0,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-01",
+            "end": "2025-04-21",
+            "to": 0.8,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_fix",
+        "baseline": 0,
+        "segments": []
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-04-10",
+            "end": "2025-04-20",
+            "to": 10,
+            "storyPointId": "sp_issue_surge"
+          }
+        ],
+        "clamp": [
+          0,
+          20
+        ]
+      },
+      {
+        "id": "call_prob",
+        "baseline": 0.6,
+        "segments": []
+      },
+      {
+        "id": "remote_resolve_prob",
+        "baseline": 0.6,
+        "segments": []
+      },
+      {
+        "id": "churn_prob",
+        "baseline": 0.1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Všechny segmenty křivek nasazení firmwaru a nárůstu poruch byly posunuty o měsíc později (z března na duben), takže se změna projeví až na konci sledovaného období, zatímco ostatní parametry zůstávají beze změny."
+  }
+}

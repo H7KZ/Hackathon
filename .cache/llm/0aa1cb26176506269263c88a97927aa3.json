@@ -1,0 +1,11 @@
+{
+  "key": "0aa1cb26176506269263c88a97927aa3",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT * FROM customer_churn ORDER BY 1 LIMIT 25"
+    }
+  }
+}

@@ -31,7 +31,7 @@ Changed by live run 3 ([report](../runs/2026-11-28-live-e2e-3.md)):
 Open:
 
 - Elektro Novák was re-recorded through the API in run 3 (pinned Sonnet 5.5).
-- Podpora (ISP) fails A5 on Sonnet (passes on GPT-5); causal design fails its story gate on effect strength. Details in the run 3 report.
+- Podpora (ISP) needs the second "Generovat data" on Sonnet (A5 succeeds at attempt 9); causal design fails its story gate on effect strength. Details in the run 3 report.
 - The detective (eval gate 4) is not part of the cascade evals.
 
 ## Where it sits

@@ -1,0 +1,127 @@
+{
+  "key": "01aed0ac2dc8b3dd945ad861ad2020ec",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "update_rollout",
+        "baseline": 0.2,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-21",
+            "to": 3,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      },
+      {
+        "id": "rollout_old",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-21",
+            "to": 0.2,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_new",
+        "baseline": 0,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-01",
+            "end": "2025-03-21",
+            "to": 0.8,
+            "storyPointId": "sp_rollout"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "rollout_fix",
+        "baseline": 0,
+        "segments": []
+      },
+      {
+        "id": "issue_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.router_model_id",
+          "ids": [
+            "RMO-001",
+            "RMO-002"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2025-03-10",
+            "end": "2025-03-20",
+            "to": 5.5,
+            "storyPointId": "sp_issue_surge"
+          }
+        ],
+        "clamp": [
+          0,
+          20
+        ]
+      },
+      {
+        "id": "call_prob",
+        "baseline": 0.6,
+        "segments": []
+      },
+      {
+        "id": "remote_resolve_prob",
+        "baseline": 0.6,
+        "segments": []
+      },
+      {
+        "id": "churn_prob",
+        "baseline": 0.1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Nárůst míry vzniku poruch po aktualizaci (křivka issue_rate) je snížen z 10 na 5,5, tedy o polovinu oproti základní hodnotě 1, a vše ostatní zůstává beze změny."
+  }
+}

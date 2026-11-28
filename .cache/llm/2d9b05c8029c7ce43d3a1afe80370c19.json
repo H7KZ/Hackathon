@@ -1,0 +1,11 @@
+{
+  "key": "2d9b05c8029c7ce43d3a1afe80370c19",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "describe_table",
+      "table": "firmware_update"
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "key": "4f122a6f77711f831fa1895236753fd7",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Od začátku března 2025 se v datech objevuje zlom. Hovory na podporu u routerů RMO-001 a RMO-002 s novým firmwarem (firmware_version='nový') začaly 2025-03-04 prudce růst: z nuly na zhruba 100 hovorů týdně na model v týdnech od 17. 3. U ostatních modelů se hovory s novým firmwarem neobjevují vůbec. Nárůst hovorů přetížil všech 8 operátorů. Čekací doba (wait_minutes) vzrostla ze zhruba 6 minut na 20 a více minut a týdenní objem hovorů se zhruba zdvojnásobil. Čekací doba stoupla i u starého firmwaru a u ostatních modelů, takže jde o plošné přetížení podpory. Počet eskalací vzrostl z 25–40 týdně na 116–180 týdně od týdne 2025-03-10. Odchody zákazníků (customer_churn), všechny s důvodem nespokojenost s kvalitou služby, se kumulují od poloviny března a hlavně v dubnu. Pravděpodobná příčina je tedy chybný nový firmware na modelech RMO-001 a RMO-002, který způsobil vlnu hovorů, přetížení podpory, delší čekání, eskalace a odchody zákazníků. Tuto příčinu jsem přímo neověřil (firmware_update obsahuje aktualizace od ledna) a vyplývá z časové shody a z toho, že nový firmware se v hovorech týká jen těchto dvou modelů.",
+        "findings": [
+          {
+            "claim": "Hovory s novým firmwarem na routerech RMO-001 a RMO-002 začaly 2025-03-04 a rychle rostly, do 22. 3. na 20–30 denně. Jiné modely nový firmware v hovorech nemají.",
+            "entities": [
+              "RMO-001",
+              "RMO-002"
+            ],
+            "start": "2025-03-04",
+            "end": "2025-04-30",
+            "supportingSql": "SELECT s.date, sum(CASE WHEN d.router_model_id IN ('RMO-001','RMO-002') AND s.firmware_version='nový' THEN 1 ELSE 0 END) AS new_fw_001_002, sum(CASE WHEN NOT (d.router_model_id IN ('RMO-001','RMO-002') AND s.firmware_version='nový') THEN 1 ELSE 0 END) AS other, avg(s.wait_minutes) AS w FROM support_call s JOIN device d ON d.id=s.device_id WHERE s.date BETWEEN '2025-02-28' AND '2025-03-22' GROUP BY 1 ORDER BY 1"
+          },
+          {
+            "claim": "Čekací doba na podporu stoupla ze zhruba 6 minut na 20 a více minut od týdne 2025-03-10. Zasáhla všechny operátory (AGT-001 až AGT-008) i starý firmware, což ukazuje na plošné přetížení podpory.",
+            "entities": [
+              "AGT-001",
+              "AGT-002",
+              "AGT-003",
+              "AGT-004",
+              "AGT-005",
+              "AGT-006",
+              "AGT-007",
+              "AGT-008"
+            ],
+            "start": "2025-03-10",
+            "end": "2025-04-30",
+            "supportingSql": "SELECT date_trunc('week', date) AS wk, agent_id, count(*) AS n, avg(wait_minutes) AS w FROM support_call WHERE date BETWEEN '2025-02-17' AND '2025-04-14' GROUP BY 1,2 ORDER BY 2,1"
+          },
+          {
+            "claim": "Počet eskalací vzrostl z 25–40 týdně na 116–180 týdně od týdne 2025-03-10.",
+            "entities": [
+              "escalation"
+            ],
+            "start": "2025-03-10",
+            "end": "2025-04-30",
+            "supportingSql": "SELECT date_trunc('week', date) AS wk, count(*) AS n FROM escalation GROUP BY 1 ORDER BY 1"
+          },
+          {
+            "claim": "Odchody zákazníků kvůli nespokojenosti s kvalitou služby se po 14. 3. kumulují a hlavně v dubnu zrychlují, jde o následek přetížení podpory a problémů s firmwarem.",
+            "entities": [
+              "customer_churn"
+            ],
+            "start": "2025-03-14",
+            "end": "2025-04-30",
+            "supportingSql": "SELECT date_trunc('week', date) AS wk, count(*) AS n FROM customer_churn GROUP BY 1 ORDER BY 1"
+          }
+        ]
+      }
+    }
+  }
+}
