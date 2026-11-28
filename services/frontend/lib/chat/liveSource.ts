@@ -77,6 +77,20 @@ export function humanError(message: string): string {
   return message;
 }
 
+/** A story edit the API refused: which point and what to do, not the English compiler text. */
+export function saveError(
+  errors: { path: string; message: string }[],
+  points: readonly { title: string }[],
+): string {
+  for (const e of errors) {
+    const i = /^storyPoints\[(\d+)\]\.(entity|segment)$/.exec(e.path)?.[1];
+    const title = i === undefined ? undefined : points[Number(i)]?.title;
+    if (title)
+      return `Úpravu nešlo uložit, je to chyba na naší straně: u bodu „${title}“ chybí, koho se týká. Smažte ho v grafu a klikněte znovu na Generovat data.`;
+  }
+  return `Úpravu nešlo uložit (${plural(errors.length, "problém", "problémy", "problémů")}). Upravte body v grafu a zkuste to znovu.`;
+}
+
 export const LIVE_SUGGESTIONS = ["Co kdyby se změna stala o měsíc později?", "Co kdyby byl dopad poloviční?"];
 
 /** v1 (A1–A4); causal-design steps are added to the list as they start (CASCADE_DESIGN=causal). */
@@ -560,10 +574,11 @@ export function createLiveSource(sessionId: string): ChatSource {
           const body = (await res.json().catch(() => null)) as {
             errors?: { path: string; message: string }[];
           } | null;
-          const first = body?.errors?.[0];
+          const errors = body?.errors;
+          if (errors?.length) console.warn("04_story rejected", errors);
           say(
-            first
-              ? `Úpravu nešlo uložit: ${first.path}: ${first.message}`
+            errors?.length
+              ? saveError(errors, next.storyPoints)
               : `Úpravu nešlo uložit (HTTP ${String(res.status)}).`,
           );
         });
