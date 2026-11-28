@@ -4,6 +4,7 @@ import type { CompileError } from "@s2d/schema/api";
 import type { CausalMap, ProcessesPlan, StoryOverlay } from "@s2d/schema/artifacts";
 import type { CascadeInput } from "../steps";
 import { assembleCausal } from "./assemble";
+import { checkCurveScopes } from "../checks";
 import { buildCurves, checkOverlay } from "./curves";
 
 export function checkOverlayScenario(
@@ -15,8 +16,11 @@ export function checkOverlayScenario(
 ): CompileError[] {
   const own = checkOverlay(overlay, map);
   if (own.length > 0) return own;
-  const curves = buildCurves(map, overlay);
+  const curves = buildCurves(map, overlay, plan);
   const story = { storyPoints: overlay.storyPoints, curves, expectations: [] };
+  // a lever left unscoped although its story points name entity rows would move every row
+  const scopes = checkCurveScopes(story, plan.entities);
+  if (scopes.length > 0) return scopes;
   // compileScenario includes checkStoryRefs (scope and story point entity ids)
   const compiled = compileScenario(assembleCausal({ input, runId, plan, overlay, story }));
   return compiled.ok ? [] : compiled.errors;

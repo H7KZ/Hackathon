@@ -1,0 +1,11 @@
+{
+  "key": "62e2e8c954cf550d015f2003322e2304",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "WITH ps AS (SELECT DISTINCT product_id, supplier_id FROM purchase_order) SELECT ps.supplier_id, date_trunc('month', l.date) m, count(*) n_lost, sum(l.quantity*l.unit_price) lost_value FROM lost_sale l LEFT JOIN ps USING(product_id) GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

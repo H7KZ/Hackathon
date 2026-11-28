@@ -20,7 +20,6 @@ import {
 } from "./mockData";
 import {
   companySurface,
-  compareSurface,
   datasetSurface,
   detectiveSurface,
   progressSurface,
@@ -117,7 +116,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
 
   async function generate() {
     phase = "generating";
-    const id = `d${String(++datasets)}`;
+    const id = `dat${String(++datasets)}`;
     const ds = mockDataset(id, points, config, expectations);
     const passed = ds.expectations.filter((e) => e.pass).length;
     await pipeline("Generování dat", ["05_scenario", "engine", "integrity", "evidence"], 1300, {
@@ -147,7 +146,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     emit({
       type: "say",
       role: "agent",
-      text: "Detektiv data neznal, a přesto našel 2 ze 3 bodů příběhu. Výsledek najdete v panelu Detektiv d1.",
+      text: `Detektiv data neznal, a přesto našel 2 ze 3 bodů příběhu. Výsledek najdete v panelu Slepý detektiv · ${datasetId}.`,
     });
     emit({ type: "suggest", items: WHAT_IF_SUGGESTIONS });
     phase = "ready";
@@ -156,7 +155,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
   async function whatIf(question: string) {
     phase = "busy";
     emit({ type: "suggest", items: [] });
-    const id = `d${String(++datasets)}`;
+    const id = `dat${String(++datasets)}`;
     await pipeline(`Co kdyby… (${id})`, ["whatIf", "engine", "evidence", "compare"], 1100, {
       whatIf: "upravena 1 křivka, stejný seed",
       engine: "stejný seed, stejné tabulky",
@@ -164,13 +163,19 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
     if (stopped) return;
     emit({
       type: "a2ui",
-      message: compareSurface(`compare-d1-${id}`, mockCompare(question, points, config), true),
+      // the comparison is a tab of the new dataset ("Porovnání s dat1"), not a separate panel
+      message: datasetSurface(
+        `dataset-${id}`,
+        mockDataset(id, points, config, expectations),
+        true,
+        mockCompare(question, points, config, "dat1", id),
+      ),
     });
     emit({ type: "busy", step: null });
     emit({
       type: "say",
       role: "agent",
-      text: "Hotovo. Když se dodavatel po 2 týdnech vrátí k normálu, storna i stížnosti klesnou. Porovnání najdete v panelu d1 ↔ d2.",
+      text: `Hotovo. Když se dodavatel po 2 týdnech vrátí k normálu, storna i stížnosti klesnou. Rozdíly najdete v datasetu **${id}** v záložce **Porovnání s dat1**.`,
     });
     emit({ type: "suggest", items: WHAT_IF_SUGGESTIONS });
     phase = "ready";
@@ -201,7 +206,7 @@ export function createMockSource(input: SessionInput, { speed = 1 } = {}): ChatS
           emit({ type: "a2ui", message: a2ui.data("story", "/locked", true) });
           void generate();
         } else if (action.name === "detect" && phase === "ready") {
-          void detect(typeof action.context.datasetId === "string" ? action.context.datasetId : "d1");
+          void detect(typeof action.context.datasetId === "string" ? action.context.datasetId : "dat1");
         } else {
           emit({ type: "say", role: "agent", text: "Teď to nejde, ještě dokončuji předchozí krok." });
         }

@@ -101,10 +101,15 @@ export function observedColumns(plan: ProcessesPlan): Record<string, string[]> {
 }
 
 /** 04_story of the causal design, built by code (the UI timeline edits it like the v1 artifact). */
-export function causalStory(map: CausalMap, overlay: StoryOverlay, exp: ExpectationsPlan): StoryPlan {
+export function causalStory(
+  map: CausalMap,
+  overlay: StoryOverlay,
+  exp: ExpectationsPlan,
+  plan?: Pick<ProcessesPlan, "processes">,
+): StoryPlan {
   return {
     storyPoints: overlay.storyPoints,
-    curves: buildCurves(map, overlay),
+    curves: buildCurves(map, overlay, plan),
     expectations: exp.hypotheses.flatMap((h) => {
       const q = exp.queries.find((x) => x.hypothesisId === h.id);
       return q

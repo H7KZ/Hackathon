@@ -135,8 +135,40 @@ function ThreadItems({
         );
       })}
       {s.busy && <Thinking step={s.busy} onCancel={s.cancel} />}
+      {!s.busy && s.suggestions.length > 0 && (
+        <div className="suggest in-thread" aria-label="Návrhy otázek">
+          <span>Zkuste se zeptat:</span>
+          {s.suggestions.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => {
+                s.send(q);
+              }}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
     </>
   );
+}
+
+/** "Otevřít data": scroll the thread to that surface panel and flash it once (no ref writes). */
+function useJump(s: ChatSession) {
+  useEffect(() => {
+    if (!s.jump) return;
+    const item = s.items.find((i) => i.role === "surface" && i.surfaceId === s.jump?.surfaceId);
+    const target = item ? document.querySelector<HTMLElement>(`[data-item="${item.id}"]`) : null;
+    if (!target) return;
+    target.scrollIntoView({ block: "start" });
+    target.classList.remove("flash");
+    requestAnimationFrame(() => {
+      target.classList.add("flash"); // a new frame restarts the animation on a repeated click
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.jump]);
 }
 
 /** A. One centered column: everything inline, like a document that writes itself. */
@@ -146,7 +178,8 @@ export function ThreadLayout({ s, onInspect }: { s: ChatSession; onInspect?: (id
     last?.role === "surface" && s.state.surfaces[last.surfaceId]?.meta.placement === "canvas"
       ? last.id
       : null;
-  const scroll = useAutoScroll([s.items.length, s.busy], panelId);
+  const scroll = useAutoScroll([s.items.length, s.busy, s.suggestions.length], panelId);
+  useJump(s);
   return (
     <div className="thread-layout">
       <div className="thread-scroll" ref={scroll} aria-live="polite">
@@ -155,7 +188,7 @@ export function ThreadLayout({ s, onInspect }: { s: ChatSession; onInspect?: (id
         </div>
       </div>
       <div className="composer-dock">
-        <Composer disabled={s.busy !== null} suggestions={s.suggestions} onSend={s.send} />
+        <Composer disabled={s.busy !== null} onSend={s.send} />
       </div>
     </div>
   );
@@ -289,7 +322,7 @@ export function SplitLayout({ s }: { s: ChatSession }) {
         <div className="thread" ref={scroll} aria-live="polite">
           <ThreadItems s={s2} items={s.items} inline={false} />
         </div>
-        <Composer disabled={s.busy !== null} suggestions={s.suggestions} onSend={s.send} />
+        <Composer disabled={s.busy !== null} onSend={s.send} />
       </section>
       <section className="canvas" aria-label="Plátno">
         {s.canvasIds.length > 0 && (

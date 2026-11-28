@@ -17,7 +17,8 @@ import { z } from "zod";
 import { SessionCommand, SessionEvent, SessionState } from "@s2d/schema/api";
 
 const SESSION_ID = /^[0-9a-f-]{36}$/;
-const DATASET_ID = /^d[0-9]+$/;
+/** "dat1", "dat2", …; "d1" … kept so sessions created before the rename still open. */
+const DATASET_ID = /^(dat|d)[0-9]+$/;
 
 /** A job that can be re-run by `resume` (D5). `fallback` = status after cancel or a recoverable error. */
 export const JobSpec = z.object({

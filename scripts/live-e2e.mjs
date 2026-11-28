@@ -176,9 +176,11 @@ async function runCase(c) {
     );
   if (report.phases.at(-1).status !== "ready") return finish();
 
-  const ev = (await call("GET", `/sessions/${id}/datasets/d1/evidence`)).body;
-  const tables = (await call("GET", `/sessions/${id}/datasets/d1/tables`)).body.tables ?? [];
-  const scenario = JSON.parse(readFileSync(join(RUNS, id, "datasets", "d1", "scenario.json"), "utf8"));
+  // dataset ids are dat1, dat2, … (d1, d2 before run 5): read the first one from the session
+  const first = (await call("GET", `/sessions/${id}`)).body.datasets?.[0]?.id ?? "dat1";
+  const ev = (await call("GET", `/sessions/${id}/datasets/${first}/evidence`)).body;
+  const tables = (await call("GET", `/sessions/${id}/datasets/${first}/tables`)).body.tables ?? [];
+  const scenario = JSON.parse(readFileSync(join(RUNS, id, "datasets", first, "scenario.json"), "utf8"));
   report.dataset = {
     tables: tables.map((t) => `${t.name}:${t.rows}`),
     rows: tables.reduce((n, t) => n + t.rows, 0),
@@ -201,7 +203,7 @@ async function runCase(c) {
   if (!values["no-whatif"]) {
     report.whatIf = [];
     for (const q of WHAT_IFS) {
-      const p = await phase(id, "what_if", { type: "what_if", from: "d1", question: q });
+      const p = await phase(id, "what_if", { type: "what_if", from: first, question: q });
       report.phases.push(p);
       const st = (await call("GET", `/sessions/${id}`)).body;
       const ds = st.datasets.find((d) => d.question === q);
@@ -209,7 +211,7 @@ async function runCase(c) {
         report.whatIf.push({ question: q, ok: false, error: p.errors[0] ?? st.error });
         continue;
       }
-      const diff = (await call("GET", `/sessions/${id}/datasets/${ds.id}/compare/d1`)).body.diff ?? [];
+      const diff = (await call("GET", `/sessions/${id}/datasets/${ds.id}/compare/${first}`)).body.diff ?? [];
       const ev2 = (await call("GET", `/sessions/${id}/datasets/${ds.id}/evidence`)).body;
       const changed = diff
         .filter((d) => d.delta)
@@ -228,8 +230,8 @@ async function runCase(c) {
     }
   }
   if (!values["no-detect"]) {
-    report.phases.push(await phase(id, "detect", { type: "detect", datasetId: "d1" }));
-    const det = (await call("GET", `/sessions/${id}/datasets/d1/detective`)).body.result;
+    report.phases.push(await phase(id, "detect", { type: "detect", datasetId: first }));
+    const det = (await call("GET", `/sessions/${id}/datasets/${first}/detective`)).body.result;
     report.detective = det
       ? {
           recall: det.score.recall,

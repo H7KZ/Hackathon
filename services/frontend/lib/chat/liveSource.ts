@@ -17,6 +17,7 @@ import { a2ui } from "../a2ui/protocol";
 import { apiUrl } from "../api";
 import { plural } from "../format";
 import {
+  attemptDetail,
   compareToView,
   editToStory,
   evidenceToView,
@@ -24,10 +25,10 @@ import {
   storyToEdit,
   type StoryArtifact,
 } from "./liveMapping";
-import { STEP_LABELS, type StepKey } from "./phrases";
+import { STEP_HINTS, STEP_LABELS, type StepKey } from "./phrases";
 import {
   companySurface,
-  compareSurface,
+  type CompareView,
   datasetSurface,
   detectiveSurface,
   progressSurface,
@@ -65,6 +66,8 @@ export const LIVE_SUGGESTIONS = ["Co kdyby se změna stala o měsíc později?",
 const DRAFT_KEYS: StepKey[] = ["01_company", "02_model", "03_influences", "04_story"];
 const PREVIEW_TABLES = 6;
 const PREVIEW_ROWS = 8;
+/** A5 / what-if repair attempts per run (services/cascade repairLoop). */
+const A5_ATTEMPTS = 5;
 
 export function createLiveSource(sessionId: string): ChatSource {
   let emit: Emit = () => undefined;
@@ -113,7 +116,12 @@ export function createLiveSource(sessionId: string): ChatSource {
     progress = keys.map((id) => ({ id, label: STEP_LABELS[id], state: "pending" }));
     emit({ type: "a2ui", message: progressSurface(progressId, title, progress) });
   };
-  const mark = (key: string, state: Step["state"], detail?: string) => {
+  const mark = (
+    key: string,
+    state: Step["state"],
+    detail?: string,
+    extra?: { attempt?: { n: number; max: number } },
+  ) => {
     if (!progressId) newProgress("Průběh", DRAFT_KEYS);
     if (!progress.some((s) => s.id === key)) {
       // approve re-emits the cached A1–A4 steps: not part of the generation card
@@ -124,7 +132,20 @@ export function createLiveSource(sessionId: string): ChatSource {
       const step: Step = { id: key, label, state: "pending" };
       progress = at < 0 ? [...progress, step] : [...progress.slice(0, at), step, ...progress.slice(at)];
     }
-    progress = progress.map((s) => (s.id === key ? { ...s, state, ...(detail && { detail }) } : s));
+    progress = progress.map((s) => {
+      if (s.id !== key) return s;
+      const hint = STEP_HINTS[key as StepKey];
+      const next: Step = { ...s, state, ...(detail && { detail }) };
+      if (state === "running") {
+        if (s.state !== "running") next.startedAt = Date.now();
+        if (hint) next.hint = hint;
+      } else {
+        delete next.startedAt;
+        delete next.attempt;
+      }
+      if (extra?.attempt && state === "running") next.attempt = extra.attempt;
+      return next;
+    });
     emit({ type: "a2ui", message: setSteps(progressId, progress) });
   };
   /** Steps of the other design that never ran are dropped once the job settles. */
@@ -227,30 +248,35 @@ export function createLiveSource(sessionId: string): ChatSource {
         .then((r) => r.scenario)
         .catch(() => story),
     ]);
+    // a what-if dataset carries its comparison with the parent as a tab ("Porovnání s dat1")
+    const state = await getJson<SessionState>(base);
+    const info = state.datasets.find((d) => d.id === datasetId);
+    let compare: CompareView | undefined;
+    const question = info?.question ?? "Úprava scénáře";
+    if (info?.parent) {
+      const parent = info.parent;
+      compare = await Promise.all([
+        getJson<{ diff: MetricDiff[] }>(`${base}/datasets/${datasetId}/compare/${parent}`),
+        getJson<DatasetEvidence>(`${base}/datasets/${parent}/evidence`),
+      ])
+        .then(([{ diff }, parentEv]) => compareToView(parent, datasetId, question, diff, parentEv, ev, own))
+        .catch(() => undefined);
+    }
     emit({
       type: "a2ui",
-      message: datasetSurface(`dataset-${datasetId}`, evidenceToView(datasetId, ev, own, tables)),
+      message: datasetSurface(
+        `dataset-${datasetId}`,
+        evidenceToView(datasetId, ev, own, tables),
+        false,
+        compare,
+      ),
     });
     emit({ type: "a2ui", message: readySurface(`ready-${datasetId}`, datasetId) });
     emit({ type: "suggest", items: LIVE_SUGGESTIONS });
-    const state = await getJson<SessionState>(base);
-    const info = state.datasets.find((d) => d.id === datasetId);
     if (info?.parent) {
-      const [{ diff }, parentEv] = await Promise.all([
-        getJson<{ diff: MetricDiff[] }>(`${base}/datasets/${datasetId}/compare/${info.parent}`),
-        getJson<DatasetEvidence>(`${base}/datasets/${info.parent}/evidence`),
-      ]);
-      const question = info.question ?? "Úprava scénáře";
-      emit({
-        type: "a2ui",
-        message: compareSurface(
-          `compare-${info.parent}-${datasetId}`,
-          compareToView(info.parent, datasetId, question, diff, parentEv, ev, own),
-        ),
-      });
       const passed = ev.expectations.filter((e) => e.pass).length;
       say(
-        `Hotovo: **${datasetId}** odpovídá na „${question}“. Původní důkazy teď platí ${String(passed)} z ${String(ev.expectations.length)}, rozdíly proti ${info.parent} jsou v porovnání.`,
+        `Hotovo: **${datasetId}** odpovídá na „${question}“. Původní důkazy teď platí ${String(passed)} z ${String(ev.expectations.length)}, rozdíly proti ${info.parent} najdete v záložce **Porovnání s ${info.parent}**.`,
       );
     }
   }
@@ -305,11 +331,15 @@ export function createLiveSource(sessionId: string): ChatSource {
         if (e.status === "drafting") newProgress("Agenti navrhují příběh", DRAFT_KEYS);
         if (e.status === "refining") newProgress("Přepočítávám návrh", ["04_story"]);
         if (e.status === "generating") {
-          newProgress("Generování dat", ["05_scenario", "engine", "evidence"]);
+          newProgress("Generování dat · obvykle 1–4 minuty", ["05_scenario", "engine", "evidence"]);
+          mark("05_scenario", "running");
           storyLocked = true;
           if (storySurfaceId) emit({ type: "a2ui", message: a2ui.data(storySurfaceId, "/locked", true) });
         }
-        if (e.status === "detecting") newProgress("Detektiv", ["detective"]);
+        if (e.status === "detecting") {
+          newProgress("Detektiv", ["detective"]);
+          mark("detective", "running");
+        }
         if (e.status === "awaiting_refinement") {
           pruneProgress();
           storyLocked = false;
@@ -349,8 +379,14 @@ export function createLiveSource(sessionId: string): ChatSource {
           mark(c.step, "done", c.cached ? "z cache" : undefined);
           if (c.step === "05_scenario") mark("engine", "running");
           void describeStep(c.step).catch(() => undefined); // details are a nicety, never an error
-        } else if (c.type === "loop.iteration")
-          mark(c.step, c.ok ? "done" : "running", `pokus ${String(c.n)}${c.ok ? "" : ": opravuji chyby"}`);
+        } else if (c.type === "loop.iteration") {
+          // the next attempt runs right after a failed one: show which one and why in plain words
+          const attempt = { n: c.n + 1, max: Math.max(A5_ATTEMPTS, c.n + 1) };
+          mark(c.step, c.ok ? "done" : "running", attemptDetail(c.n, c.ok, c.feedback), {
+            ...(!c.ok && { attempt }),
+          });
+          if (c.ok && c.step === "05_scenario") mark("engine", "running");
+        }
         break;
       }
       case "dataset.ready":
@@ -444,6 +480,12 @@ export function createLiveSource(sessionId: string): ChatSource {
       if (action.name === "approve") approve(action.context);
       if (action.name === "detect")
         void command({ type: "detect", datasetId: String(action.context.datasetId) });
+      if (
+        action.name === "download" &&
+        typeof action.context.path === "string" &&
+        typeof window !== "undefined"
+      )
+        window.location.assign(`${apiUrl()}${base}${action.context.path}`);
       if (action.name === "resume") {
         const id = action.context.surfaceId;
         if (typeof id === "string") emit({ type: "a2ui", message: a2ui.data(id, "/locked", true) });

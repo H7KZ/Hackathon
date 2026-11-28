@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { compileScenario } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
-import { ArtifactName, ArtifactSchemas, type CascadeEvent } from "@s2d/schema/artifacts";
+import { ArtifactName, ArtifactSchemas, StoryPlan, type CascadeEvent } from "@s2d/schema/artifacts";
 import { MetricDiff, TableInfo, TablePreview } from "@s2d/schema/evidence";
 import type { Scenario } from "@s2d/schema/scenario";
 import {
@@ -20,8 +20,8 @@ import {
   type SessionState,
   type SessionStatus,
 } from "@s2d/schema/api";
-import type { Ports } from "./ports";
-import { applySettings } from "./settings";
+import type { ExportFile, ExportFormat, Ports } from "./ports";
+import { applySettings, periodErrors } from "./settings";
 import { NotFoundError, sessionStore, type JobSpec } from "./sessionStore";
 
 export { NotFoundError } from "./sessionStore";
@@ -59,6 +59,8 @@ export interface Orchestrator {
   tables(sessionId: string, datasetId: string): Promise<TableInfo[]>;
   /** First rows of one observed table; NotFoundError for unknown or ground-truth tables. */
   preview(sessionId: string, datasetId: string, table: string, limit: number): Promise<TablePreview>;
+  /** Observed tables as one download (xlsx / zipped csv or parquet / duckdb); written once per format. */
+  exportDataset(sessionId: string, datasetId: string, format: ExportFormat): Promise<ExportFile>;
   /** Current cascade artifact (e.g. 04_story for the timeline editor); throws NotFoundError if not produced yet. */
   artifact(sessionId: string, name: ArtifactName): unknown;
 }
@@ -118,7 +120,8 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
     info: Omit<DatasetInfo, "id" | "seed">,
     seed: number,
   ): Promise<DatasetInfo> {
-    const datasetId = `d${store.read(id).datasets.length + 1}`;
+    // "dat1", "dat2", …: reads as dataset (sessions created before keep their d1, d2)
+    const datasetId = `dat${store.read(id).datasets.length + 1}`;
     const dir = store.datasetDir(id, datasetId);
     mkdirSync(dir, { recursive: true });
     store.writeJson(join(dir, "scenario.json"), scenario);
@@ -294,6 +297,12 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
         case "approve":
           if (s.status !== "awaiting_refinement")
             return wrongState(`"approve" jde jen ve stavu awaiting_refinement, ne ${s.status}.`);
+          if (cmd.settings?.period) {
+            // checked before A5 runs: a period that cuts the story off would waste the LLM calls
+            const story = StoryPlan.safeParse(store.readJson(store.artifactPath(id, "04_story")));
+            const errors = story.success ? periodErrors(story.data, cmd.settings.period) : [];
+            if (errors.length) return reject(id, errors);
+          }
           start(id, { kind: "approve", command: cmd, fallback: "awaiting_refinement" });
           break;
         case "edit_artifact": {
@@ -350,7 +359,7 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       ),
 
     async compare(id, a, b) {
-      // both ids are checked against the session's datasets (and /^d[0-9]+$/) before any path is built
+      // both ids are checked against the session's datasets (and /^(dat|d)[0-9]+$/) before any path is built
       const da = datasetOf(id, a);
       const db = datasetOf(id, b);
       const stored = join(da.dir, `compare_${db.info.id}.json`);
@@ -372,6 +381,14 @@ export function createOrchestrator(opts: { ports: Ports; runsDir: string }): Orc
       if (!(await ports.dataer.tables(db)).some((t) => t.name === table))
         throw new NotFoundError(`Tabulka "${table}" v datasetu ${datasetId} neexistuje.`);
       return TablePreview.parse(await ports.dataer.preview(db, table, limit));
+    },
+
+    async exportDataset(id, datasetId, format) {
+      const { dir } = datasetOf(id, datasetId);
+      const out = await ports.dataer.export(join(dir, "db.duckdb"), format, join(dir, "export"));
+      // "<session 8 chars>-dat1.xlsx": several downloads from different sessions do not overwrite
+      const ext = out.filename.slice(out.filename.indexOf("."));
+      return { ...out, filename: `jojo-${id.slice(0, 8)}-${datasetId}${ext}` };
     },
 
     detective(id, datasetId) {

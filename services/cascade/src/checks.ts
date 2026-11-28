@@ -3,6 +3,7 @@
  * scenario that is valid but carries no story; these catch that and go back to the agent as feedback.
  * A real Haiku run produced a single-process model with an unused late-delivery curve.
  */
+import { checkCurveShapes } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
 import type { DataModel, StoryPlan } from "@s2d/schema/artifacts";
 import type { EntityDef, Scenario } from "@s2d/schema/scenario";
@@ -177,6 +178,8 @@ export function checkStoryPlan(story: StoryPlan): CompileError[] {
     if (/\btruth\./i.test(e.sql))
       err(`expectations.${i}.sql`, "Expectations may read only schema main, not truth.");
   });
+  // A4 writes the curves and A5 may not change them: a misleading shape must be fixed here
+  errors.push(...checkCurveShapes(story.curves, (i, j) => `curves.${String(i)}.segments.${String(j)}.kind`));
   return errors;
 }
 

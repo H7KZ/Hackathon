@@ -4,6 +4,7 @@ import { ArtifactName, CascadeEvent } from "./artifacts";
 import { DetectiveReport, DetectiveScore } from "./detective";
 import { CompileError } from "./errors";
 import { ExpectationResult } from "./evidence";
+import { IsoDate } from "./scenario";
 
 export { CompileError } from "./errors";
 
@@ -39,7 +40,8 @@ export const SessionInput = z.object({ story: z.string().min(1), company: z.stri
 export type SessionInput = z.infer<typeof SessionInput>;
 
 export const DatasetInfo = z.object({
-  id: z.string().regex(/^d[0-9]+$/),
+  /** "dat1", "dat2", … ("d1" … in sessions created before 2026-11-28). */
+  id: z.string().regex(/^(dat|d)[0-9]+$/),
   parent: z.string().nullable(),
   seed: z.number().int(),
   origin: z.enum(["approve", "what_if", "edit_scenario"]),
@@ -71,6 +73,14 @@ export const GenerationSettings = z.object({
     .optional(),
   /** Ids of the expectations to keep; omitted = all. */
   expectations: z.array(z.string()).optional(),
+  /**
+   * meta.start / meta.end chosen by the user; omitted = the cascade's period. Must contain every
+   * curve segment and story point (the API rejects it otherwise).
+   */
+  period: z
+    .object({ start: IsoDate, end: IsoDate })
+    .refine((p) => p.start < p.end, { error: "period.start must be before period.end" })
+    .optional(),
 });
 export type GenerationSettings = z.infer<typeof GenerationSettings>;
 

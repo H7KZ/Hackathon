@@ -1,0 +1,11 @@
+{
+  "key": "1b32a4085b7f3fdd1f0c2d04bd59a7c6",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select date_trunc('week', r.date) w, s.customer_segment seg, count(*) n from return_request r left join sale s on s.order_id = r.order_id group by 1,2 order by 1,2"
+    }
+  }
+}

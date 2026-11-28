@@ -1,0 +1,11 @@
+{
+  "key": "b637b122bba8fc69abc88c41936a7c60",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "WITH ps AS (SELECT product_id, count(DISTINCT supplier_id) ns, min(supplier_id) sup FROM purchase_order GROUP BY 1) SELECT sup, ns, count(*) n_products FROM ps GROUP BY 1,2 ORDER BY 1"
+    }
+  }
+}

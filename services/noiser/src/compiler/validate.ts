@@ -4,10 +4,42 @@
  * SQL of expectations is only shape-checked here (noiser may not import a database). The cascade
  * checks which tables it reads (cascade/src/checks.ts); the SQL first runs against DuckDB in evidence.
  */
-import { Scenario, type ProcessDef } from "@s2d/schema/scenario";
+import { Scenario, type CurveDef, type ProcessDef } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { sourceProcessId, topoSort } from "./dag";
 import { checkStoryRefs } from "./story";
+import { evaluateCurve } from "../engine/curves";
+import { toDay } from "../engine/days";
+
+const daysBetween = (a: string, b: string) => toDay(b) - toDay(a);
+
+/**
+ * Curve shapes that do not mean what an author expects. Shared with the cascade (A4 writes the curves,
+ * A5 may not change them, so A4 must hear it). `at` formats the path of curve i.
+ */
+export function checkCurveShapes(
+  curves: readonly CurveDef[],
+  at: (i: number, j: number) => string = (i, j) => `curves[${String(i)}].segments[${String(j)}].kind`,
+): CompileError[] {
+  const errors: CompileError[] = [];
+  curves.forEach((c, i) => {
+    c.segments.forEach((seg, j) => {
+      if (seg.kind !== "decay") return;
+      // the value just before the decay: earlier segments only (they apply in order)
+      const prev = evaluateCurve(
+        { ...c, scope: undefined, segments: c.segments.slice(0, j) },
+        toDay(seg.start) - 1,
+      );
+      if (seg.to !== c.baseline || Math.abs(prev - c.baseline) < 1e-9) return;
+      const halfLife = seg.end !== undefined && seg.end > seg.start ? daysBetween(seg.start, seg.end) : 7;
+      errors.push({
+        path: at(i, j),
+        message: `Segment "decay" of curve "${c.id}" jumps to "to" (${String(seg.to)}) on ${seg.start} and then returns to the value before it (${String(prev)}), half-life ${String(halfLife)} days (end − start). Here "to" is the baseline, so the curve climbs back to ${String(prev)} afterwards (a live run got a second wave this way). To return to the baseline use {"kind":"ramp","start":"${seg.start}","end":"${seg.end ?? seg.start}","to":${String(c.baseline)}}; use "decay" only for a sudden jump away from the current level that fades back to it.`,
+      });
+    });
+  });
+  return errors;
+}
 
 export type CompileResult =
   { ok: true; scenario: Scenario; order: string[] } | { ok: false; errors: CompileError[] };
@@ -450,6 +482,52 @@ export function compileScenario(raw: unknown): CompileResult {
       }
     });
   });
+  // ---- curve semantics: shapes and probabilities that do not mean what an author expects ----
+  errors.push(...checkCurveShapes(s.curves));
+  const curveMax = (id: string) => {
+    const c = s.curves.find((x) => x.id === id);
+    if (!c) return undefined;
+    const top = Math.max(c.baseline, ...c.segments.map((g) => g.to));
+    return c.clamp ? Math.min(top, c.clamp[1]) : top;
+  };
+  const checkProbability = (p: unknown, at: string) => {
+    if (typeof p !== "object" || p === null || typeof (p as { curve?: unknown }).curve !== "string") return;
+    const { curve, scale = 1 } = p as { curve: string; scale?: number };
+    const max = curveMax(curve);
+    if (max !== undefined && max * scale > 1 + 1e-9)
+      err(
+        at,
+        `This probability reaches ${String(Math.round(max * scale * 1000) / 1000)} (curve "${curve}" up to ${String(max)} × scale ${String(scale)}), above 1, where it is cut to 1 and the story's levels stop mattering. Keep curve value × scale within 0..1 (e.g. a probability curve with clamp [0, 1] and no scale, or a smaller scale).`,
+      );
+  };
+  s.processes.forEach((p, i) => {
+    if ("p" in p) checkProbability(p.p, `processes[${i}].p`);
+    const maps: [string, Record<string, unknown>][] = [];
+    if ("fields" in p) maps.push([`processes[${i}].fields`, p.fields]);
+    for (const side of ["then", "else"] as const) {
+      const out = (p as Record<string, unknown>)[side] as { fields?: Record<string, unknown> } | undefined;
+      if (out?.fields) maps.push([`processes[${i}].${side}.fields`, out.fields]);
+    }
+    for (const [base, fields] of maps) {
+      const firstUse = new Map<string, string>();
+      for (const [name, gen] of Object.entries(fields)) {
+        const g = gen as { gen?: unknown; p?: unknown };
+        if (g.gen !== "bernoulli") continue;
+        checkProbability(g.p, `${base}.${name}.p`);
+        const curve =
+          typeof g.p === "object" && g.p !== null ? (g.p as { curve?: unknown }).curve : undefined;
+        if (typeof curve !== "string") continue;
+        const first = firstUse.get(curve);
+        if (first === undefined) firstUse.set(curve, name);
+        else
+          err(
+            `${base}.${name}.p`,
+            `Curve "${curve}" is already the p of "${first}" in this record. Conditions that combine several such fields multiply the probabilities (p², p³), so the story's levels no longer map to the data. Use the curve once, as the p of one field, and set its levels to the probability you want.`,
+          );
+      }
+    }
+  });
+
   s.storyPoints.forEach((sp, i) => {
     if (!inRange(sp.start)) err(`storyPoints[${i}].start`, `Date ${sp.start} is outside ${range}.`);
     if (sp.end !== undefined && !inRange(sp.end))

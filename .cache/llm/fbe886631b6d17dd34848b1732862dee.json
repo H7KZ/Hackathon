@@ -1,0 +1,37 @@
+{
+  "key": "fbe886631b6d17dd34848b1732862dee",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "04b_expectations",
+  "output": {
+    "queries": [
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_supplier_order_control",
+        "sql": "SELECT 'before' AS period, CAST((SELECT COUNT(*) FROM main.purchase_order po WHERE po.order_date >= DATE '2024-01-29' AND po.order_date < DATE '2024-03-01') AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value UNION ALL SELECT 'after' AS period, CAST((SELECT COUNT(*) FROM main.purchase_order po WHERE po.order_date >= DATE '2024-04-22' AND po.order_date < DATE '2024-07-01') AS DOUBLE) / date_diff('day', DATE '2024-04-22', DATE '2024-07-01') AS value"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_late_delivery",
+        "sql": "SELECT 'before' AS period, CAST((SELECT COUNT(*) FROM main.purchase_order po WHERE po.supplier_id = 'SUP-001' AND CAST(po.is_late AS BOOLEAN) AND po.order_date >= DATE '2024-01-29' AND po.order_date < DATE '2024-03-01') AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value UNION ALL SELECT 'after' AS period, CAST((SELECT COUNT(*) FROM main.purchase_order po WHERE po.supplier_id = 'SUP-001' AND CAST(po.is_late AS BOOLEAN) AND po.order_date >= DATE '2024-04-22' AND po.order_date < DATE '2024-07-01') AS DOUBLE) / date_diff('day', DATE '2024-04-22', DATE '2024-07-01') AS value"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_stock",
+        "sql": "SELECT 'before' AS period, (SELECT AVG(CASE WHEN s.value <= 0 THEN 1.0 ELSE 0.0 END) FROM main.stock_snapshot s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id = 'SUP-001' AND s.date >= DATE '2024-01-29' AND s.date < DATE '2024-03-01') AS value UNION ALL SELECT 'after' AS period, (SELECT AVG(CASE WHEN s.value <= 0 THEN 1.0 ELSE 0.0 END) FROM main.stock_snapshot s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id = 'SUP-001' AND s.date >= DATE '2024-04-22' AND s.date < DATE '2024-07-01') AS value"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_sale",
+        "sql": "SELECT 'before' AS period, CAST((SELECT COUNT(*) FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id = 'SUP-001' AND s.date >= DATE '2024-01-29' AND s.date < DATE '2024-03-01') AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value UNION ALL SELECT 'after' AS period, CAST((SELECT COUNT(*) FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id = 'SUP-001' AND s.date >= DATE '2024-04-22' AND s.date < DATE '2024-07-01') AS DOUBLE) / date_diff('day', DATE '2024-04-22', DATE '2024-07-01') AS value"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_sale_outside",
+        "sql": "SELECT 'before' AS period, CAST((SELECT COUNT(*) FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id <> 'SUP-001' AND s.date >= DATE '2024-01-29' AND s.date < DATE '2024-03-01') AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value UNION ALL SELECT 'after' AS period, CAST((SELECT COUNT(*) FROM main.sale s JOIN main.product p ON p.id = s.product_id WHERE p.supplier_id <> 'SUP-001' AND s.date >= DATE '2024-04-22' AND s.date < DATE '2024-07-01') AS DOUBLE) / date_diff('day', DATE '2024-04-22', DATE '2024-07-01') AS value"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_lost_sale",
+        "sql": "SELECT 'before' AS period, CAST((SELECT COUNT(*) FROM main.lost_sale l JOIN main.product p ON p.id = l.product_id WHERE p.supplier_id = 'SUP-001' AND l.date >= DATE '2024-01-29' AND l.date < DATE '2024-03-01') AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value UNION ALL SELECT 'after' AS period, CAST((SELECT COUNT(*) FROM main.lost_sale l JOIN main.product p ON p.id = l.product_id WHERE p.supplier_id = 'SUP-001' AND l.date >= DATE '2024-04-22' AND l.date < DATE '2024-07-01') AS DOUBLE) / date_diff('day', DATE '2024-04-22', DATE '2024-07-01') AS value"
+      },
+      {
+        "hypothesisId": "sp_zpozdeni_vrchol_complaint",
+        "sql": "SELECT 'before' AS period, CAST((SELECT COUNT(*) FROM main.complaint c WHERE c.supplier_id = 'SUP-001' AND c.date >= DATE '2024-01-29' AND c.date < DATE '2024-03-01') AS DOUBLE) / date_diff('day', DATE '2024-01-29', DATE '2024-03-01') AS value UNION ALL SELECT 'after' AS period, CAST((SELECT COUNT(*) FROM main.complaint c WHERE c.supplier_id = 'SUP-001' AND c.date >= DATE '2024-04-22' AND c.date < DATE '2024-07-01') AS DOUBLE) / date_diff('day', DATE '2024-04-22', DATE '2024-07-01') AS value"
+      }
+    ]
+  }
+}

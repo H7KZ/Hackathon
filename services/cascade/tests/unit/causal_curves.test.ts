@@ -114,3 +114,45 @@ describe("04a_overlay in the cascade", () => {
     expect(res.overlay).toEqual(overlay);
   });
 });
+
+describe("lever scope follows the story point's entity (live run 4: causal detective 0 %)", () => {
+  // run 4: the overlay named SUP-001 but left late_prob unscoped, so every supplier got late and the
+  // answer key named a supplier the data did not single out
+  const unscoped: StoryOverlay = {
+    ...overlay,
+    levers: overlay.levers.map(({ scope: _scope, ...row }) => row),
+  };
+
+  it("an unscoped lever whose story points name entity ids gets scoped to them by code", () => {
+    const [late] = buildCurves(causalMap, unscoped, processesPlan);
+    expect(late?.scope).toEqual({ field: "self.supplier_id", ids: ["SUP-002"] });
+  });
+
+  it("no scope when the records using the lever have no <entity>_id field before it", () => {
+    const plan = structuredClone(processesPlan);
+    for (const p of plan.processes) {
+      if ("fields" in p) delete (p.fields as { supplier_id?: unknown }).supplier_id;
+    }
+    const [late] = buildCurves(causalMap, unscoped, plan);
+    expect(late?.scope).toBeUndefined();
+  });
+
+  it("the overlay check then asks for a scope instead of passing silently", () => {
+    const plan = structuredClone(processesPlan);
+    for (const p of plan.processes) {
+      if ("fields" in p) delete (p.fields as { supplier_id?: unknown }).supplier_id;
+    }
+    const errors = checkOverlayScenario(input, "r", causalMap, plan, unscoped);
+    expect(errors.some((e) => /no scope/.test(e.message))).toBe(true);
+  });
+});
+
+describe("scopeOverlay: the derived scope is part of 04a_overlay (hypotheses focus on it)", () => {
+  it("fills a missing lever scope from the story point entity; keeps an explicit one", async () => {
+    const { scopeOverlay } = await import("../../src/causal/curves");
+    const unscoped: StoryOverlay = { ...overlay, levers: overlay.levers.map(({ scope: _s, ...row }) => row) };
+    const out = scopeOverlay(causalMap, unscoped, processesPlan);
+    expect(out.levers[0]?.scope).toEqual({ field: "self.supplier_id", ids: ["SUP-002"] });
+    expect(scopeOverlay(causalMap, overlay, processesPlan)).toEqual(overlay);
+  });
+});

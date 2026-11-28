@@ -3,16 +3,8 @@
 import { useState, type KeyboardEvent } from "react";
 import { Icon, ICONS } from "../icons";
 
-/** Chat input: Enter sends, Shift+Enter = new line. Quick replies above it. */
-export function Composer({
-  disabled,
-  suggestions,
-  onSend,
-}: {
-  disabled: boolean;
-  suggestions: string[];
-  onSend: (text: string) => void;
-}) {
+/** Chat input: Enter sends, Shift+Enter = new line. Quick replies live at the end of the thread. */
+export function Composer({ disabled, onSend }: { disabled: boolean; onSend: (text: string) => void }) {
   const [text, setText] = useState("");
   const send = (value = text) => {
     const v = value.trim();
@@ -28,22 +20,6 @@ export function Composer({
   };
   return (
     <div className="composer">
-      {suggestions.length > 0 && (
-        <div className="suggest" aria-label="Návrhy otázek">
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              disabled={disabled}
-              onClick={() => {
-                send(s);
-              }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
       <form
         className="composer-box"
         onSubmit={(e) => {

@@ -1,0 +1,11 @@
+{
+  "key": "36ee26e779f65d170dccd6acc3f9bf9f",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select product_id, count(*) filter (where date<'2025-03-31') pre, count(*) filter (where date>='2025-03-31' and date<'2025-05-08') during, count(*) filter (where date>='2025-05-08') post from sale where customer_segment='kampaň' group by 1 order by during desc limit 15"
+    }
+  }
+}

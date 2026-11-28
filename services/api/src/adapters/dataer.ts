@@ -6,6 +6,7 @@ import {
   compareRuns,
   dailySeries,
   detective,
+  exportDataset,
   listTables,
   previewTable,
   runExpectations,
@@ -34,5 +35,6 @@ export function dataerPort(opts: { llm?: Llm } = {}): Ports["dataer"] {
     // schema `main` only, read-only; the table name is matched against the catalog, never spliced in
     tables: (dbPath) => listTables(dbPath),
     preview: (dbPath, table, limit) => previewTable(dbPath, table, limit),
+    export: (dbPath, format, outDir) => exportDataset(dbPath, format, outDir),
   };
 }

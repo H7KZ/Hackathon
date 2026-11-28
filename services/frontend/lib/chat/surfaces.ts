@@ -38,6 +38,8 @@ export type StoryConfig = {
     min: number;
     max: number;
     step?: number;
+    /** live: one sentence on what the curve is and what bends it (shown under the chart) */
+    help?: string;
   };
   time: TimeConfig;
   seed: number;
@@ -180,7 +182,7 @@ export function storySurface(
         id: "root",
         component: "Column",
         gap: "lg",
-        children: ["intro", "curve", "basic", "advanced", "actions"],
+        children: ["intro", "curve", ...(live ? ["curveHelp"] : []), "basic", "advanced", "actions"],
       },
       {
         id: "intro",
@@ -188,6 +190,8 @@ export function storySurface(
         variant: "muted",
         text: "Body příběhu ohýbají křivku parametru. Táhněte je v grafu, dvojklikem přidáte nový. Data vzniknou až po vygenerování.",
       },
+      // live: what this curve is, in words (the id alone, e.g. "late_prob", told users nothing)
+      { id: "curveHelp", component: "Text", variant: "caption", text: path("/config/curve/help") },
       {
         id: "curve",
         component: "CurveEditor",
@@ -202,8 +206,8 @@ export function storySurface(
         unit: path("/config/curve/unit"),
         locked: path("/locked"),
       },
-      { id: "basic", component: "Column", gap: "md", children: live ? ["basicRow"] : ["time", "basicRow"] },
-      { id: "time", component: "PeriodPicker", value: path("/config/time") },
+      { id: "basic", component: "Column", gap: "md", children: ["time", "basicRow"] },
+      { id: "time", component: "PeriodPicker", value: path("/config/time"), ...(live && { live: true }) },
       { id: "basicRow", component: "Row", gap: "md", children: ["scale", "seed"] },
       {
         id: "scale",
@@ -273,7 +277,13 @@ export function storySurface(
       },
       { id: "cLabel", component: "TextField", label: "Popisek osy", value: path("/config/curve/label") },
       ...section("s-noise", "Šum v datech", ["noiseRow"]),
-      { id: "noiseRow", component: "Row", gap: "md", children: ["nMissing", "nDup", "nJitter"] },
+      // live: the time of day comes from "Záznam po: dnech s časem" in the period picker
+      {
+        id: "noiseRow",
+        component: "Row",
+        gap: "md",
+        children: live ? ["nMissing", "nDup"] : ["nMissing", "nDup", "nJitter"],
+      },
       {
         id: "nMissing",
         component: "Slider",
@@ -359,8 +369,77 @@ export function storySurface(
 
 // ---------- dataset (canvas) + chat summary ----------
 
-export function datasetSurface(id: string, d: DatasetView, demo = false): A2uiMessage {
+/** Download formats of a dataset (observed tables only); `path` is relative to the session API. */
+export const EXPORT_FORMATS = [
+  { format: "xlsx", label: "Excel (.xlsx)" },
+  { format: "csv", label: "CSV (.zip)" },
+  { format: "parquet", label: "Parquet (.zip)" },
+  { format: "duckdb", label: "DuckDB" },
+] as const;
+
+/** The compare panel's nodes, ids prefixed so they can live inside another surface (a tab). */
+function compareNodes(p: string, c: CompareView): ComponentNode[] {
+  return [
+    { id: `${p}root`, component: "Column", gap: "lg", children: [`${p}q`, `${p}chart`, `${p}table`] },
+    { id: `${p}q`, component: "Callout", tone: "story", title: "Otázka", text: path("/compare/question") },
+    {
+      id: `${p}chart`,
+      component: "LineChart",
+      title: c.metric,
+      data: path("/compare/series"),
+      markers: path("/compare/markers"),
+      lines: [
+        { key: "a", label: `${c.a} (původní)` },
+        { key: "b", label: `${c.b} (co kdyby)`, dashed: true, color: 1 },
+      ],
+      height: 280,
+    },
+    {
+      id: `${p}table`,
+      component: "Table",
+      columns: [
+        { key: "metric", label: "Metrika" },
+        { key: "a", label: c.a, format: "number" },
+        { key: "b", label: c.b, format: "number" },
+        { key: "relChange", label: "Změna", format: "delta" },
+      ],
+      rows: path("/compare/diff"),
+    },
+  ];
+}
+
+export function datasetSurface(
+  id: string,
+  d: DatasetView,
+  demo = false,
+  /** a what-if dataset: the comparison with its parent becomes a tab of this panel */
+  compare?: CompareView,
+): A2uiMessage {
   const passed = d.expectations.filter((e) => e.pass).length;
+  const exportNodes: ComponentNode[] = demo
+    ? []
+    : [
+        {
+          id: "dl",
+          component: "Row",
+          gap: "sm",
+          align: "center",
+          children: ["dlT", ...EXPORT_FORMATS.map((f) => `dl-${f.format}`)],
+        },
+        { id: "dlT", component: "Text", variant: "label", text: "Stáhnout:" },
+        ...EXPORT_FORMATS.map((f) => ({
+          id: `dl-${f.format}`,
+          component: "Button",
+          variant: "secondary",
+          label: f.label,
+          action: {
+            event: {
+              name: "download",
+              context: { path: `/datasets/${d.datasetId}/export?format=${f.format}` },
+            },
+          },
+        })),
+      ];
   const tableNodes: ComponentNode[] = d.tables.flatMap((t, i) => [
     { id: `tcard${String(i)}`, component: "Card", title: t.label, child: `table${String(i)}` },
     {
@@ -376,7 +455,8 @@ export function datasetSurface(id: string, d: DatasetView, demo = false): A2uiMe
     `Dataset ${d.datasetId}`,
     "canvas",
     [
-      { id: "root", component: "Column", gap: "lg", children: ["kpis", "tabs"] },
+      { id: "root", component: "Column", gap: "lg", children: ["kpis", ...(demo ? [] : ["dl"]), "tabs"] },
+      ...exportNodes,
       {
         id: "kpis",
         component: "Row",
@@ -400,8 +480,10 @@ export function datasetSurface(id: string, d: DatasetView, demo = false): A2uiMe
           { title: "Přehled", child: "overview" },
           { title: "Důkazy", child: "evidence" },
           ...(d.tables.length ? [{ title: "Tabulky", child: "tables" }] : []),
+          ...(compare ? [{ title: `Porovnání s ${compare.a}`, child: "cmp-root" }] : []),
         ],
       },
+      ...(compare ? compareNodes("cmp-", compare) : []),
       { id: "overview", component: "Column", gap: "md", children: ["chart", "hint"] },
       {
         id: "chart",
@@ -440,6 +522,14 @@ export function datasetSurface(id: string, d: DatasetView, demo = false): A2uiMe
       expectations: d.expectations,
       passedLabel: `${String(passed)} / ${String(d.expectations.length)}`,
       tables: Object.fromEntries(d.tables.map((t) => [t.name, t.rows])),
+      ...(compare && {
+        compare: {
+          question: compare.question,
+          series: compare.series,
+          markers: compare.markers,
+          diff: compare.diff,
+        },
+      }),
     },
     demo,
   );
@@ -452,13 +542,19 @@ export function readySurface(id: string, datasetId: string, demo = false): A2uiM
     "chat",
     [
       { id: "root", component: "Card", child: "col" },
-      { id: "col", component: "Column", gap: "sm", children: ["t", "row"] },
+      { id: "col", component: "Column", gap: "sm", children: ["t", "row", "about"] },
       {
         id: "t",
         component: "Text",
         text: `Dataset **${datasetId}** je hotový a příběh v něm jde dohledat. Co dál?`,
       },
       { id: "row", component: "Row", gap: "sm", children: ["detect", "open"] },
+      {
+        id: "about",
+        component: "Text",
+        variant: "caption",
+        text: "ⓘ **Detektiv** je druhý agent, který scénář ani příběh nezná. Dostane jen tabulky, sám píše SQL dotazy a hledá, co se v datech stalo a kdy. Pak jeho zjištění porovnáme s body příběhu: kolik jich našel (recall) a kolik jeho zjištění sedí (precision). Tím ověříme, že příběh je v datech opravdu čitelný. Trvá asi minutu.",
+      },
       {
         id: "detect",
         component: "Button",
@@ -522,8 +618,14 @@ export function detectiveSurface(id: string, d: DetectiveView, demo = false): A2
     `Slepý detektiv · ${d.datasetId}`,
     "canvas",
     [
-      { id: "root", component: "Column", gap: "lg", children: ["kpis", "story", "table"] },
+      { id: "root", component: "Column", gap: "lg", children: ["kpis", "explain", "story", "table"] },
       { id: "kpis", component: "Row", children: ["recall", "precision", "count"] },
+      {
+        id: "explain",
+        component: "Text",
+        variant: "caption",
+        text: "ⓘ Detektiv viděl jen tabulky, ne scénář. **Recall** = kolik bodů příběhu našel (správná věc, ±14 dní). **Precision** = kolik jeho zjištění odpovídá nějakému bodu příběhu; pravdivá zjištění o následcích se nepočítají, takže je to spodní odhad.",
+      },
       {
         id: "recall",
         component: "Kpi",

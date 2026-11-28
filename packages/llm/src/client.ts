@@ -64,6 +64,7 @@ export function resolveModel(id: string): LanguageModel {
 }
 
 export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, model }) => {
+  if (model.startsWith("anthropic:")) return anthropicJsonText({ schema, instructions, prompt, model });
   try {
     const result = await generateText({
       model: resolveModel(model),
@@ -93,6 +94,62 @@ export const aiSdkGenerate: Generate = async ({ schema, instructions, prompt, mo
     return raw;
   }
 };
+
+/**
+ * Anthropic: the JSON Schema goes into the system prompt and the answer is plain text. Our schemas
+ * exceed what native `output_format` accepts (more than 10 optional properties, open maps), so the AI
+ * SDK fell back to a forced "json" tool, which Sonnet 5.5 rejects ("toolChoice 'required' is not
+ * supported", a warning on every call, then `auto` and often prose around the JSON anyway). The cache
+ * key is computed from the caller's instructions, not this suffix, so recordings stay valid.
+ */
+async function anthropicJsonText({
+  schema,
+  instructions,
+  prompt,
+  model,
+}: {
+  schema: z.ZodType;
+  instructions: string;
+  prompt: string;
+  model: string;
+}): Promise<unknown> {
+  const js = JSON.stringify(untuple(z.toJSONSchema(schema, { io: "input", unrepresentable: "any" })));
+  const directive =
+    "Answer with exactly one JSON object and nothing else (no prose, no code fence). " +
+    `It must validate against this JSON Schema:\n${js}`;
+  const system = instructions ? `${instructions}\n\n${directive}` : directive;
+  const read = (r: { text: string; finishReason: string }) => {
+    if (r.finishReason === "length")
+      throw new Error(`LLM output was cut off (token limit) for ${model}; the JSON is incomplete.`);
+    return parseJson(r.text);
+  };
+  const first = await generateText({ model: resolveModel(model), instructions: system, prompt });
+  const raw = read(first);
+  // valid: done. Otherwise one follow-up turn with the model's own answer and what is wrong with it
+  // (live run 5: a detective step answered with prose only, another left out the `action` wrapper;
+  // a forced tool used to steer the shape, text mode needs this correction instead)
+  const issues =
+    raw === undefined
+      ? "Your answer contained no JSON object."
+      : ((r) =>
+          r.success ? undefined : `Your JSON does not match the schema:\n${z.prettifyError(r.error)}`)(
+          schema.safeParse(raw),
+        );
+  if (issues === undefined) return raw;
+  const again = await generateText({
+    model: resolveModel(model),
+    instructions: system,
+    messages: [
+      { role: "user", content: prompt },
+      { role: "assistant", content: first.text },
+      { role: "user", content: `${issues}\nReply with only the corrected JSON object.` },
+    ],
+  });
+  const retried = read(again);
+  if (retried === undefined) throw new Error(`LLM answer for ${model} contained no JSON object.`);
+  // still invalid: the caller's zod parse reports it (repair loops turn it into feedback)
+  return retried;
+}
 
 /**
  * The zod schema as JSON Schema, rewritten where providers reject valid JSON Schema. Tuples

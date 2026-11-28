@@ -17,14 +17,18 @@ for (const id of sessions) {
     const errors = watchErrors(page);
     const shot = screens(`review-${id.slice(0, 8)}`);
     await page.goto(`/chat?s=${id}&api=${encodeURIComponent(api)}`);
-    // every dataset the API knows must come back from the SSE replay, with its comparison panel
+    // every dataset the API knows must come back from the SSE replay, a what-if one with its comparison tab
     const state = (await (await page.request.get(`${api}/sessions/${id}`)).json()) as {
       datasets: { id: string; parent: string | null }[];
     };
     for (const d of state.datasets) {
       await expect(page.getByRole("region", { name: `Dataset ${d.id}` })).toBeVisible({ timeout: 60_000 });
       if (d.parent)
-        await expect(page.getByRole("region", { name: `Porovnání ${d.parent} ↔ ${d.id}` })).toBeVisible();
+        await expect(
+          page
+            .getByRole("region", { name: `Dataset ${d.id}` })
+            .getByRole("tab", { name: `Porovnání s ${d.parent}` }),
+        ).toBeVisible();
     }
     await page.waitForTimeout(1000);
     // labels first: nth() locators re-resolve, and opening a tab adds regions (table cards) in between

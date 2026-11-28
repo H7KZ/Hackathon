@@ -61,7 +61,12 @@ describe("storyToEdit / editToStory on a real-shaped story", () => {
     const edit = storyToEdit(story);
     expect(edit.points.map((p) => p.id)).toEqual(["sp_late"]);
     expect(edit.points[0]).toMatchObject({ level: 0.7, start: "2025-03-01", end: "2025-05-31" });
-    expect(edit.config.curve).toMatchObject({ baseline: 0.05, min: 0, max: 1, label: "Parametr late prob" });
+    expect(edit.config.curve).toMatchObject({
+      baseline: 0.05,
+      min: 0,
+      max: 1,
+      label: "Pravděpodobnost pozdní dodávky",
+    });
     expect(edit.config.curve.step).toBeLessThanOrEqual(0.02);
     expect(edit.config.time.from <= "2025-01-01").toBe(true);
     expect(edit.config.time.to >= "2025-05-31").toBe(true);
@@ -229,5 +234,65 @@ describe("markers follow the curve", () => {
       { date: "2025-03-01", label: "Výpadky zásob" },
       { date: "2025-04-01", label: "Dodavatel zpožďuje" },
     ]);
+  });
+});
+
+describe("run-4 follow-up: readable curve, attempts, period", () => {
+  it("names a curve in Czech from its id; unknown words stay quoted", async () => {
+    const { curveLabel } = await import("../../lib/chat/liveMapping");
+    expect(curveLabel("late_prob")).toBe("Pravděpodobnost pozdní dodávky");
+    expect(curveLabel("order_rate")).toBe("Četnost objednávek");
+    expect(curveLabel("demand_mult")).toBe("Násobek poptávky");
+    expect(curveLabel("wibble_prob")).toBe("Pravděpodobnost „wibble“");
+    expect(curveLabel("foo")).toBe("Páka příběhu „foo“");
+  });
+
+  it("the editor explains the curve: id, baseline, percent hint and the points that bend it", () => {
+    const edit = storyToEdit(story);
+    expect(edit.config.curve.help).toMatch(/pravděpodobnost pozdní dodávky \(v datech „late_prob“\)/);
+    expect(edit.config.curve.help).toMatch(/0,3 znamená 30 %/);
+    expect(edit.config.curve.help).toMatch(/„Dodavatel zpožďuje“/);
+    expect(edit.config.time.auto).toBe(true);
+  });
+
+  it("a failed attempt reads as the hypothesis and its numbers, never the raw English", async () => {
+    const { attemptDetail } = await import("../../lib/chat/liveMapping");
+    const msg =
+      'Expectation "exp_complaints_up" (Počet stížností vzroste.) failed: before 0.5, after 0.4762 (change -4.8%); it needs an increase of at least +30%. The curves and expectations are fixed';
+    expect(attemptDetail(1, false, [{ path: "expectations[2]", message: msg }])).toBe(
+      "pokus 1: hypotéza „Počet stížností vzroste.“ zatím nevychází (změna −4,8 %, potřeba +30 %). Agent zesiluje řetězec příčin.",
+    );
+    expect(
+      attemptDetail(2, false, [
+        { path: "a", message: "x" },
+        { path: "b", message: "y" },
+      ]),
+    ).toBe("pokus 2: agent opravuje 2 chyby ve scénáři");
+    expect(attemptDetail(3, true, [])).toBe("příběh v datech sedí (3. pokus)");
+  });
+
+  it("chart series stop at the scenario end (derived dates past it stretched the axis)", () => {
+    const view = evidenceToView("dat1", evidence, {
+      ...story,
+      meta: { start: "2025-01-01", end: "2025-03-31" },
+    });
+    expect(view.series.at(-1)?.day).toBe("2025-03-31");
+    expect(view.totals.days).toBe(90);
+  });
+
+  it("live: granularity decides the time of day; a custom period is sent, auto is not", () => {
+    const live = storyToEdit(story).config;
+    const auto = settingsFrom(live, undefined);
+    expect(auto.period).toBeUndefined();
+    expect(auto.noise?.hourJitter).toBe(true);
+    const custom = settingsFrom(
+      {
+        ...live,
+        time: { ...live.time, auto: false, granularity: "day", from: "2024-10-01", to: "2025-09-30" },
+      },
+      undefined,
+    );
+    expect(custom.period).toEqual({ start: "2024-10-01", end: "2025-09-30" });
+    expect(custom.noise?.hourJitter).toBe(false);
   });
 });

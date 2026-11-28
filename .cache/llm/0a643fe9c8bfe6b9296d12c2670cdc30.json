@@ -1,0 +1,11 @@
+{
+  "key": "0a643fe9c8bfe6b9296d12c2670cdc30",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select case when r.date<'2025-03-31' then '1_pre' when r.date<'2025-05-08' then '2_during' else '3_post' end period, s.customer_segment seg, r.reason, count(*) n from return_request r left join sale s on s.id=r.sale_id group by 1,2,3 order by 1,2,3"
+    }
+  }
+}

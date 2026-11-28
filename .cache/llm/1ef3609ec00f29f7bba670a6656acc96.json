@@ -1,0 +1,11 @@
+{
+  "key": "1ef3609ec00f29f7bba670a6656acc96",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT supplier_id, date_trunc('month', date) m, count(*) n, count(DISTINCT product_id) prods FROM complaint GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

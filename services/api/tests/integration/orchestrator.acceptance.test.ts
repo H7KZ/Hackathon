@@ -102,16 +102,16 @@ describe("L2 refinement ⟲: edit an artifact → only later steps recompute", (
   });
 });
 
-describe("L3 generation: approve → dataset d1 ready", () => {
+describe("L3 generation: approve → dataset dat1 ready", () => {
   it("runs cascade to 05, noiser, store and evidence", async () => {
     const { orch, calls } = setup();
     const id = await generated(orch);
     const s = orch.get(id);
     expect(s.status).toBe("ready");
-    expect(s.datasets).toEqual([expect.objectContaining({ id: "d1", parent: null, seed: 42 })]);
+    expect(s.datasets).toEqual([expect.objectContaining({ id: "dat1", parent: null, seed: 42 })]);
     expect(calls.noiserSeeds).toEqual([42]);
-    expect(orch.events(id).some((e) => e.type === "dataset.ready" && e.datasetId === "d1")).toBe(true);
-    expect(await orch.evidence(id, "d1")).toBeTruthy();
+    expect(orch.events(id).some((e) => e.type === "dataset.ready" && e.datasetId === "dat1")).toBe(true);
+    expect(await orch.evidence(id, "dat1")).toBeTruthy();
   });
 });
 
@@ -119,28 +119,28 @@ describe("L4 counterfactual ⟲: what-if / direct edit → new dataset + compare
   it("text question goes through cascade.whatIf, same seed, compared with parent", async () => {
     const { orch, calls } = setup();
     const id = await generated(orch);
-    orch.command(id, { type: "what_if", question: "Co kdyby od května?", from: "d1" });
+    orch.command(id, { type: "what_if", question: "Co kdyby od května?", from: "dat1" });
     await orch.idle(id);
     expect(calls.whatIf).toEqual(["Co kdyby od května?"]);
     expect(orch.get(id).datasets.at(-1)).toEqual(
-      expect.objectContaining({ id: "d2", parent: "d1", seed: 42 }),
+      expect.objectContaining({ id: "dat2", parent: "dat1", seed: 42 }),
     );
-    expect(await orch.compare(id, "d2", "d1")).toHaveLength(1);
+    expect(await orch.compare(id, "dat2", "dat1")).toHaveLength(1);
   });
 
   it("direct scenario edit skips the LLM", async () => {
     const { orch, calls, scenario } = setup();
     const id = await generated(orch);
-    orch.command(id, { type: "edit_scenario", from: "d1", scenario });
+    orch.command(id, { type: "edit_scenario", from: "dat1", scenario });
     await orch.idle(id);
     expect(calls.whatIf).toEqual([]);
-    expect(orch.get(id).datasets.map((d) => d.id)).toEqual(["d1", "d2"]);
+    expect(orch.get(id).datasets.map((d) => d.id)).toEqual(["dat1", "dat2"]);
   });
 
   it("an invalid scenario is rejected and no dataset is created", async () => {
     const { orch } = setup();
     const id = await generated(orch);
-    orch.command(id, { type: "edit_scenario", from: "d1", scenario: { meta: {} } });
+    orch.command(id, { type: "edit_scenario", from: "dat1", scenario: { meta: {} } });
     await orch.idle(id);
     expect(orch.get(id).datasets).toHaveLength(1);
     expect(orch.get(id).status).toBe("ready");
@@ -152,10 +152,10 @@ describe("L5 detective on demand", () => {
     const { orch, calls } = setup();
     const id = await generated(orch);
     expect(calls.detective).toBe(0);
-    orch.command(id, { type: "detect", datasetId: "d1" });
+    orch.command(id, { type: "detect", datasetId: "dat1" });
     await orch.idle(id);
     expect(calls.detective).toBe(1);
-    expect(await orch.detective(id, "d1")).toEqual(expect.objectContaining({ score: expect.anything() }));
+    expect(await orch.detective(id, "dat1")).toEqual(expect.objectContaining({ score: expect.anything() }));
   });
 });
 
@@ -235,10 +235,10 @@ describe("L3b approve with UI settings", () => {
       settings: { seed: 7, expectations: keep, noise: { missing: 2, duplicates: 1, hourJitter: true } },
     });
     await orch.idle(id);
-    expect(orch.get(id)).toMatchObject({ status: "ready", datasets: [{ id: "d1", seed: 7 }] });
+    expect(orch.get(id)).toMatchObject({ status: "ready", datasets: [{ id: "dat1", seed: 7 }] });
     expect(calls.noiserSeeds).toEqual([7]);
     const used = JSON.parse(
-      readFileSync(join(tmp.dir, id, "datasets/d1/scenario.json"), "utf8"),
+      readFileSync(join(tmp.dir, id, "datasets/dat1/scenario.json"), "utf8"),
     ) as typeof scenario;
     expect(used.expectations.map((e) => e.id)).toEqual(keep);
     expect(used.noise?.hourJitter).toBe(true);
@@ -247,6 +247,28 @@ describe("L3b approve with UI settings", () => {
       readFileSync(join(tmp.dir, id, "05_scenario.json"), "utf8"),
     ) as typeof scenario;
     expect(designed.meta.seed).toBe(scenario.meta.seed);
+  });
+
+  it("applies a user period that contains the story", async () => {
+    const { orch } = setup();
+    const id = await drafted(orch);
+    orch.command(id, { type: "approve", settings: { period: { start: "2024-06-01", end: "2026-06-30" } } });
+    await orch.idle(id);
+    expect(orch.get(id).status).toBe("ready");
+    expect(orch.scenario(id, "dat1").meta).toMatchObject({ start: "2024-06-01", end: "2026-06-30" });
+  });
+
+  it("rejects a period that cuts the story off before any cascade call", async () => {
+    const { orch, calls } = setup();
+    const id = await drafted(orch);
+    const before = calls.produced.length;
+    const res = orch.command(id, {
+      type: "approve",
+      settings: { period: { start: "2030-01-01", end: "2030-12-31" } },
+    });
+    expect(res.errors?.[0]?.path).toBe("settings.period");
+    expect(orch.get(id).status).toBe("awaiting_refinement");
+    expect(calls.produced.length).toBe(before);
   });
 });
 

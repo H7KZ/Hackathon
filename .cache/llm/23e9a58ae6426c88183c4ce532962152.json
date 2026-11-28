@@ -1,0 +1,11 @@
+{
+  "key": "23e9a58ae6426c88183c4ce532962152",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "select date, count(*) filter (where customer_segment='kampaň') camp, count(*) filter (where customer_segment='stálý') loyal from sale where date between '2025-03-26' and '2025-04-06' or date between '2025-05-01' and '2025-05-14' group by 1 order by 1"
+    }
+  }
+}

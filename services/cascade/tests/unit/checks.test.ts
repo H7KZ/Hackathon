@@ -290,3 +290,35 @@ describe("story entities must be specific", () => {
     expect(checkCurveScopes(story, base.entities)).toEqual([]);
   });
 });
+
+describe("A4 curve shapes (live run 4: marketing second wave)", () => {
+  it("checkStoryPlan rejects a decay back to the baseline, which climbs back up", async () => {
+    const { checkStoryPlan } = await import("../../src/checks");
+    const errors = checkStoryPlan({
+      storyPoints: [
+        { id: "a", phase: 1, title: "a", description: "a", start: "2025-04-01" },
+        { id: "b", phase: 2, title: "b", description: "b", start: "2025-04-30" },
+      ],
+      curves: [
+        {
+          id: "order_rate",
+          baseline: 1,
+          segments: [
+            { kind: "ramp", start: "2025-04-01", end: "2025-04-07", to: 3, storyPointId: "a" },
+            { kind: "decay", start: "2025-04-30", end: "2025-05-15", to: 1, storyPointId: "b" },
+          ],
+        },
+      ],
+      expectations: [
+        {
+          id: "e",
+          storyPointId: "a",
+          description: "d",
+          sql: "SELECT 'before' AS period, 1 AS value",
+          check: { kind: "increase", minRelChange: 0.1 },
+        },
+      ],
+    });
+    expect(errors.map((e) => e.path)).toContain("curves.0.segments.1.kind");
+  });
+});

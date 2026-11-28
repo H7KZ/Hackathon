@@ -6,6 +6,8 @@ Shared rules and the API overview: [README.md](README.md). Pages: SPEC §3.G. UI
 
 The chat workspace (`/` → `/chat?s=<id>`) drives a real session end to end: agents' progress (v1 and causal steps), the story editor (only curve-driving points are draggable; "Generovat data" sends `approve.settings`), the dataset canvas (KPIs from `/tables`, overview chart of what moved, evidence, table previews), detective, "Co kdyby" with a comparison whose markers follow the what-if's curves, "Zrušit" while busy and a "Pokračovat" / "Zkusit znovu" card after an interruption or failure. Pure mappings: `lib/chat/liveMapping.ts`; effects: `lib/chat/liveSource.ts`.
 
+Run-4 follow-up ([run 5](../runs/2026-11-28-live-e2e-5.md)): the progress card shows elapsed time, a plain-words hint and the repair attempt n/5 with the failed hypothesis in Czech (`attemptDetail`); the curve editor names the curve in Czech (`curveLabel`) with one sentence of help; the live period picker sends `settings.period` only when the user sets one ("dnech s časem" = `hourJitter`); the dataset panel has downloads (`GET …/export?format=`) and, for a what-if, a "Porovnání s dat1" tab instead of a separate compare panel; chart series are clipped to the scenario period; quick replies sit at the end of the thread.
+
 Tests: unit (`live-mapping`, `live-source` with a fake EventSource), Playwright on fake services (`flow.spec.ts`, ports 4310/3310), real stack in the browser (`E2E_REAL=1 … real.spec.ts`, live or `LLM_OFFLINE=1`), screenshot review of finished sessions (`E2E_REVIEW=<api>|<ids> … review.spec.ts`). Live results: [`docs/runs/2026-11-28-live-e2e-3.md`](../runs/2026-11-28-live-e2e-3.md).
 
 ## Goal

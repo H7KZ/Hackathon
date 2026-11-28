@@ -8,6 +8,7 @@ Everything that happens **after** the engine (storage, proof in the data, compar
 
 Done since the first handoff (2026-11-28):
 
+- **Export:** `exportDataset(db, format, outDir)` (`src/export/`): `xlsx` (one sheet per table, own writer, ≤ 1 048 575 rows per sheet), `csv` / `parquet` (DuckDB `COPY`, zipped by `zip.ts`), `duckdb` (the sandbox copy). Observed tables only, never `truth`; an export written once is reused. Port `export`, route `GET …/datasets/:d/export?format=`.
 - **Table preview:** `listTables(db)` / `previewTable(db, table, limit)` (`src/preview/tables.ts`), port `tables` / `preview`, routes `GET …/datasets/:d/tables` and `…/tables/:t?limit=` (1–200 rows, ordered by `id`, BIGINT as number). The UI uses them for the dataset totals and the Tabulky tab.
 - **CLI:** `pnpm evidence <db> [--scenario f]`, `pnpm compare <a> <b>`, `pnpm detective <db>` work (`services/api/src/cli/inspect.ts`).
 
@@ -91,6 +92,7 @@ The API validates `evidence` and `detective` results with zod before saving them
 |---|---|
 | `GET /sessions/:id/datasets/:d/evidence` | `DatasetEvidence` = `{ expectations: ExpectationResult[], series: [{ table, dateColumn, metric, points: [{ day, value }] }] }` |
 | `GET /sessions/:id/datasets/:d/compare/:other` | `{ diff: MetricDiff[] }`, each `{ metric, a, b, delta, relChange }`; `a` is `:other` (the baseline), `b` is `:d` |
+| `GET /sessions/:id/datasets/:d/export?format=xlsx|csv|parquet|duckdb` | the dataset as one file (`Content-Disposition: attachment; filename="jojo-<session8>-<dat1>.<ext>"`) |
 | `GET /sessions/:id/datasets/:d/detective` | `{ result: null }` until a `detect` has finished, then `{ result: { report, score } }` |
 
 `DatasetEvidence` and `DetectiveResult` live in `@s2d/schema/api`; `ExpectationResult` and `MetricDiff` are in `@s2d/schema/evidence`.

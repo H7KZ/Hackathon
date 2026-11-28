@@ -14,6 +14,9 @@
 .a2-row {
   align-items: stretch;
 }
+.a2-row.align-center {
+  align-items: center;
+}
 .a2-row.wrap {
   flex-wrap: wrap;
 }
@@ -410,6 +413,75 @@
 .a2-steps .detail {
   grid-column: 2;
   font-size: 0.8rem;
+}
+.a2-steps .elapsed {
+  margin-left: 8px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+.a2-steps .hint {
+  grid-column: 2;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+.a2-steps .attempts {
+  grid-column: 2;
+  display: flex;
+  gap: 4px;
+  margin: 2px 0;
+}
+.a2-steps .attempts i {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: #dfe5e3;
+}
+.a2-steps .attempts i.used {
+  background: var(--color-warn, #c58b1b);
+}
+.a2-steps .attempts i.now {
+  background: var(--color-green);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.a2-steps .bar {
+  grid-column: 2;
+  position: relative;
+  height: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #e7ecea;
+}
+.a2-steps .bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  border-radius: 2px;
+  background: var(--color-green);
+  animation: slide 1.8s ease-in-out infinite;
+}
+@keyframes slide {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 300% 0;
+  }
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .a2-steps .bar::after,
+  .a2-steps .attempts i.now {
+    animation: none;
+  }
 }
 .a2-steps li.running {
   color: var(--color-fis-dark);
@@ -900,4 +972,27 @@
 }
 .a2-curve-tools button {
   white-space: nowrap;
+}
+
+/* live period: "agent picks" summary + text-link buttons */
+.a2-period-auto {
+  flex: 1 1 260px;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.a2-link,
+.a2-period-presets button.a2-link {
+  height: auto;
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-green-dark);
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }

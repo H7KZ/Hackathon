@@ -2,16 +2,20 @@
  * Session REST + SSE (variant A, docs/api-orchestrator.md).
  * Commands: typed JSON via hc. Events: SSE with Last-Event-ID replay from events.jsonl (D9).
  */
+import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { ArtifactName } from "@s2d/schema/artifacts";
 import { SessionCommand, SessionInput, type SessionEvent } from "@s2d/schema/api";
+import { EXPORT_FORMATS } from "../ports";
 import { BusyError, NotFoundError, type CommandResult, type Orchestrator } from "../orchestrator";
 
 const HEARTBEAT_MS = 15_000;
 /** ?limit= for table previews; anything unparsable falls back to 20 (the port clamps to 1..200). */
+const ExportQuery = z.object({ format: z.enum(EXPORT_FORMATS).default("xlsx") });
 const PreviewQuery = z.object({ limit: z.coerce.number().int().catch(20).default(20) });
 
 /** JSON body validator; bad input → 400 with the same {path,message}[] shape the compiler uses. */
@@ -72,6 +76,15 @@ export function sessionRoutes(orch: Orchestrator) {
         await orch.preview(c.req.param("id"), c.req.param("d"), c.req.param("t"), c.req.valid("query").limit),
       ),
     )
+    .get("/:id/datasets/:d/export", zValidator("query", ExportQuery), async (c) => {
+      const out = await orch.exportDataset(c.req.param("id"), c.req.param("d"), c.req.valid("query").format);
+      // streamed: an xlsx of a large dataset is tens of MB
+      const body = Readable.toWeb(createReadStream(out.file)) as ReadableStream<Uint8Array>;
+      return c.body(body, 200, {
+        "Content-Type": out.contentType,
+        "Content-Disposition": `attachment; filename="${out.filename}"`,
+      });
+    })
     .get("/:id/datasets/:d/detective", async (c) =>
       c.json({ result: await orch.detective(c.req.param("id"), c.req.param("d")) }),
     )

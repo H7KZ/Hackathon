@@ -2,7 +2,7 @@
  * Fake ports: deterministic, no LLM, no DuckDB. Used by the API tests and by `API_PORTS=fake`
  * (frontend / noiser development without API keys or a recorded cache). Not for the demo.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ArtifactName } from "@s2d/schema/artifacts";
 import type { Scenario } from "@s2d/schema/scenario";
@@ -188,6 +188,16 @@ export function fakePorts(opts: FakeOptions) {
           rows: t.rows,
           columns: t.columns,
           rowsShown: Array.from({ length: n }, (_, i) => t.row(i)),
+        });
+      },
+      export(_dbPath, format, outDir) {
+        mkdirSync(outDir, { recursive: true });
+        const file = join(outDir, `fake.${format}`);
+        writeFileSync(file, `fake ${format} export`);
+        return Promise.resolve({
+          file,
+          filename: `dataset.${format}`,
+          contentType: "application/octet-stream",
         });
       },
       async detective(_dbPath, { onEvent, signal }) {

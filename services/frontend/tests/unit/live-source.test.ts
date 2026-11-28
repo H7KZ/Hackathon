@@ -141,3 +141,43 @@ describe("live source", () => {
     stop();
   });
 });
+
+describe("live source: progress feedback (run-4 follow-up)", () => {
+  it("a running step gets a start time and a plain-words hint; a failed attempt names the next try", () => {
+    const { es, events, stop } = start();
+    es.push({ type: "status", status: "generating" }, 1);
+    let s = steps(events, "progress-1") as { id: string; state: string; startedAt?: number; hint?: string }[];
+    expect(s[0]).toMatchObject({ id: "05_scenario", state: "running" });
+    expect(typeof s[0]?.startedAt).toBe("number");
+    expect(s[0]?.hint).toMatch(/minutu/);
+    es.push(
+      {
+        type: "cascade",
+        event: {
+          type: "loop.iteration",
+          step: "05_scenario",
+          n: 1,
+          ok: false,
+          feedback: [{ path: "x", message: "broken" }],
+        },
+      },
+      2,
+    );
+    s = steps(events, "progress-1");
+    expect(s[0]).toMatchObject({
+      state: "running",
+      detail: "pokus 1: agent opravuje 1 chybu ve scénáři",
+      attempt: { n: 2, max: 5 },
+    });
+    stop();
+  });
+
+  it("the detective card runs (timer + what the detective does) as soon as detecting starts", () => {
+    const { es, events, stop } = start();
+    es.push({ type: "status", status: "detecting" }, 1);
+    const s = steps(events, "progress-1") as { state: string; hint?: string }[];
+    expect(s[0]?.state).toBe("running");
+    expect(s[0]?.hint).toMatch(/scénář nezná/);
+    stop();
+  });
+});

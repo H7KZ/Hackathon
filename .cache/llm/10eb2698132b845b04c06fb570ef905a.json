@@ -1,0 +1,52 @@
+{
+  "key": "10eb2698132b845b04c06fb570ef905a",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Od začátku dubna 2025 se výrazně zvedl počet objednávek v segmentu „kampaň“: z ~20 denně na 40–57 denně, týdně z ~140 na ~400 objednávek. Zhruba od 2025-05-08 až 05-13 se vrátil na původní úroveň. Segment „stálý“ zůstal stabilní (~75 objednávek týdně). Kampaň zatížila sklad: v dubnu a na začátku května přibylo záznamů o ztracených prodejích kvůli nedostupnému zboží (25 za celé období, většinou 7. 4. – 12. 5.). Dodavatelé SUP-001 a SUP-002 začali od týdne 2025-04-07 dodávat větší množství (průměr na dodávku ~1,4 → ~2,5–3, méně nulových dodávek). Po skončení kampaně se objemy vrátily zpět. Zvýšil se také počet vratek, hlavně u kampaňových zákazníků: z 7–10 týdně na 25–30 týdně od poloviny dubna do poloviny května. U stálých zákazníků vratek v období kampaně naopak ubylo. Tabulka vratek ukazuje počet vratek, ne jejich podíl na objednávkách.",
+        "findings": [
+          {
+            "claim": "Segment „kampaň“ zaznamenal prudký nárůst objednávek od 2025-04-03 (z ~20 na 36–57 denně, týdně ~400 vs ~140). Nárůst skončil kolem 2025-05-12, kdy se objemy vrátily na původní úroveň. Segment „stálý“ se nezměnil.",
+            "entities": [
+              "kampaň"
+            ],
+            "start": "2025-04-03",
+            "end": "2025-05-12",
+            "supportingSql": "select date_trunc('week',date) w, customer_segment, count(*) n, sum(quantity*unit_price) rev from sale group by 1,2 order by 1,2"
+          },
+          {
+            "claim": "Kampaňový nárůst poptávky způsobil nedostupnost zboží: ztracené prodeje s důvodem „nedostupné zboží“ se koncentrují mezi 2025-04-07 a 2025-05-12.",
+            "entities": [
+              "lost_sale"
+            ],
+            "start": "2025-04-07",
+            "end": "2025-05-12",
+            "supportingSql": "select date, product_id, reason, customer_id from lost_sale order by date"
+          },
+          {
+            "claim": "Dodavatelé SUP-001 a SUP-002 zvýšili dodávané množství od týdne 2025-04-07 (průměr na dodávku z ~1,4 na 2,5–3,0, méně nulových dodávek). Po 2025-05-12 se množství vrátilo na původní úroveň. Reagovali tedy na kampaň.",
+            "entities": [
+              "SUP-001",
+              "SUP-002"
+            ],
+            "start": "2025-04-07",
+            "end": "2025-05-12",
+            "supportingSql": "select date_trunc('week',date) w, supplier_id, count(*) n, sum(quantity) qty, avg(quantity) aq, count(*) filter (where quantity=0) zero from supplier_delivery group by 1,2 order by 1,2"
+          },
+          {
+            "claim": "Počet vratek vzrostl po kampani: z 7–10 týdně na 25–30 týdně od 2025-04-14, k poklesu dochází od poloviny května. Nárůst jde hlavně na vrub kampaňových zákazníků.",
+            "entities": [
+              "kampaň"
+            ],
+            "start": "2025-04-14",
+            "end": "2025-05-19",
+            "supportingSql": "select case when r.date<'2025-03-31' then '1_pre' when r.date<'2025-05-08' then '2_during' else '3_post' end period, s.customer_segment seg, count(*) n from return_request r left join sale s on s.id=r.sale_id group by 1,2 order by 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

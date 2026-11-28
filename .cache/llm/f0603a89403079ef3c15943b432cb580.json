@@ -1,0 +1,11 @@
+{
+  "key": "f0603a89403079ef3c15943b432cb580",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT store_id, CASE WHEN order_date<'2024-02-01' THEN 'a_jan' WHEN order_date<'2024-03-15' THEN 'b_febmar' ELSE 'c_late' END per, count(*) n, avg(CASE WHEN is_late THEN 1.0 ELSE 0 END) late_rate, avg(delay_days) d FROM purchase_order WHERE supplier_id='SUP-001' GROUP BY 1,2 ORDER BY 1,2"
+    }
+  }
+}

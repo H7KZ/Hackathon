@@ -1,0 +1,11 @@
+{
+  "key": "f739ea754166a3ce420328327969550e",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "sql": "SELECT date_trunc('week', order_date) w, count(*) n, avg(CASE WHEN is_late THEN 1.0 ELSE 0 END) late_rate, avg(delay_days) avg_delay FROM purchase_order WHERE supplier_id='SUP-001' GROUP BY 1 ORDER BY 1"
+    }
+  }
+}
