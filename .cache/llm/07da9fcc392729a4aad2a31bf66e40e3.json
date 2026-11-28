@@ -1,0 +1,23 @@
+{
+  "key": "07da9fcc392729a4aad2a31bf66e40e3",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Dodavatel SUP-001 (Richter a.s., velké spotřebiče) se od týdne 2024-03-04 prudce zhoršil. Podíl zpožděných dodávek vzrostl z běžných zhruba 5 % (0–14 % týdně) na 54 % v týdnu 3. 3. a na 71 % v týdnu 11. 3. Vrchol byl 92 % v týdnu 18. 3., poté zůstal na 50–85 % až do konce května. Průměrné zpoždění se zvýšilo z ~3 dnů na 8–18 dnů. Zhoršení se týká téměř všech produktů tohoto dodavatele (např. PRO-004, 008, 010, 022, 023, 026 mělo dříve 0–20 % zpoždění a po 4. 3. 67–100 %), ne jen jednoho. SUP-002 zůstal po celou dobu stabilní (zpoždění ~0–12 %, průměr ~3 dny). Následky: průměrná zásoba produktů SUP-001 klesla ze ~40 na ~20 kusů do konce března. Počet backorderů u SUP-001 vzrostl z ~10–20 týdně na 107 (11. 3.), 144 (18. 3.) a 257–259 (25. 3. a 1. 4.), v květnu se znovu zvýšil na ~110–130 týdně. Zpoždění dodávek se promítlo do reklamací: všechny mají důvod „zpoždění dodávky“, z 1–8 týdně na 69 v týdnu 25. 3. Následovaly storna objednávek, z 1–4 týdně na 41 v týdnu 1. 4., a s nimi refundace. Počet objednávek ani tržby zákazníků se výrazně nezměnily, problém tedy leží v plnění, ne v poptávce. Vzestup backorderů u SUP-002 v týdnech 4. 3. a 25. 3. je jen krátká odchylka bez trvalého posunu, s dodavatelem SUP-002 se proto nepojí.",
+        "findings": [
+          {
+            "claim": "Dodavatel SUP-001 (Richter a.s.) začal od týdne 2024-03-04 masivně zpožďovat dodávky: podíl zpožděných dodávek vzrostl z ~5 % na 54–92 % a průměrné zpoždění z ~3 na 8–18 dnů. Důsledkem jsou backordery (vrchol ~260 týdně koncem března), pokles zásob, vlna reklamací kvůli zpoždění dodávky a storna objednávek (vrchol v týdnu 25. 3. – 8. 4.). SUP-002 zůstal bez změny.",
+            "entities": [
+              "SUP-001"
+            ],
+            "start": "2024-03-04",
+            "supportingSql": "select supplier_id, date_trunc('week',order_date) wk, count(*) n, round(avg(is_delayed::int),2) delayed_rate, round(avg(delay_days),1) avg_delay from supplier_delivery group by 1,2 order by 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

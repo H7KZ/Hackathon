@@ -1,0 +1,16 @@
+{
+  "key": "18f15f8d4586c3a8b519310f25c123bd",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select store_id, round(avg(is_late::int) filter (where order_date<'2024-02-26'),2) pre, round(avg(is_late::int) filter (where order_date>='2024-02-26' and order_date<'2024-03-25'),2) mid, round(avg(is_late::int) filter (where order_date>='2024-03-25'),2) post, count(*) filter (where order_date>='2024-03-25') n_post from purchase_order where supplier_id='SUP-001' group by 1 order by 1",
+        "select strftime(date_trunc('week',date),'%m-%d') w, round(avg(value) filter (where product_id in (select id from product where supplier_id='SUP-001')),1) stock1, round(avg(value) filter (where product_id in (select id from product where supplier_id='SUP-003')),1) stock3, round(avg(value) filter (where product_id in (select id from product where supplier_id='SUP-002')),1) stock2 from stock_snapshot group by 1 order by 1",
+        "select round(avg(is_late::int) filter (where order_date<'2024-02-26'),3) pre_rate, round(avg(is_late::int) filter (where order_date>='2024-03-25'),3) post_rate, round(avg(delay_days) filter (where order_date<'2024-02-26'),2) pre_delay, round(avg(delay_days) filter (where order_date>='2024-03-25'),2) post_delay from purchase_order where supplier_id='SUP-001'",
+        "select count(*) filter (where l.date<'2024-03-25')/12.0 pre_per_week, count(*) filter (where l.date>='2024-03-25')/14.0 post_per_week from lost_sale l join product p on p.id=l.product_id where p.supplier_id='SUP-001'"
+      ]
+    }
+  }
+}

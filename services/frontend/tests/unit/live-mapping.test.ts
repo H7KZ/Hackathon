@@ -125,6 +125,14 @@ describe("storyToEdit / editToStory on a real-shaped story", () => {
   });
 });
 
+describe("humanError: provider billing (live run 6: credits ran out mid-run)", () => {
+  it("says the account has no credit, in Czech", () => {
+    expect(
+      humanError("Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing"),
+    ).toMatch(/došel kredit/);
+  });
+});
+
 describe("settingsFrom", () => {
   it("sends seed, scale, noise and the enabled hypotheses", () => {
     const s = settingsFrom({ ...DEFAULT_CONFIG, seed: 7.4 }, [

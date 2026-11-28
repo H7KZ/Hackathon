@@ -1,0 +1,33 @@
+{
+  "key": "8037de6e43bf1b1ee64f5d79609c7a9c",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "report",
+      "report": {
+        "narrative": "Zlom nastal v týdnu od 2025-03-31, kdy začala třítýdenní kampaň (31. 3. – 20. 4.). Prodeje segmentu „kampaň“ se ztrojnásobily: z ~140 objednávek týdně na ~380–430 a počet prodávaných produktů stoupl z ~99 na 118. Segment „stálý“ zůstal na ~70–80 týdně. Skladové zásoby klesly (průměr z ~15,7 na ~12,7 ks) a ve skladu se objevily nulové stavy (4–9 produktů týdně, u obou dodavatelů SUP-001 i SUP-002). Vzniklo 11 ztracených prodejů „nedostupné zboží“ (týdny 31. 3. a 7. 4.). Dodavatelské dodávky se zvýšily z ~500 na ~1060 ks týdně a po skončení kampaně se vrátily na normál. Pozdní doručení se nezměnilo (~10 %). Následkem kampaně vzrostly reklamace/vratky: z ~8 týdně u kampaňových zákazníků na 24–31 týdně od 7. 4. (vrcholily v týdnech 14. 4. a 21. 4., poté se do konce května vrátily k normálu). U stálých zákazníků se vratky nezměnily. Hlavní příčinou je tedy kampaň se skokem poptávky, nikoli problém dodavatele nebo doručování.",
+        "findings": [
+          {
+            "claim": "Kampaň od 31. 3. 2025 ztrojnásobila týdenní prodeje v segmentu „kampaň“ (~140 → ~380–430 objednávek týdně) po dobu 3 týdnů; poté návrat na původní úroveň. Souběžně vznikly nulové stavy zásob, ztracené prodeje a navýšené dodávky od dodavatelů.",
+            "entities": [
+              "kampaň"
+            ],
+            "start": "2025-03-31",
+            "end": "2025-04-20",
+            "supportingSql": "select date_trunc('week',date) w, customer_segment, count(*) n from sale group by 1,2 order by 1,2"
+          },
+          {
+            "claim": "Následně od týdne 7. 4. 2025 prudce vzrostl počet vratek/reklamací zákazníků ze segmentu „kampaň“ (~8 → 24–31 týdně), zatímco u segmentu „stálý“ zůstal stabilní; vrchol v polovině dubna, normalizace v květnu.",
+            "entities": [
+              "kampaň"
+            ],
+            "start": "2025-04-07",
+            "end": "2025-05-05",
+            "supportingSql": "select date_trunc('week',r.date) w, s.customer_segment, count(*) n from return_request r join sale s on s.id=r.sale_id where r.date>='2025-03-10' group by 1,2 order by 1,2"
+          }
+        ]
+      }
+    }
+  }
+}

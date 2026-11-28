@@ -1,0 +1,16 @@
+{
+  "key": "5b45d3aea2d18e57db46fa47de843539",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',date) w, count(*) n, count(distinct customer_id) c from campaign_buyer group by 1 order by 1",
+        "select date_trunc('week',date) w, count(*) n from lost_sale group by 1 order by 1",
+        "select p.supplier_id, count(distinct s.product_id) zero_prods, count(*) zero_days from stock_snapshot s join product p on p.id=s.product_id where s.value=0 and s.date between '2025-03-31' and '2025-04-27' group by 1",
+        "select date_trunc('week',date) w, sum(quantity) q from supplier_delivery where date>='2025-03-10' and date<'2025-05-12' group by 1 order by 1"
+      ]
+    }
+  }
+}

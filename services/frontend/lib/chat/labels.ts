@@ -16,7 +16,7 @@ export function humanizeIds(text: string, labels: Labels): string {
     if (!label) return id;
     // already "Name (ID)" (a text humanized twice, or written that way by an agent)
     if (text.slice(Math.max(0, at - label.length - 2), at) === `${label} (`) return id;
-    if (text.startsWith(` (${label})`, at + id.length)) return id;
+    if (text.startsWith(` (${label}`, at + id.length)) return id;
     return `${label} (${id})`;
   });
 }

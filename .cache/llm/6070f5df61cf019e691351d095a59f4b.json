@@ -1,0 +1,52 @@
+{
+  "key": "6070f5df61cf019e691351d095a59f4b",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.08,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-03-01",
+            "end": "2024-03-25",
+            "to": 0.14,
+            "storyPointId": "sp_zpozdeni_zacina"
+          },
+          {
+            "kind": "step",
+            "start": "2024-03-25",
+            "end": "2024-04-22",
+            "to": 0.24,
+            "storyPointId": "sp_zpozdeni_roste"
+          },
+          {
+            "kind": "step",
+            "start": "2024-04-22",
+            "to": 0.315,
+            "storyPointId": "sp_zpozdeni_vrchol"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Nárůst pravděpodobnosti pozdní dodávky nad základních 0,08 je ve všech fázích poloviční (0,14 / 0,24 / 0,315 místo 0,2 / 0,4 / 0,55), takže dopad výpadků zásob je zhruba poloviční."
+  }
+}

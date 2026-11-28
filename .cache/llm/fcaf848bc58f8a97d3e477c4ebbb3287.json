@@ -1,0 +1,34 @@
+{
+  "key": "fcaf848bc58f8a97d3e477c4ebbb3287",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "order_rate",
+        "baseline": 1,
+        "scope": {
+          "field": "self.customer_segment",
+          "ids": [
+            "kampaň"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2025-04-01",
+            "end": "2025-04-22",
+            "to": 2,
+            "storyPointId": "sp_campaign"
+          }
+        ],
+        "clamp": [
+          0,
+          10
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Dopad kampaně je poloviční: nárůst intenzity objednávek kampaňového segmentu se sníží z trojnásobku (3) na dvojnásobek (2) oproti běžné úrovni, vše ostatní zůstává stejné."
+  }
+}

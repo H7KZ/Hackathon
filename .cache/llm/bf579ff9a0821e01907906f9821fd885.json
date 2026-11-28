@@ -1,0 +1,16 @@
+{
+  "key": "bf579ff9a0821e01907906f9821fd885",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',date) w, customer_segment, count(*) n from sale group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, reason, count(*) n from return_request group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, supplier_id, count(*) n, sum(quantity) q from supplier_delivery group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, avg(value) s, sum((value=0)::int) zero, count(*) n from stock_snapshot group by 1 order by 1"
+      ]
+    }
+  }
+}

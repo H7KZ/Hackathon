@@ -1,0 +1,16 @@
+{
+  "key": "6a7ce6110a0148ce439ef9f9bcb3bad2",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "detective_step",
+  "output": {
+    "action": {
+      "tool": "run_sql",
+      "queries": [
+        "select date_trunc('week',shipped_date) w, count(*) n, avg(is_late::int) late, avg(delay_days) d from delivery group by 1 order by 1",
+        "select date_trunc('week',date) w, count(*) n, count(distinct product_id) p from sale group by 1 order by 1",
+        "select date_trunc('week',date) w, reason, count(*) n from return_request group by 1,2 order by 1,2",
+        "select date_trunc('week',date) w, supplier_id, count(*) n, sum(quantity) q from supplier_delivery group by 1,2 order by 1,2"
+      ]
+    }
+  }
+}

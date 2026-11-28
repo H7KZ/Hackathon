@@ -1,0 +1,533 @@
+{
+  "key": "6e554b082f9e6d4c13b460c3ce0f8eee",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "05_scenario",
+  "output": {
+    "name": "Elektro e-shop: zpoždění dodavatele SUP-001",
+    "start": "2024-01-01",
+    "end": "2024-05-31",
+    "entities": [
+      {
+        "name": "supplier",
+        "count": 2,
+        "idPrefix": "SUP",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "companyName"
+          },
+          "segment": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.id",
+              "value": "SUP-001"
+            },
+            "then": {
+              "gen": "const",
+              "value": "velké spotřebiče"
+            },
+            "else": {
+              "gen": "const",
+              "value": "malé spotřebiče"
+            }
+          }
+        }
+      },
+      {
+        "name": "product",
+        "count": 60,
+        "idPrefix": "PRO",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "productName"
+          },
+          "category": {
+            "gen": "categorical",
+            "values": [
+              "pračky",
+              "ledničky",
+              "myčky",
+              "kávovary",
+              "vysavače",
+              "mixéry"
+            ],
+            "weights": [
+              0.2,
+              0.2,
+              0.2,
+              0.15,
+              0.15,
+              0.1
+            ]
+          },
+          "supplier_id": {
+            "gen": "categorical",
+            "values": [
+              "SUP-001",
+              "SUP-002"
+            ],
+            "weights": [
+              0.6,
+              0.4
+            ]
+          },
+          "price": {
+            "gen": "normal",
+            "mean": 9000,
+            "sd": 5000,
+            "min": 600,
+            "max": 30000,
+            "round": true
+          }
+        }
+      },
+      {
+        "name": "customer",
+        "count": 3000,
+        "idPrefix": "CUS",
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "name": {
+            "gen": "fake",
+            "kind": "personName"
+          },
+          "email": {
+            "gen": "fake",
+            "kind": "email"
+          },
+          "city": {
+            "gen": "fake",
+            "kind": "city"
+          },
+          "segment": {
+            "gen": "categorical",
+            "values": [
+              "běžná domácnost",
+              "stálý zákazník"
+            ],
+            "weights": [
+              0.75,
+              0.25
+            ]
+          }
+        }
+      }
+    ],
+    "flows": [
+      {
+        "id": "stock",
+        "keys": [
+          "product"
+        ],
+        "initial": {
+          "gen": "uniformInt",
+          "min": 70,
+          "max": 90
+        },
+        "min": 0,
+        "snapshot": {
+          "table": "stock_snapshot",
+          "visibility": "observed"
+        }
+      }
+    ],
+    "processes": [
+      {
+        "type": "arrival",
+        "id": "supplier_delivery",
+        "table": "supplier_delivery",
+        "per": [
+          "product"
+        ],
+        "schedule": {
+          "everyDays": 14,
+          "phase": "random"
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "product_id": {
+            "gen": "ref",
+            "path": "key.product"
+          },
+          "supplier_id": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "key.product",
+            "field": "supplier_id"
+          },
+          "quantity": {
+            "gen": "topUp",
+            "flow": "stock",
+            "keys": {
+              "product": "key.product"
+            },
+            "target": 85
+          },
+          "order_date": {
+            "gen": "ref",
+            "path": "day"
+          },
+          "is_delayed": {
+            "gen": "bernoulli",
+            "p": {
+              "curve": "supplier_delay_prob"
+            }
+          },
+          "delay_days": {
+            "gen": "if",
+            "cond": {
+              "kind": "fieldEq",
+              "path": "self.is_delayed",
+              "value": true
+            },
+            "then": {
+              "gen": "uniformInt",
+              "min": 7,
+              "max": {
+                "curve": "supplier_delay_max_days"
+              }
+            },
+            "else": {
+              "gen": "uniformInt",
+              "min": 2,
+              "max": 4
+            }
+          },
+          "delivered_date": {
+            "gen": "dateOffset",
+            "base": "self.order_date",
+            "days": "self.delay_days"
+          }
+        },
+        "effects": [
+          {
+            "flow": "stock",
+            "keys": {
+              "product": "key.product"
+            },
+            "delta": "self.quantity",
+            "sign": 1,
+            "on": "self.delivered_date"
+          }
+        ]
+      },
+      {
+        "type": "arrival",
+        "id": "customer_order",
+        "table": "customer_order",
+        "per": [
+          "customer"
+        ],
+        "rate": 0.057,
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "key.customer"
+          },
+          "segment": {
+            "gen": "lookup",
+            "entity": "customer",
+            "key": "key.customer",
+            "field": "segment"
+          },
+          "product_id": {
+            "gen": "pick",
+            "entity": "product"
+          },
+          "quantity": {
+            "gen": "uniformInt",
+            "min": 1,
+            "max": 2
+          },
+          "unit_price": {
+            "gen": "lookup",
+            "entity": "product",
+            "key": "self.product_id",
+            "field": "price"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "branch",
+        "id": "stock_check",
+        "source": "customer_order",
+        "cond": {
+          "kind": "flowGte",
+          "flow": "stock",
+          "keys": {
+            "product": "source.product_id"
+          },
+          "value": "source.quantity"
+        },
+        "then": {
+          "table": "order_fulfillment",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "order_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "quantity": {
+              "gen": "ref",
+              "path": "source.quantity"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          },
+          "effects": [
+            {
+              "flow": "stock",
+              "keys": {
+                "product": "source.product_id"
+              },
+              "delta": "self.quantity",
+              "sign": -1
+            }
+          ]
+        },
+        "else": {
+          "table": "order_backorder",
+          "fields": {
+            "id": {
+              "gen": "id"
+            },
+            "order_id": {
+              "gen": "ref",
+              "path": "source.id"
+            },
+            "customer_id": {
+              "gen": "ref",
+              "path": "source.customer_id"
+            },
+            "product_id": {
+              "gen": "ref",
+              "path": "source.product_id"
+            },
+            "segment": {
+              "gen": "ref",
+              "path": "source.segment"
+            },
+            "order_value": {
+              "gen": "ref",
+              "path": "source.unit_price"
+            },
+            "date": {
+              "gen": "ref",
+              "path": "day"
+            }
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "shipment_create",
+        "table": "shipment",
+        "source": "stock_check:then",
+        "p": 0.98,
+        "lag": {
+          "min": 1,
+          "max": 3
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.order_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "carrier": {
+            "gen": "const",
+            "value": "Rychlá přepravní služba"
+          },
+          "shipped_date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "complaint_create",
+        "table": "complaint",
+        "source": "stock_check:else",
+        "p": 0.25,
+        "lag": {
+          "min": 1,
+          "max": 5
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.order_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "reason": {
+            "gen": "const",
+            "value": "zpoždění dodávky"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "complaint_resolution",
+        "table": "complaint_resolution",
+        "source": "complaint_create",
+        "p": 0.9,
+        "lag": {
+          "min": 1,
+          "max": 4
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "complaint_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.order_id"
+          },
+          "resolution": {
+            "gen": "categorical",
+            "values": [
+              "omluva",
+              "sleva",
+              "vysvětlení stavu",
+              "storno nabídnuto"
+            ],
+            "weights": [
+              0.3,
+              0.2,
+              0.3,
+              0.2
+            ]
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "order_cancellation",
+        "table": "order_cancellation",
+        "source": "stock_check:else",
+        "p": 0.15,
+        "lag": {
+          "min": 2,
+          "max": 10
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.order_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "refund_amount": {
+            "gen": "ref",
+            "path": "source.order_value"
+          },
+          "reason": {
+            "gen": "const",
+            "value": "dlouhá doba čekání"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      },
+      {
+        "type": "derive",
+        "id": "refund_create",
+        "table": "refund",
+        "source": "order_cancellation",
+        "p": 0.97,
+        "lag": {
+          "min": 1,
+          "max": 5
+        },
+        "fields": {
+          "id": {
+            "gen": "id"
+          },
+          "cancellation_id": {
+            "gen": "ref",
+            "path": "source.id"
+          },
+          "order_id": {
+            "gen": "ref",
+            "path": "source.order_id"
+          },
+          "customer_id": {
+            "gen": "ref",
+            "path": "source.customer_id"
+          },
+          "amount": {
+            "gen": "ref",
+            "path": "source.refund_amount"
+          },
+          "date": {
+            "gen": "ref",
+            "path": "day"
+          }
+        }
+      }
+    ]
+  }
+}

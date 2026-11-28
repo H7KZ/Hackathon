@@ -16,6 +16,12 @@ describe("humanizeIds (user: nobody knows what STO-001 means)", () => {
     );
   });
 
+  it('also when the text adds more after the name ("SUP-002 (Import Asie a.s., obuv)")', () => {
+    expect(humanizeIds("SUP-002 (Import Asie a.s., obuv) zpožďuje", labels)).toBe(
+      "SUP-002 (Import Asie a.s., obuv) zpožďuje",
+    );
+  });
+
   it("is idempotent", () => {
     const once = humanizeIds("Vratky u SUP-002", labels);
     expect(humanizeIds(once, labels)).toBe(once);

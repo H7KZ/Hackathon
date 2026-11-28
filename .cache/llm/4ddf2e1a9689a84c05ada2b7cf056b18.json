@@ -1,0 +1,52 @@
+{
+  "key": "4ddf2e1a9689a84c05ada2b7cf056b18",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "late_prob_problem",
+        "baseline": 0.08,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "step",
+            "start": "2024-04-01",
+            "end": "2024-04-25",
+            "to": 0.2,
+            "storyPointId": "sp_zpozdeni_zacina"
+          },
+          {
+            "kind": "step",
+            "start": "2024-04-25",
+            "end": "2024-05-22",
+            "to": 0.4,
+            "storyPointId": "sp_zpozdeni_roste"
+          },
+          {
+            "kind": "step",
+            "start": "2024-05-22",
+            "to": 0.55,
+            "storyPointId": "sp_zpozdeni_vrchol"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      }
+    ],
+    "params": [],
+    "rationale": "Všechny tři fáze růstu pravděpodobnosti pozdní dodávky u dodavatele SUP-001 jsou posunuty o měsíc později (začátek 1. dubna, růst od 25. dubna, vrchol od 22. května), hodnoty zůstávají stejné."
+  }
+}

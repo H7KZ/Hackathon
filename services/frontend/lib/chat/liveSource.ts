@@ -63,6 +63,8 @@ async function getJson<T>(path: string): Promise<T> {
 export function humanError(message: string): string {
   if (/LLM_OFFLINE=1|LlmCacheMiss|no cache entry/i.test(message))
     return "Na tohle je potřeba živý jazykový model: offline režim přehrává jen nahrané odpovědi. Zkuste nabídnutou otázku, nebo API spusťte bez LLM_OFFLINE.";
+  if (/credit balance|Plans & Billing|insufficient_quota|billing/i.test(message))
+    return "Jazykový model odmítl požadavek: na účtu u poskytovatele došel kredit. Po jeho doplnění klikněte Zkusit znovu.";
   if (/API key|apiKey|401|authentication/i.test(message))
     return "Jazykový model odmítl přístup (chybí nebo neplatí API klíč).";
   // compiler / gate feedback is English for the agent; the user gets what happened and what to do

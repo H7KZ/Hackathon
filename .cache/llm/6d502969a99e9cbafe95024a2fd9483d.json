@@ -1,0 +1,80 @@
+{
+  "key": "6d502969a99e9cbafe95024a2fd9483d",
+  "model": "anthropic:claude-sonnet-5-5",
+  "schemaName": "what_if",
+  "output": {
+    "curves": [
+      {
+        "id": "supplier_delay_prob",
+        "baseline": 0.05,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-01",
+            "end": "2024-04-15",
+            "to": 0.7,
+            "storyPointId": "sp_delay_start"
+          }
+        ],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "supplier_delay_max_days",
+        "baseline": 10,
+        "scope": {
+          "field": "self.supplier_id",
+          "ids": [
+            "SUP-001"
+          ]
+        },
+        "segments": [
+          {
+            "kind": "ramp",
+            "start": "2024-04-01",
+            "end": "2024-04-15",
+            "to": 28,
+            "storyPointId": "sp_delay_start"
+          }
+        ],
+        "clamp": [
+          8,
+          40
+        ]
+      },
+      {
+        "id": "demand",
+        "baseline": 1,
+        "segments": []
+      },
+      {
+        "id": "complaint_prob",
+        "baseline": 0.25,
+        "segments": [],
+        "clamp": [
+          0,
+          1
+        ]
+      },
+      {
+        "id": "cancel_prob",
+        "baseline": 0.15,
+        "segments": [],
+        "clamp": [
+          0,
+          1
+        ]
+      }
+    ],
+    "params": [],
+    "rationale": "Zpoždění dodavatele SUP-001 začíná o měsíc později (rampa od 1. do 15. dubna místo března), ostatní parametry zůstávají beze změny."
+  }
+}
