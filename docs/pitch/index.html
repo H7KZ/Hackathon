@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>JOJO · Od příběhu k datům</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green: #00957d;
+    --green-dark: #006252;
+    --green-light: #33b39e;
+    --mint: #00d2b0;
+    --blue: #009ee0;
+    --amber: #c77700;
+    --ink: #00201b;
+    --muted: #5b6563;
+    --line: #e3eae8;
+    --wash: #f1f9f7;
+    --warn: #b42800;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --sans: "Titillium Web", system-ui, sans-serif;
+    --ease: cubic-bezier(.2, .8, .2, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  /* JOJO page: light gray with a dot grid */
+  body { background-color: #f5f5f5; background-image: radial-gradient(#d2d2d2 1.4px, transparent 1.4px); background-size: 27px 27px; }
+  ::selection { background: rgb(0 210 176 / 35%); }
+
+  /* fixed 16:9 stage scaled to the window */
+  .viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+  .deck { position: relative; width: 1600px; height: 900px; flex: none; transform-origin: center; }
+
+  .slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transform: translateY(24px) scale(.985); transition: opacity .6s var(--ease), transform .8s var(--ease), visibility 0s .8s; }
+  .slide.active { opacity: 1; visibility: visible; transform: none; transition: opacity .6s var(--ease) .1s, transform .8s var(--ease) .1s, visibility 0s; }
+  .slide.past { transform: translateY(-24px) scale(.985); }
+
+  /* ---------- motion system ----------
+     One clock per slide: every element gets --d (seconds after the slide starts).
+     Entering: animate with that delay. Leaving: hold the visible state while the
+     slide fades out, then snap back to the start state (no reverse playback). */
+  .slide { --base: .3s; --reset: 0s .75s; }
+  .in { opacity: 0; transform: translateY(16px); transition: opacity var(--reset), transform var(--reset); }
+  .active .in { opacity: 1; transform: none; transition: opacity .5s var(--ease) calc(var(--d, 0) * 1s + var(--base)), transform .7s var(--ease) calc(var(--d, 0) * 1s + var(--base)); }
+  .slide-l { opacity: 0; transform: translateX(-26px); transition: opacity var(--reset), transform var(--reset); }
+  .active .slide-l { opacity: 1; transform: none; transition: opacity .45s var(--ease) calc(var(--d, 0) * 1s + var(--base)), transform .6s var(--ease) calc(var(--d, 0) * 1s + var(--base)); }
+  .fade { opacity: 0; transition: opacity var(--reset); }
+  .active .fade { opacity: 1; transition: opacity .5s var(--ease) calc(var(--d, 0) * 1s + var(--base)); }
+  .pop { opacity: 0; transform: scale(.6); transition: opacity var(--reset), transform var(--reset); }
+  .active .pop { opacity: 1; transform: none; transition: opacity .25s var(--ease) calc(var(--d, 0) * 1s + var(--base)), transform .45s cubic-bezier(.3, 1.6, .5, 1) calc(var(--d, 0) * 1s + var(--base)); }
+  .draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset var(--reset); }
+  .active .draw { stroke-dashoffset: 0; transition: stroke-dashoffset calc(var(--dur, 1.2) * 1s) var(--ease) calc(var(--d, 0) * 1s + var(--base)); }
+  .barg { transform-box: fill-box; transform-origin: bottom; transform: scaleY(0); transition: transform var(--reset); }
+  .active .barg { transform: none; transition: transform .6s var(--ease) calc(var(--d, 0) * 1s + var(--base)); }
+  .strike { position: relative; }
+  .strike::after { content: ""; position: absolute; left: 2px; right: 2px; top: 54%; height: 2px; background: var(--warn); transform: scaleX(0); transform-origin: left; transition: transform var(--reset); }
+  .active .strike::after { transform: scaleX(1); transition: transform .4s var(--ease) calc(var(--d, 0) * 1s + var(--base)); }
+
+  /* flows: a solid line draws in, then glowing beads travel along it */
+  .flow { fill: none; stroke: #c3d0cc; stroke-width: 2; stroke-linecap: round; }
+  .flow.soft { stroke: #d6dfdc; }
+  .bead { fill: none; stroke: var(--green); stroke-width: 8; stroke-linecap: round; stroke-dasharray: .01 99.99; stroke-dashoffset: 100; opacity: 0; filter: drop-shadow(0 0 5px rgb(0 210 176 / 85%)); transition: opacity var(--reset); }
+  .bead.blue { stroke: var(--blue); filter: drop-shadow(0 0 5px rgb(0 158 224 / 80%)); }
+  .active .bead { opacity: 1; transition: opacity .2s linear calc(var(--d, 0) * 1s + var(--base)); animation: travel var(--t, 2.6s) linear calc(var(--d, 0) * 1s + var(--base)) infinite; }
+  @keyframes travel { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+
+  /* typography */
+  .kicker { font-size: 17px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--green); }
+  h1, h2 { font-weight: 700; letter-spacing: -.01em; line-height: 1.02; }
+  h1 { font-size: 96px; }
+  h2 { font-size: 60px; max-width: 1300px; }
+  .em { background: linear-gradient(90deg, var(--green), var(--blue)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { font-size: 26px; color: var(--muted); line-height: 1.35; }
+  .cap-l { font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--green-dark); }
+  .abs { position: absolute; }
+  .head { position: absolute; left: 120px; top: 80px; display: grid; gap: 16px; }
+
+  /* cards */
+  .card { position: absolute; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgb(0 32 27 / 6%); }
+  .card .cap { font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--green-dark); padding: 16px 22px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .card .body { padding: 16px 22px; }
+  .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; padding: 6px 14px; border-radius: 99px; background: #e6f4f1; color: var(--green-dark); }
+  .tag.blue { background: #e2f3fb; color: #006f9e; }
+  .chk { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--green); color: #fff; font-size: 13px; font-weight: 700; flex: none; }
+
+  .glow { position: absolute; border-radius: 50%; background: linear-gradient(90deg, var(--blue), var(--mint), var(--green), var(--green-light)); background-size: 160% 100%; filter: blur(90px); opacity: .28; pointer-events: none; animation: drift 11s ease-in-out infinite alternate; }
+  @keyframes drift { from { background-position: 0 0; transform: scaleX(.94); } to { background-position: 100% 0; transform: scaleX(1.06); } }
+
+  /* ---------- 1 · hero ---------- */
+  .lockup { display: flex; align-items: center; gap: 18px; }
+  .lockup img { height: 52px; }
+  .lockup b { font-size: 34px; letter-spacing: .04em; color: var(--green-dark); padding-left: 18px; border-left: 2px solid #c9d1cf; }
+  .story { padding: 22px 26px 24px; }
+  .story p { font-size: 30px; line-height: 1.3; font-weight: 600; min-height: 78px; }
+  .caret::after { content: ""; display: inline-block; width: 3px; height: 30px; margin-left: 3px; vertical-align: -5px; background: var(--green); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .tlabel { position: absolute; font-size: 18px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; text-align: center; }
+
+  /* ---------- 2 · problem ---------- */
+  table.noise { border-collapse: collapse; font-family: var(--mono); font-size: 18px; width: 100%; }
+  table.noise th { text-align: left; font-family: var(--sans); font-size: 13px; letter-spacing: .14em; color: var(--muted); font-weight: 700; padding: 0 0 10px; }
+  table.noise td { padding: 7px 0; border-top: 1px solid #edf1f0; color: #3d4745; }
+  .q { font-size: 150px; font-weight: 700; line-height: 1; color: transparent; -webkit-text-stroke: 2px #b9c4c1; }
+
+  /* ---------- 3 · map ---------- */
+  .tile { padding: 26px 24px; }
+  .tile svg.ic { width: 44px; height: 44px; stroke: var(--green); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tile .nm { font-size: 32px; font-weight: 700; margin-top: 14px; line-height: 1; }
+  .tile .rl { font-size: 21px; font-weight: 700; color: var(--green); margin-top: 6px; }
+  .tile .ds { font-size: 18px; color: var(--muted); line-height: 1.35; margin-top: 10px; }
+  .tile.you { background: var(--wash); border-color: #cfe8e2; }
+  .frame-label { position: absolute; padding: 6px 16px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .frame-label b { color: var(--mint); letter-spacing: .06em; }
+
+  /* ---------- 4 · cascade ---------- */
+  .step { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; padding: 0 22px; height: 100%; }
+  .step .t { font-size: 24px; font-weight: 700; }
+  .step .s { font-size: 16px; color: var(--muted); }
+  .out { font-size: 17px; font-weight: 600; color: var(--green-dark); background: var(--wash); border: 1px solid #cfe8e2; border-radius: 8px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .rule { padding: 24px 26px; background: var(--ink); border-color: var(--ink); color: #e5f3ef; }
+  .rule b { color: #fff; font-size: 26px; line-height: 1.15; display: block; margin-bottom: 10px; }
+  .rule p { font-size: 19px; line-height: 1.4; color: #b8d3cc; }
+  .loop p { font-size: 19px; line-height: 1.4; color: var(--muted); }
+  .spin { transform-origin: 50% 50%; transform-box: fill-box; }
+  .active .spin { animation: spin 1.2s var(--ease) calc(var(--d, 0) * 1s + var(--base)) 2; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- 5 · noiser ---------- */
+  .chain { display: grid; grid-template-columns: 1fr 230px; align-items: center; padding: 0 22px; height: 100%; }
+  .chain .t { font-size: 25px; font-weight: 700; }
+  .chain .d { font-size: 17px; color: var(--muted); }
+  .up { color: var(--warn); font-weight: 700; }
+  .ticker { display: grid; grid-template-columns: 1fr 1fr; padding: 18px 24px; }
+  .ticker .n { font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .ticker .l { font-size: 16px; color: var(--muted); margin-top: 6px; }
+
+  /* ---------- 6 · dataer ---------- */
+  .exp { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid #edf1f0; font-size: 21px; }
+  .exp:first-child { border-top: 0; }
+  .exp .v { font-size: 19px; font-weight: 700; color: var(--green-dark); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .term { background: #0b2a25; border-color: #0b2a25; color: #cfe7e1; overflow: hidden; }
+  .term .cap { color: var(--mint); border-color: rgb(255 255 255 / 10%); }
+  .term pre { font-family: var(--mono); font-size: 17px; line-height: 1.55; padding: 16px 22px; white-space: pre-wrap; height: 310px; }
+  .term .q1 { color: #fff; font-family: var(--sans); font-size: 19px; font-weight: 600; }
+  .term .c { color: var(--mint); }
+  .term .y { color: #ffd479; }
+  .score { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; padding: 16px 22px; border-top: 1px solid rgb(255 255 255 / 10%); background: rgb(0 210 176 / 8%); opacity: 0; transition: opacity .5s; }
+  .score .big { font-size: 40px; font-weight: 700; color: var(--mint); line-height: 1; }
+  .score p { font-size: 17px; color: #cfe7e1; line-height: 1.35; }
+
+  /* ---------- 7 · a2ui ---------- */
+  .app { overflow: hidden; }
+  .app .bar { height: 52px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 14px; padding: 0 20px; }
+  .app .bar b { font-size: 20px; letter-spacing: .04em; color: var(--green-dark); }
+  .app .tabs { margin-left: 396px; display: flex; gap: 6px; }
+  .app .tabs span { font-size: 15px; font-weight: 600; padding: 5px 12px; border-radius: 6px; color: var(--muted); }
+  .app .tabs span.on { background: var(--wash); color: var(--green-dark); }
+  .chat { position: absolute; left: 0; top: 52px; bottom: 0; width: 470px; border-right: 1px solid var(--line); padding: 20px; display: flex; flex-direction: column; gap: 12px; background: #fbfcfc; }
+  .bub { max-width: 380px; padding: 12px 16px; border-radius: 12px; font-size: 18px; line-height: 1.35; }
+  .bub.me { align-self: flex-end; background: var(--green-dark); color: #fff; border-bottom-right-radius: 4px; }
+  .bub.ai { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .bub.ai ul { list-style: none; display: grid; gap: 6px; margin-top: 2px; }
+  .bub.ai li { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+  .canvas { position: absolute; left: 470px; right: 0; top: 52px; bottom: 0; padding: 22px 28px; }
+  .canvas h4 { font-size: 22px; line-height: 30px; }
+  .canvas .hint { font-size: 16px; line-height: 24px; color: var(--muted); }
+  .btn { position: absolute; padding: 12px 22px; border-radius: 8px; background: var(--green-dark); color: #fff; font-size: 18px; font-weight: 700; }
+  .btn.press { animation: press .5s var(--ease); }
+  @keyframes press { 40% { transform: scale(.94); box-shadow: 0 0 0 8px rgb(0 149 125 / 25%); } }
+  .kpis { position: absolute; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .kpi { border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; background: #fff; }
+  .kpi .n { white-space: nowrap; font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .kpi .l { font-size: 15px; color: var(--muted); margin-top: 4px; }
+  .snip { background: #0b2a25; border-color: #0b2a25; color: #cfe7e1; rotate: -1.5deg; }
+  .snip pre { font-family: var(--mono); font-size: 16px; line-height: 1.55; padding: 16px 20px 6px; }
+  .snip .k { color: var(--mint); }
+  .snip .s { color: #ffd479; }
+  .snip p { font-size: 17px; line-height: 1.35; padding: 4px 20px 18px; color: #fff; }
+  .cursor { position: absolute; width: 26px; height: 26px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 3; }
+
+  /* ---------- 8 · what if ---------- */
+  .legend { white-space: nowrap; display: flex; gap: 22px; font-size: 15px; font-weight: 700; letter-spacing: .04em; text-transform: none; }
+  .legend i { display: inline-block; width: 26px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 8px; }
+
+  /* ---------- 9 · close ---------- */
+  .crit { padding: 26px 24px; }
+  .crit h3 { font-size: 27px; line-height: 1.1; margin: 14px 0 10px; }
+  .crit p { font-size: 18px; color: var(--muted); line-height: 1.4; }
+
+  /* chrome */
+  .chrome { position: fixed; left: 0; right: 0; bottom: 0; height: 4px; background: rgb(0 32 27 / 6%); z-index: 10; }
+  .chrome .bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width .6s var(--ease); }
+  .timer { position: fixed; left: 26px; bottom: 16px; font-family: var(--mono); font-size: 13px; letter-spacing: .2em; color: var(--muted); z-index: 10; opacity: 0; transition: opacity .3s; }
+  .timer.on { opacity: 1; }
+  .timer.late { color: var(--warn); }
+  .notes { position: fixed; left: 50%; bottom: 36px; transform: translate(-50%, 20px); width: min(900px, 92vw); padding: 18px 22px; border-radius: 12px; background: #0b2a25; color: #e5f3ef; font-size: 19px; line-height: 1.45; box-shadow: 0 20px 50px rgb(0 0 0 / 25%); z-index: 20; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  .notes.on { opacity: 1; transform: translate(-50%, 0); }
+  .hint-keys { position: fixed; top: 16px; right: 24px; font-size: 13px; letter-spacing: .08em; color: #9aa5a2; z-index: 10; transition: opacity .6s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: .01s !important; transition-delay: 0s !important; }
+  }
+</style>
+</head>
+<body>
+<div class="viewport">
+<div class="deck" id="deck">
+
+  <!-- 1 · HOOK: the whole idea in one picture -->
+  <section class="slide" data-notes="Napíšete pár vět o firmě a co se v ní stalo. JOJO z toho postaví celou propojenou databázi – a ten příběh v ní opravdu je.">
+    <div class="glow" style="left:860px; top:-60px; width:760px; height:380px;"></div>
+    <div class="abs in lockup" style="--d:0; left:120px; top:70px;">
+      <img src="fis-logo.png" alt="FIS VŠE" /><b>JOJO</b>
+    </div>
+    <div class="head" style="top:178px">
+      <h1 class="in" style="--d:.1">Od příběhu<br /><span class="em">k datům.</span></h1>
+      <p class="sub in" style="--d:.25; max-width:640px">Z vašeho příběhu vytvoříme data,<br />ve kterých se dá dohledat.</p>
+    </div>
+    <div class="card in story" style="--d:.45; left:900px; top:110px; width:600px;">
+      <div class="cap-l">Váš příběh</div>
+      <p class="caret" id="typed" style="margin-top:10px"></p>
+    </div>
+    <svg class="abs" id="heroWires" width="1600" height="900" style="left:0;top:0;pointer-events:none"></svg>
+    <div id="heroCards"></div>
+  </section>
+
+  <!-- 2 · PROBLEM: why this matters -->
+  <section class="slide" data-notes="Běžné generátory umí správné tabulky s náhodnými čísly. Když se ale zeptáte proč, odpověď tam není – žádný příběh tam nikdy nebyl.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Problém</div>
+      <h2 class="in" style="--d:.1">Náhodná čísla ve správných tabulkách<br /><span class="em">nemají příběh.</span></h2>
+    </div>
+    <div class="card in" style="--d:.35; left:120px; top:390px; width:760px;">
+      <div class="cap">Běžný generátor dat</div>
+      <div class="body" style="padding-top:12px"><table class="noise" id="noise"></table></div>
+    </div>
+    <div class="abs in" style="--d:.7; left:960px; top:400px; width:540px;">
+      <div class="cap-l" style="color:var(--muted)">Analytik se ptá</div>
+      <p style="font-size:42px; font-weight:700; margin:12px 0 4px; line-height:1.1">„Proč v dubnu klesly tržby?“</p>
+      <div class="q">???</div>
+      <p class="sub" style="font-size:22px; margin-top:6px">Vazby sedí, čísla vypadají věrohodně —<br />ale žádná příčina, žádný důsledek, nic k odhalení.</p>
+    </div>
+  </section>
+
+  <!-- 3 · MAP: the four parts and how they connect -->
+  <section class="slide" data-notes="Řešení má čtyři části. Cascade navrhne svět, Noiser ho prožije, Dataer dokáže, že příběh v datech je – a v A2UI to celé řídíte.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Jak to funguje</div>
+      <h2 class="in" style="--d:.1">Čtyři části, <span class="em">jeden tok.</span></h2>
+    </div>
+    <svg class="abs" id="mapWires" width="1600" height="900" style="left:0;top:0;pointer-events:none"></svg>
+    <div id="mapTiles"></div>
+  </section>
+
+  <!-- 4 · CASCADE: AI designs the world, never the data -->
+  <section class="slide" data-notes="Cascade je řetěz AI agentů. Z příběhu navrhnou firmu, tabulky, příčiny a průběh v čase. Scénář si samy vyzkouší v simulaci a opraví. Data ale nikdy nepíšou.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Cascade · AI agenti</div>
+      <h2 class="in" style="--d:.1">AI navrhne svět. <span class="em">Data nepíše.</span></h2>
+    </div>
+    <svg class="abs" id="casWires" width="1600" height="900" style="left:0;top:0;pointer-events:none"></svg>
+    <div id="casSteps"></div>
+  </section>
+
+  <!-- 5 · NOISER: one cause, the rest emerges -->
+  <section class="slide" data-notes="Noiser je simulace. Příběh mění jen příčinu – šanci na zpoždění dodávky. Všechno ostatní vyplyne den po dni: prázdné sklady, ztracené nákupy, stížnosti. Stejné nastavení dá vždy stejná data.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Noiser · simulace</div>
+      <h2 class="in" style="--d:.1">Měníme jen <span class="em">příčinu.</span> Důsledky vyplynou.</h2>
+    </div>
+    <div class="card in" style="--d:.3; left:120px; top:270px; width:560px; height:360px;">
+      <div class="cap">Jediný zásah do světa<span style="color:var(--muted); letter-spacing:.02em; text-transform:none; font-weight:600">šance na zpoždění dodávky</span></div>
+      <svg width="558" height="300" id="curveSvg" style="display:block"></svg>
+    </div>
+    <div class="card in ticker" style="--d:.5; left:120px; top:656px; width:560px;">
+      <div><div class="n" id="tDays">0</div><div class="l">dní simulace, den po dni</div></div>
+      <div><div class="n" id="tRows">0</div><div class="l">propojených záznamů</div></div>
+    </div>
+    <svg class="abs" id="chainWires" width="1600" height="900" style="left:0;top:0;pointer-events:none"></svg>
+    <div id="chainNodes"></div>
+  </section>
+
+  <!-- 6 · DATAER: proof, twice -->
+  <section class="slide" data-notes="Dataer data uloží, zkontroluje všechny vazby a ověří hypotézy příběhu. Pak pustí slepého detektiva: AI, která příběh nezná a musí ho z dat sama vyčíst. Výsledek porovnáme se skrytou pravdou.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Dataer · důkaz</div>
+      <h2 class="in" style="--d:.1">Příběh se dá <span class="em">najít zpátky.</span></h2>
+    </div>
+    <div class="card in" style="--d:.3; left:120px; top:270px; width:660px;">
+      <div class="cap">Hypotézy příběhu, před a po<span class="tag" style="font-size:14px; letter-spacing:.02em; text-transform:none; padding:4px 10px">ověřuje SQL nad daty</span></div>
+      <div class="body" style="padding-top:4px; padding-bottom:4px">
+        <div class="exp"><span>Dodávky od dodavatele se zpozdily</span><span class="v">1,5 → 37 dní</span><span class="chk pop" style="--d:.9">✓</span></div>
+        <div class="exp"><span>Dny bez zboží na skladě</span><span class="v">6 % → 31 %</span><span class="chk pop" style="--d:1.05">✓</span></div>
+        <div class="exp"><span>Tržby za jeho zboží</span><span class="v">−35 %</span><span class="chk pop" style="--d:1.2">✓</span></div>
+        <div class="exp"><span>Tržby ostatních — poptávka neklesla</span><span class="v">+4,7 %</span><span class="chk pop" style="--d:1.35">✓</span></div>
+        <div class="exp"><span>Stížnosti na nedostupnost</span><span class="v">29 → 112</span><span class="chk pop" style="--d:1.5">✓</span></div>
+      </div>
+    </div>
+    <div class="abs in" style="--d:1.75; left:120px; top:660px; width:660px; display:flex; flex-wrap:wrap; gap:10px">
+      <span class="tag">✓ všechny vazby mezi tabulkami sedí</span>
+      <span class="tag">✓ drží i při jiné náhodě</span>
+      <span class="tag blue">Export: Excel · CSV · Parquet · DuckDB</span>
+    </div>
+    <div class="card term in" style="--d:1.9; left:840px; top:270px; width:660px;">
+      <div class="cap">Slepý detektiv<span style="color:#7d9893; letter-spacing:.02em; text-transform:none; font-weight:600">nezná příběh ani scénář</span></div>
+      <pre id="termLog"></pre>
+      <div class="score" id="score">
+        <div class="big">100 %</div>
+        <p>nálezů sedí se skrytou pravdou, bez falešných stop<br /><span style="color:#7d9893">živý test, skórováno automaticky</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · A2UI: the interface the agent builds from safe parts -->
+  <section class="slide" data-notes="V A2UI to celé řídíte: konverzace vlevo, plátno vpravo. Agent obrazovky neprogramuje, jen popíše, jaké díly chce. Aplikace je složí ze svých ověřených komponent a čísla doplní z databáze. Příběh upravíte tažením křivky a jedním klikem vygenerujete data.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">A2UI · rozhraní</div>
+      <h2 class="in" style="--d:.1">Agent skládá rozhraní <span class="em">z bezpečných dílů.</span></h2>
+    </div>
+    <div class="card in app" id="app" style="--d:.3; left:120px; top:260px; width:1160px; height:560px;">
+      <div class="bar"><b>JOJO</b><div class="tabs"><span class="on">Příběh</span><span>Data</span><span>Důkaz</span><span>Detektiv</span></div></div>
+      <div class="chat">
+        <div class="bub me slide-l" style="--d:.6">Síť 5 prodejen. Jeden z dodavatelů začne dodávat pozdě.</div>
+        <div class="bub ai in" style="--d:.9">
+          <ul>
+            <li><span class="chk pop" style="--d:1.05">✓</span>Navrhuji firmu a okolí</li>
+            <li><span class="chk pop" style="--d:1.2">✓</span>Stavím propojené tabulky</li>
+            <li><span class="chk pop" style="--d:1.35">✓</span>Kreslím příčiny a důsledky</li>
+            <li><span class="chk pop" style="--d:1.5">✓</span>Skládám příběh v čase</li>
+          </ul>
+        </div>
+        <div class="bub ai in" style="--d:1.7">Příběh je na plátně. Upravte křivku a schvalte.</div>
+      </div>
+      <div class="canvas">
+        <h4 class="in" style="--d:1.0">Příběh v čase</h4>
+        <div class="hint in" style="--d:1.0">Táhněte bod, kde se příběh láme.</div>
+        <svg width="640" height="300" id="appSvg" style="display:block; margin-top:8px"></svg>
+        <div class="btn in" id="genBtn" style="--d:1.6; right:28px; top:400px;">Schválit a generovat</div>
+        <div class="kpis" style="left:28px; top:394px; width:400px; gap:10px;">
+          <div class="kpi pop" style="--d:4.0"><div class="n">41 577</div><div class="l">záznamů</div></div>
+          <div class="kpi pop" style="--d:4.1"><div class="n">8</div><div class="l">tabulek</div></div>
+          <div class="kpi pop" style="--d:4.2"><div class="n">5 / 5</div><div class="l">hypotéz platí</div></div>
+        </div>
+      </div>
+      <svg class="cursor" id="cursor" viewBox="0 0 24 24"><path d="M4 2l16 9-7 1.5L9.5 20z" fill="#00201b" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" /></svg>
+    </div>
+    <div class="card snip in" style="--d:2.1; left:1150px; top:200px; width:360px;">
+      <pre><span class="k">"component"</span>: <span class="s">"LineChart"</span>,
+<span class="k">"data"</span>: { <span class="k">"@path"</span>: <span class="s">"/series"</span> }</pre>
+      <p>Agent posílá popis obrazovky, ne kód. Čísla doplní vždy databáze.</p>
+    </div>
+  </section>
+
+  <!-- 8 · WHAT IF: not a one-off dataset -->
+  <section class="slide" data-notes="Není to jednorázový dataset. Zeptáte se ‚co kdyby‘, svět se přepočítá a porovnání je hned hotové: propad tržeb se posunul přesně o tři měsíce, do března jsou data identická.">
+    <div class="head">
+      <div class="kicker in" style="--d:0">Co kdyby?</div>
+      <h2 class="in" style="--d:.1">Změňte příběh. <span class="em">Svět se přepočítá.</span></h2>
+    </div>
+    <div class="abs" style="left:120px; top:280px; width:420px; display:grid; gap:14px">
+      <div class="bub me slide-l" style="--d:.3; justify-self:start; max-width:420px; font-size:21px">Co kdyby dodavatel začal zpožďovat až v červnu?</div>
+      <div class="bub ai in" style="--d:2.1; max-width:420px; font-size:19px">Hotovo. Začátek zpoždění: <span class="strike" style="--d:2.35; color:var(--muted)">březen</span> → <b style="color:var(--blue)">červen</b>. Stejná náhoda, jiný příběh.</div>
+    </div>
+    <div class="abs in" style="--d:3.7; left:120px; top:490px; width:420px; display:grid; gap:10px">
+      <span class="tag" style="justify-self:start">do března bit po bitu stejná data</span>
+      <span class="tag blue" style="justify-self:start">porovnání se spočítá samo</span>
+    </div>
+    <div class="card in" style="--d:.4; left:600px; top:270px; width:900px; height:500px;">
+      <div class="cap"><span>Tržby za zboží dodavatele · tis. Kč týdně</span>
+        <span class="legend"><span style="color:var(--green-dark)"><i style="background:var(--green)"></i>původní · březen</span><span style="color:#006f9e"><i style="background:var(--blue)"></i>co kdyby · červen</span></span></div>
+      <svg width="898" height="440" id="cmpSvg" style="display:block"></svg>
+    </div>
+  </section>
+
+  <!-- 9 · CLOSE: the judging criteria, answered -->
+  <section class="slide" data-notes="Věrohodná a propojená data, příběh dohledatelný dotazy i slepou AI, libovolný příběh místo jednoho připraveného datasetu – a demo, které běží i offline. Děkujeme.">
+    <div class="glow" style="left:300px; top:520px; width:1000px; height:320px; opacity:.22"></div>
+    <div class="head">
+      <div class="kicker in" style="--d:0">Shrnutí</div>
+      <h2 class="in" style="--d:.1; font-size:72px">Data, ve kterých se<br /><span class="em">skutečně něco děje.</span></h2>
+    </div>
+    <div id="crit"></div>
+    <div class="abs in lockup" style="--d:1.1; left:120px; top:760px;">
+      <img src="fis-logo.png" alt="FIS VŠE" /><b>JOJO</b>
+    </div>
+    <div class="abs in" style="--d:1.25; right:120px; top:762px; text-align:right">
+      <div style="font-size:48px; font-weight:700; line-height:1">Děkujeme.</div>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<div class="chrome"><div class="bar" id="bar"></div></div>
+<div class="timer" id="timer">00:00</div>
+<div class="hint-keys" id="hint">← → listovat · N poznámky · T čas · F celá obrazovka</div>
+<div class="notes" id="notes"><span id="notesText"></span></div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const $ = (s) => document.querySelector(s);
+const BASE = 0.3; // must match .slide { --base }
+function el(tag, attrs = {}, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+const timed = (n, d, dur) => { n.style.setProperty("--d", d); if (dur) n.style.setProperty("--dur", dur); return n; };
+const T = (attrs, parent, s, d = 0) => { const n = el("text", { "font-family": "Titillium Web", ...attrs }, parent); n.textContent = s; return timed(n, d); };
+
+/* Flow line: draws in from `at` over `draw` s, then beads travel once it has arrived. */
+function flow(svg, d, { at = 0, draw = 0.6, dur = 2.4, blue = false, beads = 1, soft = false } = {}) {
+  timed(el("path", { d, class: "flow draw" + (soft ? " soft" : ""), pathLength: 1 }, svg), at, draw);
+  for (let i = 0; i < beads; i++) {
+    const p = el("path", { d, pathLength: 100, class: "bead" + (blue ? " blue" : "") }, svg);
+    timed(p, at + draw + (i * dur) / beads);
+    p.style.setProperty("--t", dur + "s");
+  }
+}
+function rng(seed) { return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
+function card(parent, { x, y, w, h, html = "", d = 0, cls = "" }) {
+  const c = document.createElement("div");
+  c.className = "card in " + cls;
+  Object.assign(c.style, { left: x + "px", top: y + "px", width: w + "px" });
+  if (h) c.style.height = h + "px";
+  c.style.setProperty("--d", d);
+  c.innerHTML = html;
+  parent.appendChild(c);
+  return c;
+}
+function div(parent, cls, d, style, html) {
+  const n = document.createElement("div");
+  n.className = cls; Object.assign(n.style, style); n.innerHTML = html;
+  n.style.setProperty("--d", d); parent.appendChild(n); return n;
+}
+const ICON = {
+  story: '<path d="M6 8h28v18H18l-7 6v-6H6z"/><path d="M12 15h16M12 20h10"/>',
+  cascade: '<circle cx="9" cy="9" r="3.5"/><circle cx="20" cy="20" r="3.5"/><circle cx="31" cy="31" r="3.5"/><circle cx="31" cy="9" r="3.5"/><path d="M12 12l5 5M23 23l5 5M23 17l5-5"/>',
+  noiser: '<rect x="6" y="9" width="28" height="25" rx="3"/><path d="M6 16h28M13 5v7M27 5v7"/><path d="M11 22h4M18 22h4M25 22h4M11 28h4M18 28h4"/>',
+  dataer: '<circle cx="17" cy="17" r="10"/><path d="M24.5 24.5L34 34"/><path d="M12 19l3-4 3 3 4-5"/>',
+};
+const icon = (k) => `<svg class="ic" viewBox="0 0 40 40">${ICON[k]}</svg>`;
+
+/* per-slide timers and tweens, cancelled on every navigation */
+let timers = [], epoch = 0;
+const later = (sec, fn) => timers.push(setTimeout(fn, (sec + BASE) * 1000));
+function clearTimers() { timers.forEach((t) => { clearTimeout(t); clearInterval(t); }); timers = []; epoch++; }
+function tween(sec, dur, fn, ease = (t) => 1 - Math.pow(1 - t, 3)) {
+  const my = epoch;
+  later(sec, () => {
+    const t0 = performance.now();
+    const step = (now) => {
+      if (my !== epoch) return;
+      const t = Math.min(1, (now - t0) / (dur * 1000));
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+const cz = (n) => Math.round(n).toLocaleString("cs-CZ");
+
+/* ---------- 1 · story → tables ----------
+   0.45 story card · 0.75–1.75 typing · 1.75 flows · 2.2 cards land · 2.5 bars grow */
+(() => {
+  const svg = $("#heroWires"), host = $("#heroCards");
+  const tables = [
+    { name: "Dodávky", vals: [3, 4, 3, 4, 9, 10, 9, 10], hi: true },
+    { name: "Zásoby", vals: [8, 7, 8, 7, 2, 1, 2, 1], hi: true },
+    { name: "Prodeje", vals: [8, 9, 8, 9, 5, 4, 5, 4], hi: true },
+    { name: "Stížnosti", vals: [2, 1, 2, 2, 6, 8, 7, 9], hi: true },
+    { name: "Zákazníci", vals: [6, 6, 6, 6, 6, 6, 6, 6], hi: false },
+  ];
+  const W = 236, G = 44, X0 = 120, Y = 540, H = 230;
+  timed(el("rect", { x: 100, y: Y + H, width: 1400, height: 1.5, fill: "#c9d1cf", class: "fade" }, svg), 1.9);
+  tables.forEach((t, i) => {
+    const x = X0 + i * (W + G), cx = x + W / 2;
+    const at = 1.75 + i * 0.08, draw = 0.6, land = at + draw - 0.15;
+    flow(svg, `M1200 300 C1200 420 ${cx} 400 ${cx} ${Y}`, { at, draw, dur: 2.2 + i * 0.25 });
+    const bars = t.vals.map((v, j) => {
+      const bh = v * 13, story = t.hi && j >= 4;
+      return `<rect x="${20 + j * 24}" y="${150 - bh}" width="17" height="${bh}" rx="2" fill="${story ? "var(--ink)" : "#6fc3b3"}" class="barg" style="--d:${(land + 0.3 + j * 0.05).toFixed(2)}"/>`;
+    }).join("");
+    card(host, {
+      x, y: Y, w: W, h: H, d: land,
+      html: `<div style="padding:18px 20px 0"><div style="height:9px;width:110px;background:#c9d1cf;border-radius:4px"></div>
+        <div style="height:9px;width:70px;background:#e3e9e7;border-radius:4px;margin-top:8px"></div></div>
+        <svg width="234" height="170" style="display:block">${bars}</svg>`,
+    });
+    div(host, "tlabel in", land + 0.1, { left: x + "px", width: W + "px", top: Y + H + 30 + "px" }, t.name);
+    if (i < tables.length - 1) flow(svg, `M${x + W} ${Y + 115} L${x + W + G} ${Y + 115}`, { at: 2.9, draw: 0.3, beads: 0, soft: true });
+  });
+  div(host, "abs in", 3.1, { left: "120px", top: "848px", fontSize: "17px", color: "var(--muted)", display: "flex", alignItems: "center", gap: "10px" },
+    `<i style="display:inline-block;width:14px;height:14px;border-radius:3px;background:var(--ink)"></i>Tmavě: tady je příběh v datech. Propojené tabulky, žádný komentář navíc.`);
+})();
+const typedText = "Síť 5 prodejen. Jeden z dodavatelů začne dodávat pozdě.";
+function typeStory() {
+  const t = $("#typed"); t.textContent = ""; let i = 0;
+  later(0.75, () => {
+    const iv = setInterval(() => { t.textContent = typedText.slice(0, ++i); if (i >= typedText.length) clearInterval(iv); }, 18);
+    timers.push(iv);
+  });
+}
+
+/* ---------- 2 · flickering random table ---------- */
+(() => {
+  const r = rng(7);
+  const t = $("#noise");
+  t.innerHTML = "<tr><th>ID</th><th>PRODEJNA</th><th>PRODUKT</th><th>KS</th><th>DATUM</th></tr>";
+  for (let i = 0; i < 7; i++) t.innerHTML += `<tr><td>${1040 + i}</td><td></td><td></td><td></td><td></td></tr>`;
+  const fill = () => {
+    [...t.querySelectorAll("tr")].slice(1).forEach((row) => {
+      const c = row.querySelectorAll("td");
+      c[1].textContent = ["Brno", "Praha", "Ostrava", "Plzeň", "Olomouc"][Math.floor(r() * 5)];
+      c[2].textContent = ["mléko", "káva", "rohlík", "sýr", "čaj", "máslo"][Math.floor(r() * 6)];
+      c[3].textContent = 1 + Math.floor(r() * 3);
+      c[4].textContent = 1 + Math.floor(r() * 28) + ". " + (1 + Math.floor(r() * 8)) + ".";
+    });
+  };
+  fill(); setInterval(() => { if (current === 1) fill(); }, 420);
+})();
+
+/* ---------- 3 · map: you → Cascade → Noiser → Dataer, all inside A2UI ---------- */
+(() => {
+  const svg = $("#mapWires"), host = $("#mapTiles");
+  const tiles = [
+    { k: "story", nm: "Váš příběh", rl: "pár vět", ds: "o firmě a o tom, co se v ní stalo", you: true },
+    { k: "cascade", nm: "Cascade", rl: "AI navrhne svět", ds: "firmu, tabulky, příčiny a průběh v čase" },
+    { k: "noiser", nm: "Noiser", rl: "simulace ho prožije", ds: "den po dni vznikají propojené záznamy" },
+    { k: "dataer", nm: "Dataer", rl: "důkaz a detektiv", ds: "ověří, že příběh v datech opravdu je" },
+  ];
+  const Y = 330, H = 290, W = 270, G = 60, X0 = 150, STEP = 0.4;
+  tiles.forEach((t, i) => {
+    const x = X0 + i * (W + G), d = 0.35 + i * STEP;
+    card(host, { x, y: Y, w: W, h: H, d, cls: "tile" + (t.you ? " you" : ""), html: `${icon(t.k)}<div class="nm">${t.nm}</div><div class="rl">${t.rl}</div><div class="ds">${t.ds}</div>` });
+    if (i < tiles.length - 1) flow(svg, `M${x + W + 6} ${Y + H / 2} L${x + W + G - 6} ${Y + H / 2}`, { at: d + 0.2, draw: 0.25, dur: 1.3 });
+  });
+  // what-if loop: Dataer → back to Cascade
+  const cx = X0 + 1 * (W + G) + W / 2, dx = X0 + 3 * (W + G) + W / 2, yb = Y + H;
+  flow(svg, `M${dx} ${yb + 6} C${dx} ${yb + 60} ${cx} ${yb + 60} ${cx} ${yb + 6}`, { at: 1.9, draw: 0.6, dur: 2.4, blue: true });
+  div(host, "abs in", 2.2, { left: cx + 40 + "px", top: yb + 64 + "px", width: dx - cx - 80 + "px", textAlign: "center", fontSize: "18px", fontWeight: 700, color: "#006f9e" }, "Co kdyby? Upravte příběh a přegenerujte");
+  // A2UI: the frame everything lives in
+  const fx = 110, fy = 270, fw = 1380, fh = 470;
+  timed(el("rect", { x: fx, y: fy, width: fw, height: fh, rx: 22, fill: "none", stroke: "var(--green-light)", "stroke-width": 2, pathLength: 1, class: "draw" }, svg), 2.5, 1.0);
+  div(host, "frame-label in", 2.9, { left: fx + 28 + "px", top: fy - 19 + "px" }, `<b>A2UI</b> celé to řídíte v jednom rozhraní: konverzace + plátno`);
+})();
+
+/* ---------- 4 · Cascade: steps fill in one by one, then the self-check and the rule ---------- */
+(() => {
+  const svg = $("#casWires"), host = $("#casSteps");
+  card(host, { x: 120, y: 270, w: 340, d: 0.3, html: `<div class="body" style="padding:22px 24px"><div class="cap-l">Váš příběh</div><p style="font-size:24px;font-weight:600;line-height:1.3;margin-top:8px">Síť 5 prodejen. Jeden z dodavatelů začne dodávat pozdě.</p></div>` });
+  const mini = {
+    map: `<svg width="150" height="26"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--green-dark)"/></marker></defs><g fill="var(--green)"><circle cx="8" cy="13" r="5"/><circle cx="52" cy="13" r="5"/><circle cx="96" cy="13" r="5"/><circle cx="140" cy="13" r="5"/></g><path d="M14 13h31M58 13h31M102 13h31" stroke="var(--green-dark)" stroke-width="2" marker-end="url(#ar)"/></svg>`,
+    curve: `<svg width="150" height="30"><path d="M2 25H60L84 6H148" fill="none" stroke="var(--amber)" stroke-width="3" stroke-linejoin="round"/></svg>`,
+  };
+  const steps = [
+    { t: "Firma a okolí", s: "kdo je kdo, jak firma funguje", o: "5 prodejen · 3 dodavatelé · 600 zákazníků" },
+    { t: "Datový model", s: "tabulky a vazby mezi nimi", o: "8 propojených tabulek" },
+    { t: "Příčiny a důsledky", s: "co na co působí a jak silně", o: mini.map },
+    { t: "Příběh v čase", s: "kdy se co zlomí", o: mini.curve },
+    { t: "Scénář", s: "složený a zkontrolovaný kódem", o: `<span class="chk" style="width:20px;height:20px;font-size:12px">✓</span>prošel i simulací` },
+  ];
+  const X = 540, Y0 = 270, H = 78, G = 14, W = 600, railX = X - 26;
+  flow(svg, `M460 330 C490 330 ${railX} 300 ${railX} ${Y0 + H / 2}`, { at: 0.55, draw: 0.3, beads: 0 });
+  steps.forEach((s, i) => {
+    const y = Y0 + i * (H + G), d = 0.8 + i * 0.45;
+    timed(el("circle", { cx: railX, cy: y + H / 2, r: 7, fill: "#fff", stroke: "var(--green)", "stroke-width": 3, class: "pop", style: "transform-box:fill-box;transform-origin:center" }, svg), d);
+    if (i < steps.length - 1) flow(svg, `M${railX} ${y + H / 2 + 8} L${railX} ${y + H + G + H / 2 - 8}`, { at: d + 0.2, draw: 0.25, dur: 1.1 });
+    card(host, { x: X, y, w: W, h: H, d, html: `<div class="step"><div><div class="t">${s.t}</div><div class="s">${s.s}</div></div><span class="out pop" style="--d:${d + 0.25}">${s.o}</span></div>` });
+  });
+  card(host, { x: 1180, y: 270, w: 320, h: 236, d: 2.9, cls: "loop", html: `<div class="body" style="padding:22px 24px">
+    <div style="display:flex;align-items:center;gap:14px"><svg width="46" height="46" viewBox="0 0 46 46"><g class="spin" style="--d:3.1"><path d="M38 23a15 15 0 1 1-4.4-10.6" fill="none" stroke="var(--blue)" stroke-width="3.5" stroke-linecap="round"/><path d="M35 5v8h-8" fill="none" stroke="var(--blue)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+    <b style="font-size:24px">Ověř a oprav</b></div>
+    <p style="margin-top:12px">Scénář si sám vyzkouší v simulaci. Když příběh v datech vidět není, agent dostane přesnou výtku a opraví ho.</p></div>` });
+  card(host, { x: 1180, y: 530, w: 320, h: 196, d: 3.2, cls: "rule", html: `<b>AI nikdy nepíše řádky dat ani kód.</b><p>Jen pravidla světa. Kód je zkontroluje, data z nich vyrobí simulace.</p>` });
+})();
+
+/* ---------- 5 · Noiser: curve + causal chain + day ticker ---------- */
+(() => {
+  const svg = $("#curveSvg");
+  const L = 56, R = 530, Tp = 24, B = 240, days = 243;
+  const X = (d) => L + (d / days) * (R - L), Y = (v) => B - v * (B - Tp);
+  for (const v of [0, 0.5, 1]) {
+    el("line", { x1: L, x2: R, y1: Y(v), y2: Y(v), stroke: "#edf1f0" }, svg);
+    T({ x: L - 12, y: Y(v) + 5, "text-anchor": "end", "font-size": 14, fill: "#8a9391" }, svg, Math.round(v * 100) + " %");
+  }
+  ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp"].forEach((m, i) => T({ x: X(i * 30.4 + 15), y: B + 28, "text-anchor": "middle", "font-size": 15, fill: "#8a9391" }, svg, m));
+  timed(el("rect", { x: X(59), y: Tp, width: X(104) - X(59), height: B - Tp, fill: "rgb(199 119 0 / 9%)", class: "fade" }, svg), 0.7);
+  T({ x: X(81), y: Tp + 18, "text-anchor": "middle", "font-size": 14, "font-weight": 700, fill: "var(--amber)", class: "fade" }, svg, "zlom příběhu", 0.75);
+  timed(el("path", { d: `M${X(0)} ${Y(0.05)} L${X(59)} ${Y(0.05)} L${X(104)} ${Y(0.8)} L${X(days)} ${Y(0.8)}`, fill: "none", stroke: "var(--green)", "stroke-width": 4, "stroke-linejoin": "round", pathLength: 1, class: "draw" }, svg), 0.8, 1.2);
+  T({ x: X(112), y: Y(0.8) - 14, "font-size": 17, "font-weight": 700, fill: "var(--green-dark)", class: "fade" }, svg, "5 % → 80 %", 1.6);
+
+  const wires = $("#chainWires"), host = $("#chainNodes");
+  const steps = [
+    { t: "Pozdní dodávky", d: "o 30–60 dní později", s: [2, 2, 2, 2, 2, 7, 9, 9, 8, 9] },
+    { t: "Prázdné sklady", d: "zboží chybí na regálu", s: [1, 1, 1, 1, 1, 1, 5, 8, 8, 9] },
+    { t: "Ztracené nákupy", d: "zákazník odejde s prázdnou", s: [8, 8, 8, 8, 8, 8, 6, 4, 3, 3], down: true },
+    { t: "Stížnosti", d: "„zase to nemáte“", s: [1, 2, 1, 1, 2, 1, 4, 7, 7, 8] },
+  ];
+  const X0 = 800, Y0 = 270, W = 700, H = 92, G = 22, S0 = 2.3, STEP = 0.35;
+  flow(wires, `M680 450 C740 450 740 ${Y0 + H / 2} ${X0} ${Y0 + H / 2}`, { at: 1.9, draw: 0.45, dur: 1.6 });
+  steps.forEach((s, i) => {
+    const y = Y0 + i * (H + G), d = S0 + i * STEP;
+    const pts = s.s.map((v, j) => `${10 + j * 23},${70 - v * 6.5}`).join(" ");
+    card(host, {
+      x: X0, y, w: W, h: H, d,
+      html: `<div class="chain"><div><div class="t"><span class="up">${s.down ? "↓" : "↑"}</span> ${s.t}</div><div class="d">${s.d}</div></div>
+        <svg width="230" height="80"><polyline points="${pts}" fill="none" stroke="${s.down ? "var(--warn)" : "var(--green)"}" stroke-width="3" stroke-linejoin="round" pathLength="1" class="draw" style="--d:${d + 0.2};--dur:.8"/></svg></div>`,
+    });
+    if (i < steps.length - 1) flow(wires, `M${X0 + 40} ${y + H} L${X0 + 40} ${y + H + G}`, { at: d + 0.2, draw: 0.15, dur: 0.9 });
+  });
+  div(host, "abs in", S0 + 4 * STEP, { left: X0 + "px", top: Y0 + 4 * (H + G) + 6 + "px", display: "flex", gap: "10px", flexWrap: "wrap", width: W + "px" },
+    `<span class="tag">✓ každý záznam zná svého předka</span><span class="tag">✓ stejné nastavení = stejná data</span><span class="tag blue">volitelný šum: chybějící hodnoty, duplicity</span>`);
+})();
+function runTicker() {
+  $("#tDays").textContent = "0"; $("#tRows").textContent = "0";
+  tween(0.9, 2.6, (t) => { $("#tDays").textContent = cz(243 * t); $("#tRows").textContent = cz(41577 * t); }, (t) => t);
+}
+
+/* ---------- 6 · detective log, in plain questions ---------- */
+const LOG = [
+  ["q1", "Co mám k dispozici?"],
+  ["", "dodávky · zásoby · prodeje · stížnosti · zákazníci · …"],
+  ["q1", "Zpožďuje se některý dodavatel?"],
+  ["c", "SELECT dodavatel, AVG(zpoždění) … GROUP BY …"],
+  ["y", "dodavatel 2:  1,5 → 37 dní   ◀"],
+  ["q1", "Chybí kvůli tomu zboží?"],
+  ["y", "dny bez zásob u jeho zboží:  6 % → 31 %"],
+  ["q1", "Všimli si toho zákazníci?"],
+  ["y", "stížnosti na nedostupnost:  29 → 112"],
+];
+function runLog() {
+  const pre = $("#termLog"), sc = $("#score");
+  pre.innerHTML = ""; sc.style.opacity = 0;
+  let t = 2.5;
+  LOG.forEach(([cls, s]) => {
+    later(t, () => { const n = document.createElement("span"); n.className = cls; n.textContent = (cls === "q1" ? "" : "  ") + s + "\n"; pre.appendChild(n); });
+    t += cls === "q1" ? 0.4 : 0.3;
+  });
+  later(t + 0.2, () => (sc.style.opacity = 1));
+}
+
+/* ---------- 7 · A2UI mock app: drag the story knot, approve, numbers arrive ---------- */
+const APP = (() => {
+  const svg = $("#appSvg");
+  const L = 40, R = 620, B = 250, Tp = 20;
+  for (const v of [0, 0.5, 1]) el("line", { x1: L, x2: R, y1: B - v * (B - Tp), y2: B - v * (B - Tp), stroke: "#edf1f0" }, svg);
+  ["led", "bře", "kvě", "čvc"].forEach((m, i) => T({ x: L + 40 + i * 150, y: B + 24, "font-size": 14, fill: "#8a9391" }, svg, m));
+  const kx = 270;
+  timed(el("line", { x1: kx, x2: kx, y1: Tp, y2: B, stroke: "var(--amber)", "stroke-width": 2, "stroke-dasharray": "5 5", class: "fade" }, svg), 1.3);
+  const d = (lv) => `M${L} 215 L200 215 L${kx} ${lv} L${R} ${lv}`;
+  const path = timed(el("path", { d: d(130), fill: "none", stroke: "var(--green)", "stroke-width": 4, "stroke-linejoin": "round", pathLength: 1, class: "draw" }, svg), 1.2, 0.9);
+  const knot = timed(el("circle", { cx: kx, cy: 130, r: 10, fill: "#fff", stroke: "var(--amber)", "stroke-width": 4, class: "pop", style: "transform-box:fill-box;transform-origin:center" }, svg), 1.9);
+  const lab = T({ x: kx + 18, y: 122, "font-size": 16, "font-weight": 700, fill: "var(--amber)", class: "fade" }, svg, "zpoždění 50 %", 1.9);
+  const cur = $("#cursor"), btn = $("#genBtn");
+  // svg origin inside the app card: chat 470 + canvas padding 28 · bar 52 + padding 22 + header 54 + margin 8
+  const OX = 498, OY = 136;
+  const BTN = { x: 512, y: 338 }; // button centre in svg space
+  const place = (x, y) => { cur.style.left = OX + x - 3 + "px"; cur.style.top = OY + y - 3 + "px"; };
+  function reset() {
+    path.setAttribute("d", d(130)); knot.setAttribute("cy", 130); lab.setAttribute("y", 122); lab.textContent = "zpoždění 50 %";
+    cur.style.opacity = 0; btn.classList.remove("press");
+  }
+  function play() {
+    reset();
+    later(2.4, () => { place(kx + 90, 200); cur.style.opacity = 1; });
+    tween(2.5, 0.35, (t) => place(kx + 90 * (1 - t), 200 - 70 * t));
+    tween(2.95, 0.7, (t) => {
+      const lv = 130 - 70 * t;
+      path.setAttribute("d", d(lv)); knot.setAttribute("cy", lv); lab.setAttribute("y", lv - 8);
+      lab.textContent = "zpoždění " + Math.round(50 + 30 * t) + " %"; place(kx, lv);
+    });
+    tween(3.75, 0.4, (t) => place(kx + (BTN.x - kx) * t, 60 + (BTN.y - 60) * t));
+    later(4.15, () => { btn.classList.remove("press"); void btn.offsetWidth; btn.classList.add("press"); });
+    later(4.6, () => (cur.style.opacity = 0));
+  }
+  return { play, reset };
+})();
+
+/* ---------- 8 · compare (real runs, same seed) ---------- */
+(() => {
+  const svg = $("#cmpSvg");
+  const A = [58,61.3,60.4,59.9,51.2,59,48.1,47.6,57.5,52,58.8,38.7,36.6,34.4,41.8,25.8,25,29.2,34.9,44,23.2,38,63.2,51.6,46.5,50.2,54.9,58.4,58.3,53.8,39.1,33.8,36.1,40.8,22.8];
+  const B = [58,61.3,60.4,59.9,51.2,59,48.1,47.6,57.5,58.8,65.4,49.9,49.9,51.7,60.3,64.8,51.5,56.6,59,58.4,45.6,49.7,66.1,50.4,43.1,45.5,33.7,32.1,24.5,33.2,23.1,25.5,32.2,47.8,32.9];
+  const L = 70, R = 860, Tp = 30, B0 = 370, N = A.length;
+  const X = (i) => L + (i / (N - 1)) * (R - L), Y = (v) => B0 - (v / 80) * (B0 - Tp);
+  const band = (d0, d1, fill, d) => timed(el("rect", { x: X(d0 / 7), y: Tp, width: X(d1 / 7) - X(d0 / 7), height: B0 - Tp, fill, class: "fade" }, svg), d);
+  band(59, 104, "rgb(0 149 125 / 9%)", 0.7);
+  band(151, 195, "rgb(0 158 224 / 10%)", 2.3);
+  for (const v of [0, 20, 40, 60, 80]) {
+    el("line", { x1: L, x2: R, y1: Y(v), y2: Y(v), stroke: "#edf1f0" }, svg);
+    T({ x: L - 12, y: Y(v) + 5, "text-anchor": "end", "font-size": 14, fill: "#8a9391" }, svg, String(v));
+  }
+  ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp"].forEach((m, i) => T({ x: X((i * 30.4 + 15) / 7), y: B0 + 30, "text-anchor": "middle", "font-size": 15, fill: "#8a9391" }, svg, m));
+  const path = (vals) => vals.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(" ");
+  timed(el("path", { d: path(A), fill: "none", stroke: "var(--green)", "stroke-width": 3.4, "stroke-linejoin": "round", pathLength: 1, class: "draw" }, svg), 0.8, 1.2);
+  timed(el("path", { d: path(B), fill: "none", stroke: "var(--blue)", "stroke-width": 3.4, "stroke-linejoin": "round", pathLength: 1, class: "draw" }, svg), 2.4, 1.2);
+  T({ x: X(4), y: Y(73), "text-anchor": "middle", "font-size": 16, "font-weight": 700, fill: "#5b6563", class: "fade" }, svg, "identické", 3.5);
+  T({ x: X(25), y: Y(74), "text-anchor": "middle", "font-size": 17, "font-weight": 700, fill: "#006f9e", class: "fade" }, svg, "propad posunut o 3 měsíce →", 3.6);
+})();
+
+/* ---------- 9 · criteria ---------- */
+(() => {
+  const host = $("#crit");
+  const c = [
+    ["Věrohodná a konzistentní", "Každý záznam má svého předka, všechny vazby se kontrolují po každém běhu."],
+    ["Příběh se dá dohledat", "Hypotézy ověřené SQL a slepý detektiv, skórovaný proti skryté pravdě."],
+    ["Pro libovolný příběh", "Žádný ručně připravený dataset: napíšete příběh, dostanete svět."],
+    ["Funguje naživo", "Stejné nastavení = stejná data. Demo běží i bez internetu z uložených odpovědí AI."],
+  ];
+  c.forEach(([h, p], i) => card(host, { x: 120 + i * 350, y: 400, w: 320, h: 260, d: 0.4 + i * 0.12, cls: "crit", html: `<span class="chk pop" style="--d:${0.7 + i * 0.12};width:34px;height:34px;font-size:18px">✓</span><h3>${h}</h3><p>${p}</p>` }));
+})();
+
+/* ---------- deck engine ---------- */
+const slides = [...document.querySelectorAll(".slide")];
+let current = -1;
+function fit() { $("#deck").style.transform = `scale(${Math.min(innerWidth / 1600, innerHeight / 900)})`; }
+function go(i) {
+  i = Math.max(0, Math.min(slides.length - 1, i));
+  if (i === current) return;
+  clearTimers();
+  slides.forEach((s, j) => { s.classList.toggle("active", j === i); s.classList.toggle("past", j < i); });
+  current = i;
+  $("#bar").style.width = ((i + 1) / slides.length) * 100 + "%";
+  $("#notesText").textContent = slides[i].dataset.notes || "";
+  if (i === 0) typeStory();
+  if (i === 4) runTicker();
+  if (i === 5) runLog();
+  if (i === 6) APP.play(); else APP.reset();
+  history.replaceState(null, "", "#" + (i + 1));
+}
+let t0 = null, tick;
+function toggleTimer() {
+  const n = $("#timer");
+  if (n.classList.toggle("on")) {
+    t0 = Date.now();
+    tick = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      n.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0") + " / 03:00";
+      n.classList.toggle("late", s > 180);
+    }, 250);
+  } else clearInterval(tick);
+}
+addEventListener("keydown", (e) => {
+  if (e.repeat) return;
+  if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); go(current + 1); }
+  else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(current - 1); }
+  else if (e.key === "Home") go(0);
+  else if (e.key === "End") go(slides.length - 1);
+  else if (e.key.toLowerCase() === "n") $("#notes").classList.toggle("on");
+  else if (e.key.toLowerCase() === "t") toggleTimer();
+  else if (e.key.toLowerCase() === "f") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  $("#hint").style.opacity = 0;
+});
+addEventListener("click", (e) => { if (e.button === 0) go(current + (e.clientX < innerWidth / 4 ? -1 : 1)); });
+addEventListener("resize", fit);
+fit();
+Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))])
+  .then(() => requestAnimationFrame(() => go((parseInt(location.hash.slice(1), 10) || 1) - 1)));
+</script>
+</body>
+</html>
