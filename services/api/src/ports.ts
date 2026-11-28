@@ -20,8 +20,14 @@ export interface JobOptions {
 
 export interface Ports {
   cascade: {
-    /** Runs steps up to and including `until`, reusing artifact files already in `dir`. */
-    run(input: SessionInput, opts: JobOptions & { dir: string; until: ArtifactName }): Promise<void>;
+    /**
+     * Runs steps up to and including `until`, reusing artifact files already in `dir`. `expectations`:
+     * ids of the hypotheses the user kept (approve settings); only those gate A5. Omitted = all.
+     */
+    run(
+      input: SessionInput,
+      opts: JobOptions & { dir: string; until: ArtifactName; expectations?: readonly string[] | undefined },
+    ): Promise<void>;
     /** Counterfactual: returns a new scenario; the cascade owns its own validation loop. */
     whatIf(question: string, base: Scenario, opts: JobOptions): Promise<Scenario>;
   };

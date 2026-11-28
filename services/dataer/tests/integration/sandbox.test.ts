@@ -128,4 +128,89 @@ describe("readTruthPoints (full db, scoring only)", () => {
       cleanup();
     }
   });
+
+  it("a segment on an entity attribute also matches the few entity rows it denotes (run 7: 'problémový' supplier = SUP-001)", async () => {
+    const { dir, cleanup } = makeTempDir();
+    try {
+      const db = join(dir, "run.duckdb");
+      const supplier = {
+        name: "supplier",
+        visibility: "observed" as const,
+        rows: [
+          { id: "SUP-001", supplier_profile: "problémový" },
+          { id: "SUP-002", supplier_profile: "spolehlivý" },
+          { id: "SUP-003", supplier_profile: "spolehlivý" },
+        ],
+      };
+      // a broad group (most rows of an entity) stays a group: naming one product is not finding the category
+      const product = {
+        name: "product",
+        visibility: "observed" as const,
+        rows: Array.from({ length: 30 }, (_, i) => ({
+          id: `PRO-${String(i + 1).padStart(3, "0")}`,
+          category: i < 12 ? "sportovní" : "ostatní",
+        })),
+      };
+      const late = {
+        id: "sp1",
+        phase: 1,
+        title: "t",
+        description: "d",
+        segment: { field: "self.supplier_profile", values: ["problémový"] },
+        start: "2025-03-01",
+      };
+      const sport = {
+        id: "sp2",
+        phase: 2,
+        title: "t",
+        description: "d",
+        segment: { field: "product.category", values: ["sportovní"] },
+        start: "2025-04-01",
+      };
+      await writeRun(db, {
+        ...run,
+        storyPoints: [late, sport],
+        tables: [...run.tables, supplier, product],
+      });
+      expect(await readTruthPoints(db)).toEqual([
+        { id: "sp1", entityIds: ["SUP-001"], segmentValues: ["problémový"], start: "2025-03-01" },
+        { id: "sp2", entityIds: [], segmentValues: ["sportovní"], start: "2025-04-01" },
+      ]);
+      // live v1 eval: the attribute sits on the record table next to the entity id (entity column "profile")
+      const order = {
+        name: "purchase_order",
+        visibility: "observed" as const,
+        rows: [
+          {
+            id: "purchase_order-000001",
+            supplier_id: "SUP-002",
+            product_id: "PRO-001",
+            supplier_profile: "spolehlivý",
+          },
+          {
+            id: "purchase_order-000002",
+            supplier_id: "SUP-001",
+            product_id: "PRO-002",
+            supplier_profile: "problémový",
+          },
+          {
+            id: "purchase_order-000003",
+            supplier_id: "SUP-003",
+            product_id: "PRO-003",
+            supplier_profile: "spolehlivý",
+          },
+        ],
+      };
+      const renamed = {
+        ...supplier,
+        rows: supplier.rows.map(({ supplier_profile, ...r }) => ({ ...r, profile: supplier_profile })),
+      };
+      await writeRun(db, { ...run, storyPoints: [late], tables: [...run.tables, renamed, order] });
+      expect(await readTruthPoints(db)).toEqual([
+        { id: "sp1", entityIds: ["SUP-001"], segmentValues: ["problémový"], start: "2025-03-01" },
+      ]);
+    } finally {
+      cleanup();
+    }
+  });
 });

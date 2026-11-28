@@ -157,6 +157,27 @@ describe("hung requests (live: a detective step waited 15+ minutes for one answe
       expect((args as { abortSignal?: unknown }).abortSignal).toBeInstanceOf(AbortSignal);
   });
 
+  it("a detective step gets a third try: stalls come in clusters (run 7: two 60 s timeouts in a row failed the job)", async () => {
+    generateText.mockReset();
+    generateText
+      .mockRejectedValueOnce(timeout())
+      .mockRejectedValueOnce(timeout())
+      .mockResolvedValueOnce({ text: '{"a":4}', finishReason: "stop" });
+    await expect(
+      aiSdkGenerate({ ...req, schemaName: "detective_step", model: "anthropic:m" }),
+    ).resolves.toEqual({
+      a: 4,
+    });
+    expect(generateText).toHaveBeenCalledTimes(3);
+    generateText.mockReset();
+    generateText.mockRejectedValue(timeout());
+    await expect(
+      aiSdkGenerate({ ...req, schemaName: "detective_step", model: "anthropic:m" }),
+    ).rejects.toThrow(/3 tries/);
+    expect(generateText).toHaveBeenCalledTimes(3);
+    generateText.mockReset();
+  });
+
   it("gives up after the retry with a readable error", async () => {
     generateText.mockReset();
     generateText.mockRejectedValue(timeout());

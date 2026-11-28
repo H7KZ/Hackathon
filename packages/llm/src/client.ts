@@ -71,7 +71,13 @@ const timeoutMs = (schemaName: string) =>
 const isTimeout = (e: unknown) =>
   e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
 
-/** Runs one model request with a timeout; a timed-out request is retried once (live: a step hung 15+ min). */
+/**
+ * Tries per request: a timed-out request is retried (live: a step hung 15+ min). Detective steps are
+ * short, and stalls come in clusters (run 7: two 60 s timeouts in a row failed a detective job): 3 tries.
+ */
+const maxTries = (schemaName: string) => (schemaName.startsWith("detective") ? 3 : 2);
+
+/** Runs one model request with a timeout, retrying timed-out requests (`maxTries`). */
 async function withTimeout<T>(schemaName: string, run: (abortSignal: AbortSignal) => Promise<T>): Promise<T> {
   const ms = timeoutMs(schemaName);
   // LLM_DEBUG=1: one stderr line per request (duration, finish reason, output tokens) to tell a slow
@@ -91,9 +97,9 @@ async function withTimeout<T>(schemaName: string, run: (abortSignal: AbortSignal
     } catch (err) {
       if (debug) console.error(`[llm] ${schemaName} ${String(Date.now() - t0)} ms failed: ${String(err)}`);
       if (!isTimeout(err)) throw err;
-      if (attempt >= 2)
+      if (attempt >= maxTries(schemaName))
         throw new Error(
-          `The model did not answer within ${String(Math.round(ms / 1000))} s (2 tries, ${schemaName}).`,
+          `The model did not answer within ${String(Math.round(ms / 1000))} s (${String(attempt)} tries, ${schemaName}).`,
           { cause: err },
         );
     }

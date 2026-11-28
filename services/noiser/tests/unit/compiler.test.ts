@@ -200,6 +200,18 @@ describe("compileScenario — curve scopes and story entities (live run 2026-11-
     expect(e?.message).toMatch(/"sp1".*"supplier".*"SUP-002"/);
   });
 
+  it("a point on an unscoped curve without entity is offered the segment form with the model's category values (user run: market-wide trend, A4 failed 3x)", () => {
+    const s = fixture();
+    delete s.curves[0].scope;
+    delete s.storyPoints[0].entity;
+    const e = errorsOf(s).find((x) => x.path === "storyPoints[0].entity");
+    expect(e?.message).toContain('"segment"');
+    expect(e?.message).toContain('product.category: ["kuchyň","koupelna","zahrada","úklid"]');
+    // the segment alone satisfies the check for an unscoped curve
+    s.storyPoints[0].segment = { field: "product.category", values: ["kuchyň"] };
+    expect(errorsOf(s).filter((x) => x.path.startsWith("storyPoints"))).toEqual([]);
+  });
+
   it("rejects a story point entity that does not exist", () => {
     const s = fixture();
     s.storyPoints[0].entity = { name: "vendor", ids: ["SUP-002"] };

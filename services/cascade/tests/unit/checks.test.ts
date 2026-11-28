@@ -251,6 +251,28 @@ describe("04_story coherence", () => {
     expect(t.fake.calls[4]?.prompt).toContain('Unknown story point "nope"');
     expect(t.fake.calls[2]?.prompt).toContain("## Story\ns"); // A3 sees the story too
   });
+
+  it("a retry after A4 gave up continues from its last rejected answer instead of replaying the cache (user run 76384e44)", async () => {
+    const broken = {
+      ...story,
+      expectations: story.expectations.map((e) => ({ ...e, storyPointId: "nope" })),
+    };
+    const t = setup([company, model, influences, broken, broken, broken, story]);
+    cleanup = t.cleanup;
+    const run = () =>
+      runCascade(
+        { story: "s", company: "c" },
+        { llm: t.llm, runsDir: t.runsDir, runId: "r4", until: "04_story" },
+      );
+    await expect(run()).rejects.toThrow(/Unknown story point "nope"/);
+    expect(t.fake.calls).toHaveLength(6);
+    const res = await run();
+    expect(res.story?.expectations[0]?.storyPointId).toBe(story.expectations[0]?.storyPointId);
+    expect(t.fake.calls).toHaveLength(7);
+    // the new attempt edits the last rejected answer and is numbered after it (a new prompt, not a replay)
+    expect(t.fake.calls[6]?.prompt).toContain("attempt 3");
+    expect(t.fake.calls[6]?.prompt).toContain('Unknown story point "nope"');
+  });
 });
 
 describe("curve scope follows the story point entity", () => {
@@ -288,6 +310,42 @@ describe("story entities must be specific", () => {
     );
     expect(errors[0]?.message).toMatch(/every supplier/);
     expect(checkCurveScopes(story, base.entities)).toEqual([]);
+  });
+
+  it("a group point (segment) that also names every supplier is told to drop the entity, with no contradicting scope demand (user run: A4 failed 3x)", async () => {
+    const { checkCurveScopes } = await import("../../src/checks");
+    const sup = base.entities.find((e) => e.name === "supplier")!;
+    const all = Array.from(
+      { length: sup.count },
+      (_, i) => `${sup.idPrefix}-${String(i + 1).padStart(3, "0")}`,
+    );
+    const group = {
+      storyPoints: story.storyPoints.map((p) => ({
+        ...p,
+        entity: { name: "supplier", ids: all },
+        segment: { field: "product.category", values: ["kuchyň"] },
+      })),
+      curves: story.curves.map(({ scope: _scope, ...c }) => c),
+    };
+    const errors = checkCurveScopes(group, base.entities);
+    expect(errors.map((e) => e.path)).toEqual(["storyPoints.0.entity.ids"]);
+    expect(errors[0]?.message).toMatch(/remove "entity".*segment/);
+  });
+
+  it("a point naming every supplier without a segment is offered the segment form too", async () => {
+    const { checkCurveScopes } = await import("../../src/checks");
+    const sup = base.entities.find((e) => e.name === "supplier")!;
+    const all = Array.from(
+      { length: sup.count },
+      (_, i) => `${sup.idPrefix}-${String(i + 1).padStart(3, "0")}`,
+    );
+    const wide = {
+      storyPoints: story.storyPoints.map((p) => ({ ...p, entity: { name: "supplier", ids: all } })),
+      curves: story.curves.map(({ scope: _scope, ...c }) => c),
+    };
+    const errors = checkCurveScopes(wide, base.entities);
+    expect(errors.map((e) => e.path)).toEqual(["storyPoints.0.entity.ids"]);
+    expect(errors[0]?.message).toMatch(/"segment"/);
   });
 });
 

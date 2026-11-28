@@ -13,7 +13,7 @@ export function cascadePort(design: CascadeDesign = "v1"): Ports["cascade"] {
   const getLlm = () => (llm ??= createLlm());
 
   return {
-    async run(input, { dir, until, onEvent, signal }) {
+    async run(input, { dir, until, onEvent, signal, expectations }) {
       await runCascade(input, {
         llm: getLlm(),
         runsDir: dirname(dir),
@@ -23,6 +23,8 @@ export function cascadePort(design: CascadeDesign = "v1"): Ports["cascade"] {
         signal,
         // A5 is accepted only when the story shows in the data (engine + expectations + flat baseline)
         verify: storyGate,
+        // hypotheses switched off in the story editor do not gate A5
+        ...(expectations && { keepExpectations: expectations }),
         design,
       });
     },

@@ -3,7 +3,7 @@
  * scenario that is valid but carries no story; these catch that and go back to the agent as feedback.
  * A real Haiku run produced a single-process model with an unused late-delivery curve.
  */
-import { checkCurveShapes } from "@s2d/noiser";
+import { categoryFields, checkCurveShapes } from "@s2d/noiser";
 import type { CompileError } from "@s2d/schema/api";
 import type { DataModel, StoryPlan } from "@s2d/schema/artifacts";
 import type { EntityDef, Scenario } from "@s2d/schema/scenario";
@@ -430,8 +430,9 @@ export function checkCurvesOnRoots(
  */
 export function checkCurveScopes(
   story: Pick<StoryPlan, "storyPoints" | "curves">,
-  entities: readonly EntityIds[] = [],
+  entities: readonly (EntityIds & { fields?: EntityDef["fields"] })[] = [],
 ): CompileError[] {
+  const groups = categoryFields(entities.map((e) => ({ ...e, fields: e.fields ?? {} })));
   const errors: CompileError[] = [];
   // naming EVERY row of an entity (all 3 suppliers) is not specific: a live run did that to pass the scope rule
   const everyRow = (ids: readonly string[]) => {
@@ -445,11 +446,18 @@ export function checkCurveScopes(
   };
   story.storyPoints.forEach((p, i) => {
     const e = p.entity && everyRow(p.entity.ids);
-    if (e)
-      errors.push({
-        path: `storyPoints.${i}.entity.ids`,
-        message: `Story point "${p.id}" names every ${e.name} (${p.entity?.ids.join(", ")}). Name only the ${e.name}(s) the story is about (e.g. the one late supplier), so the effect has a place and a control.`,
-      });
+    if (!e) return;
+    const ids = p.entity?.ids.join(", ") ?? "";
+    // a group point (product category, customer segment) needs no entity: naming every row was a
+    // live A4's way to satisfy the entity rule, so tell it to drop the entity rather than narrow it
+    const message = p.segment
+      ? `Story point "${p.id}" names every ${e.name} (${ids}) and also the segment ${JSON.stringify(p.segment)}. It is about that group, so remove "entity" and keep only "segment".`
+      : `Story point "${p.id}" names every ${e.name} (${ids}). Name only the ${e.name}(s) the story is about (e.g. the one late supplier), so the effect has a place and a control.${
+          groups.length
+            ? ` If the story is about a group of records rather than specific rows, replace "entity" with "segment": {"field": "<entity>.<field>", "values": [the affected values]}, using one of: ${groups.join("; ")}.`
+            : ""
+        }`;
+    errors.push({ path: `storyPoints.${i}.entity.ids`, message });
   });
   story.curves.forEach((c, i) => {
     const e = c.scope && everyRow(c.scope.ids);
@@ -464,7 +472,8 @@ export function checkCurveScopes(
     const sp = c.segments
       .map((g) => story.storyPoints.find((p) => p.id === g.storyPointId))
       .find((p) => p?.entity && p.entity.ids.length > 0);
-    if (!sp?.entity) return;
+    // a point naming every row is already sent back above; scoping to all of them would contradict that
+    if (!sp?.entity || everyRow(sp.entity.ids)) return;
     errors.push({
       path: `curves.${i}.scope`,
       message: `Curve "${c.id}" moves story point "${sp.id}", which is about ${sp.entity.name} ${sp.entity.ids.join(", ")}, but has no scope, so it would change every ${sp.entity.name}. Add "scope": {"field": "self.<${sp.entity.name}>_id", "ids": ${JSON.stringify(sp.entity.ids)}} (the record field that holds the ${sp.entity.name} id).`,

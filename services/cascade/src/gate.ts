@@ -109,6 +109,30 @@ export async function storyGate(raw: unknown): Promise<CompileError[]> {
   }
 }
 
+/**
+ * The gate on only the expectations the user kept (story editor toggles). Error paths
+ * `expectations[i]` are mapped back to the index in the full list, which is what A5 edits.
+ * `keep` undefined = every expectation (the default approve).
+ */
+export function onlyExpectations(
+  verify: (scenario: Scenario) => Promise<CompileError[]>,
+  keep: readonly string[] | undefined,
+): (scenario: Scenario) => Promise<CompileError[]> {
+  if (!keep) return verify;
+  const ids = new Set(keep);
+  return async (scenario) => {
+    const kept = scenario.expectations.flatMap((e, i) => (ids.has(e.id) ? [{ e, i }] : []));
+    const errors = await verify({ ...scenario, expectations: kept.map((k) => k.e) });
+    return errors.map((err) => {
+      const m = /^expectations\[(\d+)\]/.exec(err.path);
+      const full = m ? kept[Number(m[1])]?.i : undefined;
+      return m && full !== undefined
+        ? { ...err, path: err.path.replace(m[0], `expectations[${full}]`) }
+        : err;
+    });
+  };
+}
+
 /** Seeds and passes the causal design's gate demands, as the eval gate does (AGENTS.md, eval gate 3). */
 export const ROBUST_SEEDS = [1, 2, 3, 4, 5];
 export const MIN_ROBUST_PASSES = 4;

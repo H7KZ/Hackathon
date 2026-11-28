@@ -62,6 +62,15 @@ export function fillStoryEntities(s: StoryRefs): StoryRefs["storyPoints"] {
   });
 }
 
+/** `<entity>.<field>: [values]` for every categorical entity field: the groups a story point can name. */
+export function categoryFields(entities: StoryRefs["entities"]): string[] {
+  return entities.flatMap((e) =>
+    Object.entries(e.fields).flatMap(([field, gen]) =>
+      gen.gen === "categorical" ? [`${e.name}.${field}: ${JSON.stringify(gen.values)}`] : [],
+    ),
+  );
+}
+
 export function checkStoryRefs(s: StoryRefs): CompileError[] {
   const errors: CompileError[] = [];
   const err = (path: string, message: string) => errors.push({ path, message });
@@ -123,13 +132,22 @@ export function checkStoryRefs(s: StoryRefs): CompileError[] {
       const ids = scopeOf.get(sp.id);
       const owner = ids?.map((id) => ENTITY_ID.exec(id)?.[1]).find(Boolean);
       const entity = s.entities.find((e) => e.idPrefix === owner);
-      const hint =
-        entity && ids
-          ? `e.g. {"name": "${entity.name}", "ids": ${JSON.stringify(ids)}} (the ids its curve is scoped to)`
-          : `{"name": <one of ${names}>, "ids": [the affected ids]}`;
+      if (entity && ids) {
+        err(
+          at,
+          `Story point "${sp.id}" drives a curve but names no entity, so a detective finding can never match it. Add "entity": e.g. {"name": "${entity.name}", "ids": ${JSON.stringify(ids)}} (the ids its curve is scoped to).`,
+        );
+        return;
+      }
+      // unscoped curve: the point may be about a group (a product category, a customer segment) rather
+      // than entity rows (user run: "sport shoes trend" oscillated between no entity and every supplier)
+      const groups = categoryFields(s.entities);
+      const segmentHint = groups.length
+        ? ` If it is about a group of records rather than specific rows (e.g. a product category or customer segment), add "segment": {"field": "<entity>.<field>", "values": [the affected values]} instead, using one of: ${groups.join("; ")}. Never name every row of an entity.`
+        : "";
       err(
         at,
-        `Story point "${sp.id}" drives a curve but names no entity, so a detective finding can never match it. Add "entity": ${hint}.`,
+        `Story point "${sp.id}" drives a curve but names neither an entity nor a segment, so a detective finding can never match it. Add "entity": {"name": <one of ${names}>, "ids": [the affected ids]}.${segmentHint}`,
       );
       return;
     }

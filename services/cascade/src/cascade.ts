@@ -24,7 +24,7 @@ import {
 import { Scenario } from "@s2d/schema/scenario";
 import type { CompileError } from "@s2d/schema/api";
 import { a5Detail } from "./a5_detail";
-import { seedRobust } from "./gate";
+import { onlyExpectations, seedRobust } from "./gate";
 import { checkCausalMap } from "./causal/map";
 import { finishCausal } from "./causal/assemble";
 import { scopeOverlay } from "./causal/curves";
@@ -45,6 +45,7 @@ import {
   formatFeedback,
   withSchemaRetry,
   type Attempt,
+  type RejectedAnswer,
   type Feedback,
   type Stage,
 } from "./loop";
@@ -61,6 +62,11 @@ export interface CascadeOptions {
   signal?: AbortSignal;
   /** Story gate for A5 (gate.ts `storyGate`): engine + expectations; failures go back to the agent. */
   verify?: (scenario: Scenario) => Promise<CompileError[]>;
+  /**
+   * Ids of the expectations the user kept (story editor "Ověřované hypotézy"); only those reach
+   * `verify`. The A5 prompt is unchanged, so the default (undefined = all) keeps its cache keys.
+   */
+  keepExpectations?: readonly string[];
   /**
    * "v1" (default): A1 company -> A2 model -> A3 influences -> A4 story -> A5 detail.
    * "causal": docs/cascade-design.md D1–D4 (typed causal map, 4a/4b with trace, curves and
@@ -158,8 +164,23 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
           `${JSON.stringify({ key, stage, feedback }, null, 2)}\n`,
         );
     };
+  // the last rejected answer of a step, so a retry after the step gave up continues from it
+  const lastRejected = (name: ArtifactName) => join(dir, `${name}.rejected-last.json`);
   const llm = (name: ArtifactName, check?: (value: unknown) => CompileError[]) =>
-    withSchemaRetry(opts.llm, name, { onEvent: opts.onEvent, signal: opts.signal, check });
+    withSchemaRetry(opts.llm, name, {
+      onEvent: opts.onEvent,
+      signal: opts.signal,
+      check,
+      resume: (key) => {
+        const file = lastRejected(name);
+        if (!existsSync(file)) return undefined;
+        const answer = JSON.parse(readFileSync(file, "utf8")) as RejectedAnswer;
+        return answer.key === key ? answer : undefined;
+      },
+      onRejected: (answer) => {
+        writeFileSync(lastRejected(name), `${JSON.stringify(answer, null, 2)}\n`);
+      },
+    });
   const company = await step("01_company", CompanySpec, () => a1Company(llm("01_company"), input));
   if (!shouldRun("02_model")) return { dir, company };
   const model = await step("02_model", DataModel, () =>
@@ -236,7 +257,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
       // Story gate failures (weak effect, drift) go back to 4b, which owns rates, counts and initial
       // values; map, overlay, curves and SQL stay fixed. Same idea as v1, where A5 gets them.
       // The code-derived story must also hold on >= 4/5 other seeds (live run 4: seed 42 was luck).
-      const verify = opts.verify && seedRobust(opts.verify);
+      const verify = opts.verify && seedRobust(onlyExpectations(opts.verify, opts.keepExpectations));
       for (let round = 0; ; round++) {
         const res = finishCausal({ input, runId: opts.runId, plan, overlay, story });
         const errors = res.ok ? ((await verify?.(res.scenario)) ?? []) : res.errors;
@@ -346,7 +367,7 @@ export async function runCascade(input: CascadeInput, opts: CascadeOptions) {
         signal: opts.signal,
         // seed 42 alone can be luck (causal, run 4); v1 demands >= 4/5 of seeds 1..5 too (run 5: all
         // four run-4 v1 scenarios already passed that, so it costs no extra attempt there)
-        verify: opts.verify && seedRobust(opts.verify),
+        verify: opts.verify && seedRobust(onlyExpectations(opts.verify, opts.keepExpectations)),
         // kept next to the artifacts so a failed A5 can be inspected, fixed by hand or resumed
         onRejected: rejected("05_scenario", key),
         ...(resume && {
