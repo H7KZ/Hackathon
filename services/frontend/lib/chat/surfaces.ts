@@ -544,7 +544,14 @@ export function datasetSurface(
         })),
       ];
   const tableNodes: ComponentNode[] = d.tables.flatMap((t, i) => [
-    { id: `tcard${String(i)}`, component: "Card", title: t.label, child: `table${String(i)}` },
+    // no Card around it: the table already looks like one
+    {
+      id: `tsec${String(i)}`,
+      component: "Column",
+      gap: "sm",
+      children: [`tname${String(i)}`, `table${String(i)}`],
+    },
+    { id: `tname${String(i)}`, component: "Text", variant: "label", text: t.label },
     {
       id: `table${String(i)}`,
       component: "Table",
@@ -620,7 +627,7 @@ export function datasetSurface(
         ],
         rows: path("/expectations"),
       },
-      { id: "tables", component: "Column", gap: "md", children: d.tables.map((_, i) => `tcard${String(i)}`) },
+      { id: "tables", component: "Column", gap: "xl", children: d.tables.map((_, i) => `tsec${String(i)}`) },
       ...tableNodes,
     ],
     {

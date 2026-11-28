@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useResolve } from "./context";
 import { Children, Node, str, type NodeProps } from "./tree";
 
-type Gap = "sm" | "md" | "lg";
+type Gap = "sm" | "md" | "lg" | "xl";
 const gapClass = (gap: unknown) => `gap-${(gap as Gap | undefined) ?? "md"}`;
 
 export function Column({ node }: NodeProps) {
