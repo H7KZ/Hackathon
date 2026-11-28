@@ -370,6 +370,20 @@ export function checkCurvesOnRoots(
   const flat = new Set((scenario.curves ?? []).filter((c) => c.segments.length === 0).map((c) => c.id));
   const incoming = new Map<string, string[]>();
   for (const e of influences.edges) incoming.set(e.to, [...(incoming.get(e.to) ?? []), e.from]);
+  /** Roots of the influence map reachable backwards from `nodes` (where a story curve may go instead). */
+  const rootsAbove = (nodes: string[]): string[] => {
+    const roots = new Set<string>();
+    const seen = new Set<string>();
+    const walk = (n: string) => {
+      if (seen.has(n)) return;
+      seen.add(n);
+      const up = incoming.get(n) ?? [];
+      if (up.length === 0) roots.add(n);
+      up.forEach(walk);
+    };
+    nodes.forEach(walk);
+    return [...roots];
+  };
   const chained = new Set(scenario.processes.filter((p) => p.type !== "arrival").map((p) => p.id));
   const errors: CompileError[] = [];
   for (const { curve, ref, path } of curveParamRefs(scenario)) {
@@ -383,7 +397,7 @@ export function checkCurvesOnRoots(
     if (from.length === 0) continue;
     errors.push({
       path,
-      message: `Curve "${curve}" drives ${ref}, which 03_influences explains by ${from.join(", ")}. Curves may drive only root parameters (no incoming edge); make ${ref} a constant so the effect emerges through the chain.`,
+      message: `Curve "${curve}" drives ${ref}, which 03_influences explains by ${from.join(", ")}. Curves may drive only root parameters (no incoming edge); make ${ref} a constant so the effect emerges through the chain, and move the curve to a root parameter upstream of it: ${rootsAbove(from).join(", ") || "a node of 03_influences with no incoming edge"}.`,
     });
   }
   return errors;

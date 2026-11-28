@@ -53,6 +53,18 @@ describe("curves only on roots of the map", () => {
     expect(errors[0]?.message).toMatch(/complaint_oos.*lost_sale/s);
   });
 
+  it("the message names the root parameters the curve can move to (live run 3: podpora deadlock)", () => {
+    const onDownstream = JSON.parse(
+      JSON.stringify(base).replace('"p":0.25', '"p":{"curve":"late_prob"}'),
+    ) as typeof base;
+    const roots = influences.edges
+      .map((e) => e.from)
+      .filter((f) => !influences.edges.some((e) => e.to === f));
+    const message = checkCurvesOnRoots(onDownstream, influences)[0]?.message ?? "";
+    expect(message).toMatch(/move the curve to a root parameter upstream/);
+    expect(roots.some((r) => message.includes(r))).toBe(true);
+  });
+
   it("a flat curve (no segments) on a downstream param is only a constant, not a story lever", () => {
     const flat = JSON.parse(
       JSON.stringify({
